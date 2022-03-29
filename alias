@@ -1,0 +1,25 @@
+# Universal aliases
+# lolcat
+command -v lolcat && LOL='| lolcat' || LOL=""
+
+alias dir="clear ; ls -lah $LOL"
+alias dev="cd ~/Developer ; ls -lah $LOL"
+alias docs="cd ~/Documents ; ls -lah $LOL"
+alias dot="cd ~/Developer/dotfiles ; dir"
+
+alias swag="echo swag swag $LOLCAT"
+
+alias zfig="vim ~/.zshrc"
+alias zfresh="source ~/.zshrc"
+
+alias c="clear"
+alias cls="clear"
+alias claer="clear"
+alias comms="ls /bin $LOL && ls /sbin $LOL"
+alias rm="rm -i"
+alias cp="cp -i"
+alias mv="mv -i"
+alias activate="source ./venv/bin/activate"
+
+# ssh configs
+alias pi3="ssh pi@192.168.50.93"

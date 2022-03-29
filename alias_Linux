@@ -1,0 +1,5 @@
+# Linux aliases
+
+alias up="sudo apt update -y && sudo apt upgrade -y && sudo apt autoremove -y"
+# env configs
+alias mkenv="/home/pi/Developer/make_venv.sh"
