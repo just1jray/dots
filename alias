@@ -1,6 +1,6 @@
 # Universal aliases
 # lolcat
-command -v lolcat && LOL='| lolcat' || LOL=""
+command -v lolcat &> /dev/null && LOL='| lolcat' || LOL=""
 
 alias dir="clear ; ls -lah $LOL"
 alias dev="cd ~/Developer ; dir"
