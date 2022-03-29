@@ -3,11 +3,12 @@
 command -v lolcat && LOL='| lolcat' || LOL=""
 
 alias dir="clear ; ls -lah $LOL"
-alias dev="cd ~/Developer ; ls -lah $LOL"
-alias docs="cd ~/Documents ; ls -lah $LOL"
-alias dot="cd ~/Developer/dotfiles ; dir"
+alias dev="cd ~/Developer ; dir"
+alias src="cd ~/Developer/src ; dir"
+alias docs="cd ~/Documents ; dir"
+alias dots="cd ~/Developer/dotfiles ; dir"
 
-alias swag="echo swag swag $LOLCAT"
+alias swag="echo swag swag $LOL"
 
 alias zfig="vim ~/.zshrc"
 alias zfresh="source ~/.zshrc"
