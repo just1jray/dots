@@ -1,4 +1,4 @@
 # Run on terminal startup
 
 clear
-command -v figlet && command -v lolcat && figlet -f slant 'Just 1 J. Ray' | lolcat
+command -v figlet &> /dev/null && command -v lolcat &> /dev/null && figlet -f slant 'Just 1 J. Ray' | lolcat
