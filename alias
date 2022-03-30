@@ -2,7 +2,7 @@
 # lolcat
 command -v lolcat &> /dev/null && LOL='| lolcat' || LOL=""
 
-alias dir="clear ; ls -lah --group-directories-first $LOL"
+alias dir="clear ; ls -lah $LOL"
 alias dev="cd ~/Developer ; dir"
 alias src="cd ~/Developer/src ; dir"
 alias docs="cd ~/Documents ; dir"

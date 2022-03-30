@@ -1,6 +1,5 @@
 # OSX aliases
 
-alias hijacki="say 'Hi Jacki'"
 alias watt="~/Developer/Scripts/wattsUp.sh"
 
 # work configs
