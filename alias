@@ -6,7 +6,7 @@ alias dir="clear ; ls -lah $LOL"
 alias dev="cd ~/Developer ; dir"
 alias src="cd ~/Developer/src ; dir"
 alias docs="cd ~/Documents ; dir"
-alias dots="cd ~/Developer/dotfiles ; dir"
+alias dots="cd ~/Developer/src/dots ; dir"
 
 alias swag="echo swag swag $LOL"
 
