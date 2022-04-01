@@ -1,0 +1,10 @@
+set spell
+set ruler
+set title
+set number
+set hlsearch
+set linebreak
+set autoindent
+set scrolloff=1
+set background=dark
+syntax enable
