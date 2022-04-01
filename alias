@@ -38,4 +38,7 @@ alias activate="source ./venv/bin/activate"
 alias swag="echo swag swag $LOL"
 
 # ssh
-alias pi3="ssh pi@192.168.50.93"
+alias \
+    pi3="ssh pi@192.168.50.93" \
+    labs="ssh pi@192.168.50.170" \
+    umbrel="ssh umbrel@192.168.50.65"
