@@ -3,6 +3,4 @@
 alias watt="~/Developer/Scripts/wattsUp.sh"
 
 # work configs
-alias cleanUp="~/Developer/Scripts/desktopCleanUp"
-alias term="~/Developer/Scripts/PearScripts/terminationFolders.sh"
-alias pscripts="cd ~/Developer/Scripts/PearScripts"
+# you guys have jobs?
