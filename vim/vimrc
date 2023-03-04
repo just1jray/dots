@@ -5,6 +5,9 @@ set number
 set hlsearch
 set linebreak
 set autoindent
+set expandtab
+set tabstop=2
+set shiftwidth=2
 set nocompatible
 set scrolloff=1
 set background=dark
