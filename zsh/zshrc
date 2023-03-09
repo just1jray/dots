@@ -1,0 +1,103 @@
+# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
+# Initialization code that may require console input (password prompts, [y/n]
+# confirmations, etc.) must go above this block; everything else may go below.
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+    source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+fi
+
+source ~/.config/zsh/plugins/powerlevel10k/powerlevel10k.zsh-theme
+
+# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
+[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+
+if [[ $(which nvim) ]]; then
+    export EDITOR=nvim
+else
+    export EDITOR=vim
+fi
+
+# plugins
+#TODO: Fix zsh-autocomplete for Raspberry Pi
+#source ~/.config/zsh/plugins/zsh-autocomplete/zsh-autocomplete.plugin.zsh
+source ~/.config/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.plugin.zsh
+source ~/.config/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.plugin.zsh
+
+# easy zsh mods
+alias zfig="vim ~/.zshrc"
+alias zfresh="source ~/.zshrc"
+
+# easy nav
+alias dir="clear; ls -lah"
+alias dev="cd ~/Developer; dir"
+alias src="cd ~/Developer/src; dir"
+alias dots="cd ~/Developer/src/dots; dir"
+
+# typo or type less
+alias c="clear"
+alias cls="clear"
+alias claer="clear"
+
+# mess up less and be more verbose
+alias rm="rm -iv"
+alias cp="cp -iv"
+alias mv="mv -iv"
+alias mkd="mkdir -pv"
+
+# what the heck is avaialble?
+alias comms="ls /bin && ls /sbin"
+
+# python stuff
+alias activate="source ./venv/bin/activate"
+
+mkvenv() {
+    DIR="$(pwd)"
+    [[ ! -d "$DIR/venv" ]] && python3 -m venv venv
+}
+
+## OS Specific
+
+if [[ `uname` == "Linux" ]]; then
+    #OS=$(uname)
+    path+=/home/pi/.local/bin
+
+    # Run updates
+    alias up="sudo apt update -y && sudo apt upgrade -y && sudo apt autoremove -y"
+fi
+
+if [[ `uname` == "Darwin" ]]; then
+    #OS="OSX"
+
+    # show or hide all files
+    show() { defaults write com.apple.Finder AppleShowAllFiles true; killall Finder }
+    hide() { defaults write com.apple.Finder AppleShowAllFiles false; killall Finder }
+    
+    # make man pages better
+    manp() { man -t "$@" | open -f -a "Preview" }
+    manx() { open x-man-page://$@ }
+
+    # Get charger details
+    power() {
+        # Get connected charger info
+        powerAdapter=`system_profiler SPPowerDataType | grep "Power Adapter" | awk '{print $2}'`
+        wattage=`system_profiler SPPowerDataType | grep "Wattage" | awk '{print $3}'`
+
+        # Show charger info if connected
+        if [[ -z $powerAdapter && -z $wattage ]]; then
+	          echo "No power adapter connected."
+        else
+	          [[ ! -z $powerAdapter ]] && echo $powerAdapter
+	          [[ ! -z $wattage ]] && echo "${wattage}W"
+        fi
+    }
+fi
+
+# hosts
+if [[ -f "$HOME/.config/zsh/hosts" ]]; then
+    source "$HOME/.config/zsh/hosts"
+fi
+
+# tmux
+#TODO: Fix tmux startup for Raspberry Pi
+#if command -v tmux &> /dev/null && [ -n "$PS1" ] && [[ ! "$TERM" =~ screen ]] && [[ ! "$TERM" =~ tmux ]] && [ -z "$TMUX" ]; then
+#    exec tmux new-session -A -s sesh
+#fi
