@@ -23,7 +23,7 @@ source ~/.config/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.plugin.zsh
 source ~/.config/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.plugin.zsh
 
 # easy zsh mods
-alias zfig="vim ~/.zshrc"
+alias zfig="nvim ~/.zshrc"
 alias zfresh="source ~/.zshrc"
 
 # easy nav
