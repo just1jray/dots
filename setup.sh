@@ -1,26 +1,23 @@
 #!/bin/sh
 
-#[[ `uname` == "Linux" ]] && OS=$(uname)
-#[[ `uname` == "Darwin" ]] && OS="OSX"
-
-[ -d "$HOME/.zsh/plugins" ] || mkdir -p "$HOME/.zsh/plugins"
+[ -d "$HOME/.config/zsh/plugins" ] || mkdir -p "$HOME/.config/zsh/plugins"
 [ -d "$HOME/Developer/src" ] || mkdir -p "$HOME/Developer/src"
 
-if [ ! -d "$HOME/.zsh/plugins/powerlevel10k" ]; then 
-  git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$HOME/.zsh/plugins/powerlevel10k"
-  #  echo 'source ~/.zsh/plugins/powerlevel10k/powerlevel10k.zsh-theme' >>~/.zshrc
+if [ ! -d "$HOME/.config/zsh/plugins/powerlevel10k" ]; then 
+    git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$HOME/.config/zsh/plugins/powerlevel10k"
+    echo 'source ~/.config/zsh/plugins/powerlevel10k/powerlevel10k.zsh-theme' >>~/.zshrc
 fi
 
-if [ ! -d "$HOME/.zsh/plugins/zsh-autocomplete" ]; then
-  git clone --depth 1 -- https://github.com/marlonrichert/zsh-autocomplete.git "$HOME/.zsh/plugins/zsh-autocomplete"
+if [ ! -d "$HOME/.config/zsh/plugins/zsh-autocomplete" ]; then
+    git clone --depth 1 -- https://github.com/marlonrichert/zsh-autocomplete.git "$HOME/.config/zsh/plugins/zsh-autocomplete"
 fi
 
-if [ ! -d "$HOME/.zsh/plugins/zsh-autosuggestions" ]; then
-  git clone --depth 1 -- https://github.com/zsh-users/zsh-autosuggestions.git "$HOME/.zsh/plugins/zsh-autosuggestions"
+if [ ! -d "$HOME/.config/zsh/plugins/zsh-autosuggestions" ]; then
+    git clone --depth 1 -- https://github.com/zsh-users/zsh-autosuggestions.git "$HOME/.config/zsh/plugins/zsh-autosuggestions"
 fi
 
-if [ ! -d "$HOME/.zsh/plugins/zsh-syntax-highlighting" ]; then
-  git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$HOME/.zsh/plugins/zsh-syntax-highlighting"
+if [ ! -d "$HOME/.config/zsh/plugins/zsh-syntax-highlighting" ]; then
+    git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$HOME/.config/zsh/plugins/zsh-syntax-highlighting"
 fi
 
 #grep "dots/alias" ~/.zshrc &> /dev/null || echo "source $HOME/Developer/src/dots/alias" >> ~/.zshrc

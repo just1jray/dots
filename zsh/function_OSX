@@ -1,6 +1,0 @@
-# OSX functions
-
-show() { defaults write com.apple.Finder AppleShowAllFiles true; killall Finder }
-hide() { defaults write com.apple.Finder AppleShowAllFiles false; killall Finder }
-manp() { man -t "$@" | open -f -a "Preview" }
-manx() { open x-man-page://$@ }
