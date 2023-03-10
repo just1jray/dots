@@ -39,11 +39,18 @@ if [ -f "$HOME/.tmux.conf" ]; then
     mv "$HOME/.tmux.conf" "$HOME/.tmux.conf.old_$(date +%F_%R)"
 fi
 
+if [ -f "$HOME/.config/zsh/hosts" ]; then
+    mv "$HOME/.config/zsh/hosts" "$HOME/.config/zsh/hosts.old_$(date +%F_%R)"
+fi
+
 # Copy config files from working directory to destination
 cp "$(pwd)/zsh/zshrc" "$HOME/.zshrc"
 cp "$(pwd)/vim/vimrc" "$HOME/.vimrc"
 cp "$(pwd)/nvim/init.vim" "$HOME/.config/nvim/init.vim"
 cp "$(pwd)/tmux/tmux.conf" "$HOME/.tmux.conf"
+if [ -f "$(pwd)/zsh/hosts" ]; then
+    cp "$(pwd)/zsh/hosts" "$HOME/.config/zsh/hosts"
+fi
 
 #source ~/.zshrc
 
