@@ -16,23 +16,26 @@ else
     export EDITOR=vim
 fi
 
-# plugins
-#TODO: Fix zsh-autocomplete for Raspberry Pi
-#source ~/.config/zsh/plugins/zsh-autocomplete/zsh-autocomplete.plugin.zsh
-source ~/.config/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.plugin.zsh
-source ~/.config/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.plugin.zsh
-
 # easy zsh mods
 alias zfig="nvim ~/.zshrc"
 alias zfresh="source ~/.zshrc"
 
 # easy nav
-alias dir="clear; ls -lah"
 alias dev="cd ~/Developer; dir"
 alias src="cd ~/Developer/src; dir"
 alias dots="cd ~/Developer/src/dots; dir"
+alias dl="cd ~/Downloads"
+alias dt="cd ~/Desktop"
+alias ..="cd .."
+alias ...="cd ../.."
+alias ....="cd ../../.."
+alias .....="cd ../../../.."
+alias -- -="cd -"
 
 # typo or type less
+alias dir="clear; ls -lah"
+alias ll="ls -lah"
+alias la="ls -la"
 alias c="clear"
 alias cls="clear"
 alias claer="clear"
@@ -53,6 +56,15 @@ mkvenv() {
     DIR="$(pwd)"
     [[ ! -d "$DIR/venv" ]] && python3 -m venv venv
 }
+
+# hosts
+if [[ -f "$HOME/.config/zsh/hosts" ]]; then
+    source "$HOME/.config/zsh/hosts"
+fi
+
+# plugins
+source ~/.config/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.plugin.zsh
+source ~/.config/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.plugin.zsh
 
 ## OS Specific
 
@@ -89,15 +101,13 @@ if [[ `uname` == "Darwin" ]]; then
 	          [[ ! -z $wattage ]] && echo "${wattage}W"
         fi
     }
-fi
 
-# hosts
-if [[ -f "$HOME/.config/zsh/hosts" ]]; then
-    source "$HOME/.config/zsh/hosts"
-fi
+    #TODO: Fix zsh-autocomplete for Raspberry Pi
+    source ~/.config/zsh/plugins/zsh-autocomplete/zsh-autocomplete.plugin.zsh
 
-# tmux
-#TODO: Fix tmux startup for Raspberry Pi
-#if command -v tmux &> /dev/null && [ -n "$PS1" ] && [[ ! "$TERM" =~ screen ]] && [[ ! "$TERM" =~ tmux ]] && [ -z "$TMUX" ]; then
-#    exec tmux new-session -A -s sesh
-#fi
+    # tmux
+    #TODO: Fix tmux startup for Raspberry Pi
+    if command -v tmux &> /dev/null && [ -n "$PS1" ] && [[ ! "$TERM" =~ screen ]] && [[ ! "$TERM" =~ tmux ]] && [ -z "$TMUX" ]; then
+       exec tmux new-session -A -s sesh
+    fi
+fi
