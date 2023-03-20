@@ -12,6 +12,7 @@ source ~/.config/zsh/plugins/powerlevel10k/powerlevel10k.zsh-theme
 
 if [[ $(which nvim) ]]; then
     export EDITOR=nvim
+    alias vim="nvim"
 else
     export EDITOR=vim
 fi
