@@ -3,6 +3,7 @@
 # Check for directories or create them
 [ -d "$HOME/.config/zsh/plugins" ] || mkdir -p "$HOME/.config/zsh/plugins"
 [ -d "$HOME/Developer/src" ] || mkdir -p "$HOME/Developer/src"
+[ -d "$HOME/.config/nvim" ] || mkdir -p "$HOME/.config/nvim"
 
 # Install plugins
 if [ ! -d "$HOME/.config/zsh/plugins/powerlevel10k" ]; then 
@@ -40,7 +41,6 @@ backup_config_file "$HOME/.config/zsh/hosts"
 # Link config files from working directory to destination
 ln -sv "$(pwd)/zsh/zshrc" "$HOME/.zshrc"
 ln -sv "$(pwd)/vim/vimrc" "$HOME/.vimrc"
-[ -d "$HOME/.config/nvim" ] || mkdir -p "$HOME/.config/nvim"
 ln -sv "$(pwd)/nvim/init.vim" "$HOME/.config/nvim/init.vim"
 ln -sv "$(pwd)/tmux/tmux.conf" "$HOME/.tmux.conf"
 [ -f "$(pwd)/zsh/hosts" ] && ln -sv "$(pwd)/zsh/hosts" "$HOME/.config/zsh/hosts"
