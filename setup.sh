@@ -43,7 +43,6 @@ ln -sv "$(pwd)/vim/vimrc" "$HOME/.vimrc"
 [ -d "$HOME/.config/nvim" ] || mkdir -p "$HOME/.config/nvim"
 ln -sv "$(pwd)/nvim/init.vim" "$HOME/.config/nvim/init.vim"
 ln -sv "$(pwd)/tmux/tmux.conf" "$HOME/.tmux.conf"
-[ -d "$HOME/.config/zsh" ] || mkdir -p "$HOME/.config/zsh"
 [ -f "$(pwd)/zsh/hosts" ] && ln -sv "$(pwd)/zsh/hosts" "$HOME/.config/zsh/hosts"
 
 #source ~/.zshrc
