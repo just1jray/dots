@@ -23,41 +23,25 @@ if [ ! -d "$HOME/.config/zsh/plugins/zsh-syntax-highlighting" ]; then
 fi
 
 # Backup existing config files if they exist
-if [ -f "$HOME/.zshrc" ]; then
-    mv "$HOME/.zshrc" "$HOME/.zshrc.old_$(date +%F_%R)"
-    echo "Backup file: $HOME/.zshrc -> $HOME/.zshrc.old_$(date +%F_%R)"
-fi
+backup_config_file() {
+    if [ -f "$1" ]; then
+        mv "$1" "$1.old_$(date +%F_%R)"
+        echo "Backup config file: $1 -> $1.old_$(date +%F_%R)"
+    fi
+}
 
-if [ -f "$HOME/.vimrc" ]; then
-    mv "$HOME/.vimrc" "$HOME/.vimrc.old_$(date +%F_%R)"
-    echo "Backup file: $HOME/.vimrc -> $HOME/.vimrc.old_$(date +%F_%R)"
-fi
-
-if [ -f "$HOME/.config/nvim/init.vim" ]; then
-    mv "$HOME/.config/nvim/init.vim" "$HOME/.config/nvim/init.vim.old_$(date +%F_%R)"
-    echo "Backup file: $HOME/.config/nvim/init.vim -> $HOME/.config/nvim/init.vim.old_$(date +%F_%R)"
-fi
-
-if [ -f "$HOME/.tmux.conf" ]; then
-    mv "$HOME/.tmux.conf" "$HOME/.tmux.conf.old_$(date +%F_%R)"
-    echo "Backup file: $HOME/.tmux.conf -> $HOME/.tmux.conf.old_$(date +%F_%R)"
-fi
-
-if [ -f "$HOME/.config/zsh/hosts" ]; then
-    mv "$HOME/.config/zsh/hosts" "$HOME/.config/zsh/hosts.old_$(date +%F_%R)"
-    echo "Backup file: $HOME/.config/zsh/hosts -> $HOME/.config/zsh/hosts.old_$(date +%F_%R)"
-fi
+backup_config_file "$HOME/.zshrc"
+backup_config_file "$HOME/.vimrc"
+backup_config_file "$HOME/.config/nvim/init.vim"
+backup_config_file "$HOME/.tmux.conf"
+backup_config_file "$HOME/.config/zsh/hosts"
 
 # Link config files from working directory to destination
 ln -sv "$(pwd)/zsh/zshrc" "$HOME/.zshrc"
-
 ln -sv "$(pwd)/vim/vimrc" "$HOME/.vimrc"
-
-[ d "$HOME/.config/nvim" ] || mkdir -p "$HOME/.config/nvim"
+[ -d "$HOME/.config/nvim" ] || mkdir -p "$HOME/.config/nvim"
 ln -sv "$(pwd)/nvim/init.vim" "$HOME/.config/nvim/init.vim"
-
 ln -sv "$(pwd)/tmux/tmux.conf" "$HOME/.tmux.conf"
-
 [ -d "$HOME/.config/zsh" ] || mkdir -p "$HOME/.config/zsh"
 [ -f "$(pwd)/zsh/hosts" ] && ln -sv "$(pwd)/zsh/hosts" "$HOME/.config/zsh/hosts"
 
