@@ -24,9 +24,10 @@ fi
 
 # Backup existing config files if they exist
 backup_config_file() {
-    if [ -f "$1" ]; then
-        mv "$1" "$1.old_$(date +%F_%R)"
-        echo "Backup config file: $1 -> $1.old_$(date +%F_%R)"
+    if [ -f "$1" ] && [ ! -L "$1" ]; then
+        FILE="$1.old_$(date +%F_%R)"
+        mv "$1" $FILE
+        echo "Backup config file: $1 -> $FILE"
     fi
 }
 
