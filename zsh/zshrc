@@ -21,40 +21,8 @@ export EDITOR=$(which nvim >/dev/null && echo "nvim" || echo "vim")
 [[ $EDITOR == "nvim" ]] && alias vim="nvim"
 [[ $(which codium) ]] && alias code="codium"
 
-# ZSH Configuration
-alias zfig="$EDITOR ~/.zshrc"
-alias zfresh="source ~/.zshrc"
-
-# Navigation
-alias dev="cd ~/Developer && ls -lah --color=auto"
-alias src="cd ~/Developer/src && ls -lah --color=auto"
-alias dots="cd ~/Developer/src/dots && ls -lah --color=auto"
-alias dl="cd ~/Downloads"
-alias dt="cd ~/Desktop"
-alias ..="cd .."
-alias ...="cd ../.."
-alias ....="cd ../../.."
-alias .....="cd ../../../.."
-alias -- -="cd -"
-
-# Common Commands
-alias ls="ls --color=auto"
-alias dir="ls -lah --color=auto"
-alias ll="ls -lah --color=auto"
-alias la="ls -la --color=auto"
-alias c="clear"
-alias cls="clear"
-alias claer="clear"
-
-# Safety Aliases
-alias rm="rm -iv"
-alias cp="cp -iv"
-alias mv="mv -iv"
-alias mkdir="mkdir -pv"
-
-# Python Virtual Environment
-alias activate="source ./venv/bin/activate"
-mkvenv() { [[ ! -d "./venv" ]] && python -m venv venv; }
+# Load Custom Aliases
+source ~/.config/zsh/aliases
 
 # Load Custom Host Configurations
 [[ -f "$HOME/.config/zsh/hosts" ]] && source "$HOME/.config/zsh/hosts" && alias hosts="cat $HOME/.config/zsh/hosts"
@@ -79,35 +47,9 @@ fi
 # OS Specific Configurations
 if [[ $(uname) == "Linux" ]]; then
     path+=/home/pi/.local/bin
-
-    # Run updates
-    alias up="sudo apt update -y && sudo apt upgrade -y && sudo apt autoremove -y"
 fi
 
 if [[ $(uname) == "Darwin" ]]; then
-    # File visibility
-    show() { defaults write com.apple.Finder AppleShowAllFiles true; killall Finder; }
-    hide() { defaults write com.apple.Finder AppleShowAllFiles false; killall Finder; }
-    
-    # Enhanced man pages
-    manp() { man -t "$@" | open -f -a "Preview"; }
-    manx() { open x-man-page://$@; }
-
-    # Power management
-    power() {
-        # Get connected charger info
-        powerAdapter=$(system_profiler SPPowerDataType | grep "Power Adapter" | awk '{print $2}')
-        wattage=$(system_profiler SPPowerDataType | grep "Wattage" | awk '{print $3}')
-
-        # Show charger info if connected
-        if [[ -z $powerAdapter && -z $wattage ]]; then
-            echo "No power adapter connected."
-        else
-            [[ -n $powerAdapter ]] && echo $powerAdapter
-            [[ -n $wattage ]] && echo "${wattage}W"
-        fi
-    }
-    
     # Docker Desktop
     if [[ $(which docker) ]]; then
         # The following lines have been added by Docker Desktop to enable Docker CLI completions.
@@ -123,10 +65,6 @@ fi
 
 # TMUX Session Management
 if command -v tmux &> /dev/null; then
-    # Create alias for manual TMUX start in IDEs
-    alias sesh="tmux new-session -A -s sesh"
-    alias t="tmux new-session -A -s sesh"
-    
     # Auto-start TMUX only in regular terminal
     # This function will be called after zsh initialization is complete
     _start_tmux_after_init() {
