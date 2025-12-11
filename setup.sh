@@ -23,10 +23,11 @@ print_usage() {
     echo -e "${BOLD}Usage:${NC} $0 [options]"
     echo
     echo "Options:"
-    echo "  -h, --help     Show this help message"
-    echo "  -f, --force    Force overwrite of existing config files without backup"
-    echo "  -n, --dry-run  Show what would be done without making changes"
+    echo "  -h, --help          Show this help message"
+    echo "  -f, --force         Force overwrite of existing config files without backup"
+    echo "  -n, --dry-run       Show what would be done without making changes"
     echo "  -s, --skip-plugins  Skip plugin installation"
+    echo "  -c, --check-nvchad  Check NVChad installation status and exit"
     echo
     echo "This script sets up dotfiles for zsh, vim, nvim, and tmux."
     echo "It creates necessary directories, installs plugins, and symlinks config files."
@@ -36,6 +37,7 @@ print_usage() {
 FORCE=false
 DRY_RUN=false
 SKIP_PLUGINS=false
+CHECK_NVCHAD_ONLY=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -53,6 +55,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         -s|--skip-plugins)
             SKIP_PLUGINS=true
+            shift
+            ;;
+        -c|--check-nvchad)
+            CHECK_NVCHAD_ONLY=true
             shift
             ;;
         *)
@@ -322,6 +328,53 @@ link_config_files() {
     fi
 }
 
+# Check NVChad installation
+check_nvchad() {
+    echo
+    log_info "Checking NVChad installation..."
+
+    # Check if nvim config symlink exists
+    if [ -L "$HOME/.config/nvim" ]; then
+        local target=$(readlink "$HOME/.config/nvim")
+        log_success "NVChad config symlinked: $HOME/.config/nvim -> $target"
+    elif [ -d "$HOME/.config/nvim" ]; then
+        log_warning "~/.config/nvim exists but is not a symlink"
+    else
+        log_error "~/.config/nvim not found"
+        return 1
+    fi
+
+    # Check if init.lua exists
+    if [ -f "$HOME/.config/nvim/init.lua" ]; then
+        log_success "init.lua found"
+    else
+        log_error "init.lua not found in nvim config"
+        return 1
+    fi
+
+    # Check if lazy.nvim is installed
+    if [ -d "$HOME/.local/share/nvim/lazy/lazy.nvim" ]; then
+        log_success "lazy.nvim plugin manager installed"
+    else
+        log_warning "lazy.nvim not installed (will be installed on first nvim launch)"
+    fi
+
+    # Check if NVChad is installed
+    if [ -d "$HOME/.local/share/nvim/lazy/NvChad" ]; then
+        log_success "NVChad base plugin installed"
+    else
+        log_warning "NVChad base plugin not installed (will be installed on first nvim launch)"
+    fi
+
+    # Check neovim version
+    if command_exists nvim; then
+        local nvim_version=$(nvim --version | head -n1)
+        log_info "Neovim version: $nvim_version"
+    fi
+
+    echo
+}
+
 # Install NVChad plugins
 install_nvchad() {
     if [ "$SKIP_PLUGINS" = true ]; then
@@ -339,7 +392,7 @@ install_nvchad() {
         return
     fi
 
-    log_info "Installing NVChad plugins..."
+    log_info "Installing NVChad plugins (this may take a minute)..."
 
     if [ "$DRY_RUN" = true ]; then
         log_info "Would install NVChad plugins"
@@ -347,29 +400,41 @@ install_nvchad() {
     fi
 
     # Run nvim headlessly to install plugins
-    if nvim --headless "+Lazy! sync" +qa 2>/dev/null; then
+    local install_output=$(mktemp)
+    if nvim --headless "+Lazy! sync" +qa > "$install_output" 2>&1; then
         log_success "NVChad plugins installed successfully"
     else
-        log_warning "NVChad plugin installation completed (check for errors on first nvim launch)"
+        log_warning "NVChad plugin installation may have errors. Output:"
+        cat "$install_output"
     fi
+    rm -f "$install_output"
 }
 
 # Main function
 main() {
+    # If check-nvchad flag is set, only run the check
+    if [ "$CHECK_NVCHAD_ONLY" = true ]; then
+        echo -e "${BOLD}NVChad Status Check${NC}"
+        echo "===================="
+        check_nvchad
+        exit 0
+    fi
+
     echo -e "${BOLD}Dotfiles Setup${NC}"
     echo "===================="
     echo
-    
+
     if [ "$DRY_RUN" = true ]; then
         log_warning "Running in dry-run mode. No changes will be made."
         echo
     fi
-    
+
     check_requirements
     create_directories
     install_plugins
     link_config_files
     install_nvchad
+    check_nvchad
 
     echo
     log_success "Setup completed successfully!"
