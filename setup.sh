@@ -234,10 +234,11 @@ install_tmux_plugins() {
     fi
 }
 
-# Backup existing config file
+# Backup existing config file or directory
 backup_config_file() {
     local file="$1"
-    
+
+    # Handle regular files
     if [ -f "$file" ] && [ ! -L "$file" ]; then
         if [ "$FORCE" = true ]; then
             if [ "$DRY_RUN" = true ]; then
@@ -255,6 +256,25 @@ backup_config_file() {
                 log_success "Backed up file: $file → $backup_file"
             fi
         fi
+    # Handle directories (not symlinks)
+    elif [ -d "$file" ] && [ ! -L "$file" ]; then
+        if [ "$FORCE" = true ]; then
+            if [ "$DRY_RUN" = true ]; then
+                log_info "Would remove existing directory without backup: $file"
+            else
+                rm -rf "$file"
+                log_warning "Removed existing directory without backup: $file"
+            fi
+        else
+            local backup_dir="${file}.backup_$(date +%F_%H-%M-%S)"
+            if [ "$DRY_RUN" = true ]; then
+                log_info "Would backup directory: $file → $backup_dir"
+            else
+                mv "$file" "$backup_dir"
+                log_success "Backed up directory: $file → $backup_dir"
+            fi
+        fi
+    # Handle symlinks
     elif [ -L "$file" ]; then
         if [ "$DRY_RUN" = true ]; then
             log_info "Would remove existing symlink: $file"
