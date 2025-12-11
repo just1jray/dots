@@ -305,7 +305,12 @@ link_config_files() {
         "nvim/init.vim|$NVIM_DIR/init.vim"
         "tmux/tmux.conf|$HOME/.tmux.conf"
     )
-    
+
+    # Add aliases file if it exists
+    if [ -f "$(pwd)/zsh/aliases" ]; then
+        config_files+=("zsh/aliases|$HOME/.config/zsh/aliases")
+    fi
+
     # Add hosts file if it exists
     if [ -f "$(pwd)/zsh/hosts" ]; then
         config_files+=("zsh/hosts|$HOME/.config/zsh/hosts")
