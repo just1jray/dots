@@ -322,6 +322,38 @@ link_config_files() {
     fi
 }
 
+# Install NVChad plugins
+install_nvchad() {
+    if [ "$SKIP_PLUGINS" = true ]; then
+        log_info "Skipping NVChad plugin installation as requested."
+        return
+    fi
+
+    if ! command_exists nvim; then
+        log_warning "Neovim not found. Skipping NVChad plugin installation."
+        return
+    fi
+
+    if [ ! -d "$HOME/.config/nvim" ]; then
+        log_warning "NVChad config not found. Skipping plugin installation."
+        return
+    fi
+
+    log_info "Installing NVChad plugins..."
+
+    if [ "$DRY_RUN" = true ]; then
+        log_info "Would install NVChad plugins"
+        return
+    fi
+
+    # Run nvim headlessly to install plugins
+    if nvim --headless "+Lazy! sync" +qa 2>/dev/null; then
+        log_success "NVChad plugins installed successfully"
+    else
+        log_warning "NVChad plugin installation completed (check for errors on first nvim launch)"
+    fi
+}
+
 # Main function
 main() {
     echo -e "${BOLD}Dotfiles Setup${NC}"
@@ -337,12 +369,12 @@ main() {
     create_directories
     install_plugins
     link_config_files
-    
+    install_nvchad
+
     echo
     log_success "Setup completed successfully!"
     log_info "You may need to restart your shell or run 'source ~/.zshrc' to apply changes."
     log_info "Zinit will automatically install ZSH plugins on first shell launch."
-    log_info "NVChad will install plugins on first nvim launch (be patient, it may take a minute)."
     log_info "To activate tmux plugins, start tmux and press prefix + I (capital I)."
 }
 
