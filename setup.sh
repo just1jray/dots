@@ -14,8 +14,6 @@ NC='\033[0m' # No Color
 
 # Configuration
 ZSH_PLUGINS_DIR="$HOME/.config/zsh/plugins"
-NVIM_DIR="$HOME/.config/nvim"
-NVIM_THEMES_DIR="$NVIM_DIR/pack/themes/start"
 DEV_DIR="$HOME/Developer/src"
 TMUX_PLUGINS_DIR="$HOME/.tmux/plugins"
 TMUX_PLUGIN_RESURRECT_DIR="$HOME/.tmux/plugins/resurrect"
@@ -121,16 +119,14 @@ check_requirements() {
 # Create necessary directories
 create_directories() {
     log_info "Creating necessary directories..."
-    
+
     local directories=(
         "$ZSH_PLUGINS_DIR"
         "$DEV_DIR"
-        "$NVIM_DIR"
-        "$NVIM_THEMES_DIR"
         "$TMUX_PLUGINS_DIR"
         "$TMUX_PLUGIN_RESURRECT_DIR"
     )
-    
+
     for dir in "${directories[@]}"; do
         if [ ! -d "$dir" ]; then
             if [ "$DRY_RUN" = true ]; then
@@ -151,47 +147,15 @@ install_plugins() {
         log_info "Skipping plugin installation as requested."
         return
     fi
-    
+
     log_info "Installing plugins..."
-    
-    # Define ZSH and Neovim plugins to install
-    local plugins=(
-        "https://github.com/romkatv/powerlevel10k.git|$ZSH_PLUGINS_DIR/powerlevel10k"
-        "https://github.com/marlonrichert/zsh-autocomplete.git|$ZSH_PLUGINS_DIR/zsh-autocomplete"
-        "https://github.com/zsh-users/zsh-autosuggestions.git|$ZSH_PLUGINS_DIR/zsh-autosuggestions"
-        "https://github.com/zsh-users/zsh-syntax-highlighting.git|$ZSH_PLUGINS_DIR/zsh-syntax-highlighting"
-        "https://github.com/folke/tokyonight.nvim.git|$NVIM_THEMES_DIR/tokyonight.nvim"
-    )
-    
-    for plugin in "${plugins[@]}"; do
-        IFS='|' read -r repo_url install_dir <<< "$plugin"
-        plugin_name=$(basename "$install_dir")
-        
-        if [ ! -d "$install_dir" ]; then
-            if [ "$DRY_RUN" = true ]; then
-                log_info "Would install plugin: $plugin_name"
-            else
-                log_info "Installing plugin: $plugin_name"
-                if git clone --depth=1 "$repo_url" "$install_dir"; then
-                    log_success "Installed plugin: $plugin_name"
-                    
-                    # Special case for powerlevel10k
-                    if [[ "$plugin_name" == "powerlevel10k" ]]; then
-                        # Check if the line already exists in .zshrc
-                        if ! grep -q "source ~/.config/zsh/plugins/powerlevel10k/powerlevel10k.zsh-theme" "$HOME/.zshrc" 2>/dev/null; then
-                            log_info "Adding powerlevel10k to .zshrc"
-                            echo 'source ~/.config/zsh/plugins/powerlevel10k/powerlevel10k.zsh-theme' >> "$HOME/.zshrc"
-                        fi
-                    fi
-                else
-                    log_error "Failed to install plugin: $plugin_name"
-                fi
-            fi
-        else
-            log_info "Plugin already installed: $plugin_name"
-        fi
-    done
-    
+
+    # Note: ZSH plugins are now managed by zinit and will be installed automatically
+    # Note: Neovim is now managed by NVChad and will be configured on first launch
+
+    log_info "ZSH plugins will be automatically installed by zinit on first shell launch"
+    log_info "NVChad will be installed and configured for Neovim on first nvim launch"
+
     # Install Tmux Plugin Manager and plugins
     install_tmux_plugins
 }
@@ -298,11 +262,10 @@ backup_config_file() {
 # Link config files
 link_config_files() {
     log_info "Linking configuration files..."
-    
+
     local config_files=(
         "zsh/zshrc|$HOME/.zshrc"
         "vim/vimrc|$HOME/.vimrc"
-        "nvim/init.vim|$NVIM_DIR/init.vim"
         "tmux/tmux.conf|$HOME/.tmux.conf"
     )
 
@@ -315,18 +278,18 @@ link_config_files() {
     if [ -f "$(pwd)/zsh/hosts" ]; then
         config_files+=("zsh/hosts|$HOME/.config/zsh/hosts")
     fi
-    
+
     for config in "${config_files[@]}"; do
         IFS='|' read -r source_file target_file <<< "$config"
         source_path="$(pwd)/$source_file"
-        
+
         if [ ! -f "$source_path" ]; then
             log_warning "Source file does not exist: $source_path"
             continue
         fi
-        
+
         backup_config_file "$target_file"
-        
+
         if [ "$DRY_RUN" = true ]; then
             log_info "Would link file: $source_path → $target_file"
         else
@@ -337,6 +300,26 @@ link_config_files() {
             fi
         fi
     done
+
+    # Link NVChad config directory
+    local nvim_source="$(pwd)/nvim"
+    local nvim_target="$HOME/.config/nvim"
+
+    if [ -d "$nvim_source" ]; then
+        backup_config_file "$nvim_target"
+
+        if [ "$DRY_RUN" = true ]; then
+            log_info "Would link directory: $nvim_source → $nvim_target"
+        else
+            if ln -sf "$nvim_source" "$nvim_target"; then
+                log_success "Linked NVChad config: $nvim_source → $nvim_target"
+            else
+                log_error "Failed to link NVChad config: $nvim_source → $nvim_target"
+            fi
+        fi
+    else
+        log_warning "NVChad config directory does not exist: $nvim_source"
+    fi
 }
 
 # Main function
@@ -358,6 +341,8 @@ main() {
     echo
     log_success "Setup completed successfully!"
     log_info "You may need to restart your shell or run 'source ~/.zshrc' to apply changes."
+    log_info "Zinit will automatically install ZSH plugins on first shell launch."
+    log_info "NVChad will install plugins on first nvim launch (be patient, it may take a minute)."
     log_info "To activate tmux plugins, start tmux and press prefix + I (capital I)."
 }
 
