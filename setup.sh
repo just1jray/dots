@@ -245,12 +245,22 @@ install_tmux_plugins() {
             log_info "Tmux plugin already installed: $plugin_name"
         fi
     done
-    
+
+    # Install all plugins defined in tmux.conf via TPM
+    if [ "$DRY_RUN" = false ] && [ -f "$TMUX_PLUGINS_DIR/tpm/bin/install_plugins" ]; then
+        log_info "Installing tmux plugins via TPM..."
+        if "$TMUX_PLUGINS_DIR/tpm/bin/install_plugins" > /dev/null 2>&1; then
+            log_success "Tmux plugins installed successfully"
+        else
+            log_warning "TPM plugin installation completed with some warnings"
+        fi
+    fi
+
     # Provide instructions for installing plugins via tpm
     if [ "$DRY_RUN" = false ]; then
-        log_info "Tmux plugins installed. To activate them:"
-        log_info "1. Start tmux"
-        log_info "2. Press prefix + I (capital I) to install plugins"
+        log_info "Tmux plugins installed. If you add new plugins to tmux.conf:"
+        log_info "Run: ~/.tmux/plugins/tpm/bin/install_plugins"
+        log_info "Or press prefix + I (capital I) in a tmux session"
     fi
 }
 
