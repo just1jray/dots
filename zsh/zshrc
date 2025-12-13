@@ -32,16 +32,25 @@ zinit light romkatv/powerlevel10k
 #zinit light catppuccin/powerlevel10k
 
 # Environment Setup
-export EDITOR=$(which nvim >/dev/null && echo "nvim" || echo "vim")
+export LANG=en_US.UTF-8
+export LC_ALL=en_US.UTF-8
+export EDITOR=$(command -v nvim >/dev/null && echo "nvim" || echo "vim")
 [[ $EDITOR == "nvim" ]] && alias vim="nvim"
-[[ $(which codium) ]] && alias code="codium"
+command -v codium &> /dev/null && alias code="codium"
+
+# Add local bin to path
+path+=$HOME/.local/bin
 
 # Load Custom Aliases
 source ~/.config/zsh/aliases
 
+# Allow aliases to work with sudo
+alias sudo='sudo '
+
 # Keybindings
 bindkey '^p' history-search-backward
 bindkey '^n' history-search-forward
+bindkey '^\[w' kill-region
 
 # History
 HISTSIZE=5000
@@ -52,13 +61,15 @@ setopt appendhistory
 setopt sharehistory
 setopt hist_ignore_space
 setopt hist_ignore_all_dups
-setopt hist_save_no_dups
 setopt hist_ignore_dups
+setopt hist_save_no_dups
 setopt hist_find_no_dups
+setopt auto_cd
 
 # Completion styling
 zstyle ':completion:*' matcher-list 'm:{a-z}={A-Za-z}'
 zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
+zstyle ':completion:*' menu no
 
 # Load Custom Host Configurations
 [[ -f "$HOME/.config/zsh/hosts" ]] && source "$HOME/.config/zsh/hosts" && alias hosts="cat $HOME/.config/zsh/hosts"
@@ -72,6 +83,39 @@ zinit wait lucid light-mode for \
     blockf atpull'zinit creinstall -q .' \
         zsh-users/zsh-completions
 
+# Replay compdefs for better completion
+zinit cdreplay -q
+
+# Platform-specific configurations
+if [[ $(uname) == "Darwin" ]]; then
+    [[ -f "$HOME/.config/zsh/profile-macos" ]] && source "$HOME/.config/zsh/profile-macos"
+elif [[ $(uname) == "Linux" ]]; then
+    [[ -f "$HOME/.config/zsh/profile-linux" ]] && source "$HOME/.config/zsh/profile-linux"
+fi
+
+# fzf
+if command -v fzf &> /dev/null; then
+    eval "$(fzf --zsh)"
+    zinit light Aloxaf/fzf-tab
+    zstyle ':fzf-tab:complete:cd:*' fzf-preview 'ls --color $realpath'
+fi
+
+# zoxide
+if command -v zoxide &> /dev/null; then
+    eval "$(zoxide init --cmd cd zsh)"
+    zstyle ':fzf-tab:complete:__zoxide_z:*' fzf-preview 'ls --color $realpath'
+fi
+
+# Add in snippets
+zinit snippet OMZL::git.zsh
+zinit snippet OMZP::git
+zinit snippet OMZP::sudo
+zinit snippet OMZP::docker
+zinit snippet OMZP::aws
+zinit snippet OMZP::kubectl
+zinit snippet OMZP::kubectx
+zinit snippet OMZP::command-not-found
+
 # Development Environment Managers
 if command -v pyenv &> /dev/null; then
     export PYENV_ROOT="$HOME/.pyenv"
@@ -83,25 +127,6 @@ if command -v nvm &> /dev/null; then
     export NVM_DIR="$HOME/.nvm"
     [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
     [ -s "$NVM_DIR/bash_completion" ] && source "$NVM_DIR/bash_completion"
-fi
-
-# OS Specific Configurations
-if [[ $(uname) == "Linux" ]]; then
-    path+=/home/pi/.local/bin
-fi
-
-if [[ $(uname) == "Darwin" ]]; then
-    # Docker Desktop
-    if [[ $(which docker) ]]; then
-        # The following lines have been added by Docker Desktop to enable Docker CLI completions.
-        fpath=(/Users/$USER/.docker/completions $fpath)
-        autoload -Uz compinit
-        compinit
-        # End of Docker CLI completions
-    fi
-
-    # Load zsh-autocomplete (macOS only for now, TODO: Fix for Raspberry Pi)
-    zinit light marlonrichert/zsh-autocomplete
 fi
 
 # TMUX Session Management
@@ -128,10 +153,11 @@ if command -v tmux &> /dev/null; then
     add-zsh-hook precmd _start_tmux_after_init
 fi
 
-
 # Added by Windsurf
 export PATH="/Users/jesse/.codeium/windsurf/bin:$PATH"
-export PATH="$HOME/.local/bin:$PATH"
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+
+# Disable paste highlighting for cleaner pasting
+zle_highlight=('paste:none')
