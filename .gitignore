@@ -1,3 +1,6 @@
 zsh/hosts
 .claude/
 .DS_Store
+
+# NVChad plugin lockfile - let each machine manage its own plugin versions
+nvim/lazy-lock.json
