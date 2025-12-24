@@ -293,6 +293,7 @@ link_config_files() {
         "zsh/zshrc|$HOME/.zshrc"
         "vim/vimrc|$HOME/.vimrc"
         "tmux/tmux.conf|$HOME/.tmux.conf"
+        "starship/starship.toml|$HOME/.config/starship.toml"
     )
 
     # Add aliases file if it exists
@@ -303,6 +304,15 @@ link_config_files() {
     # Add hosts file if it exists
     if [ -f "$(pwd)/zsh/hosts" ]; then
         config_files+=("zsh/hosts|$HOME/.config/zsh/hosts")
+    fi
+
+    # Add platform-specific profile files if they exist
+    if [ -f "$(pwd)/zsh/profile-macos" ]; then
+        config_files+=("zsh/profile-macos|$HOME/.config/zsh/profile-macos")
+    fi
+
+    if [ -f "$(pwd)/zsh/profile-linux" ]; then
+        config_files+=("zsh/profile-linux|$HOME/.config/zsh/profile-linux")
     fi
 
     for config in "${config_files[@]}"; do
