@@ -64,10 +64,14 @@ zstyle ':completion:*' menu no
 # Load Custom Host Configurations
 [[ -f "$HOME/.config/zsh/hosts" ]] && source "$HOME/.config/zsh/hosts" && alias hosts="cat $HOME/.config/zsh/hosts"
 
-# ZSH Plugins - Loaded with turbo mode for faster startup
-zinit wait lucid light-mode for \
+# ZSH Plugins
+# Load fast-syntax-highlighting synchronously to avoid prompt issues
+zinit light-mode for \
     atinit"zicompinit; zicdreplay" \
-        zdharma-continuum/fast-syntax-highlighting \
+        zdharma-continuum/fast-syntax-highlighting
+
+# Load other plugins with turbo mode for faster startup
+zinit wait lucid light-mode for \
     atload"_zsh_autosuggest_start" \
         zsh-users/zsh-autosuggestions \
     blockf atpull'zinit creinstall -q .' \
