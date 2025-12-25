@@ -133,9 +133,11 @@ if command -v tmux &> /dev/null; then
     _start_tmux_after_init() {
         # Only run this function once
         add-zsh-hook -d precmd _start_tmux_after_init
-        
+
         # Only try to start tmux if we're not already in a tmux session
+        # Skip auto-start if we're in an SSH session to prevent nesting
         if [[ -z "$TMUX" && -n "$PS1" && \
+              -z "$SSH_CONNECTION" && \
               ! "$TERM" = *screen* && \
               ! "$TERM" = *tmux* && \
               "$TERM_PROGRAM" != "vscode" && \
