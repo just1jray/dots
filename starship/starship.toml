@@ -3,7 +3,7 @@
 format = """
 [](red)\
 $os\
-[ ](bg:red)\
+$hostname\
 $username\
 [](bg:peach fg:red)\
 $directory\
@@ -36,33 +36,38 @@ disabled = false
 style = "bg:red fg:crust"
 
 [os.symbols]
-Windows = ""
-Ubuntu = "󰕈"
-SUSE = ""
-Raspbian = "󰐿"
-Mint = "󰣭"
-Macos = "󰀵"
-Manjaro = ""
-Linux = "󰌽"
-Gentoo = "󰣨"
-Fedora = "󰣛"
-Alpine = ""
-Amazon = ""
-Android = ""
-AOSC = ""
-Arch = "󰣇"
-Artix = "󰣇"
-CentOS = ""
-Debian = "󰣚"
-Redhat = "󱄛"
-RedHatEnterprise = "󱄛"
+Windows = " "
+Ubuntu = "󰕈 "
+SUSE = " "
+Raspbian = "󰐿 "
+Mint = "󰣭 "
+Macos = "󰀵 "
+Manjaro = " "
+Linux = "󰌽 "
+Gentoo = "󰣨 "
+Fedora = "󰣛 "
+Alpine = " "
+Amazon = " "
+Android = " "
+AOSC = " "
+Arch = "󰣇 "
+Artix = "󰣇 "
+CentOS = " "
+Debian = "󰣚 "
+Redhat = "󱄛 "
+RedHatEnterprise = "󱄛 "
+
+[hostname]
+ssh_only = true
+style = "bg:red fg:crust"
+ssh_symbol = '🧊 '
+format = '[$ssh_symbol$hostname 🫆]($style)'
 
 [username]
 show_always = false
-#ssh_only = true
 style_user = "bg:red fg:crust"
 style_root = "bg:red fg:crust"
-format = '[ $user]($style)'
+format = '[ $user ]($style)'
 
 [directory]
 style = "bg:peach fg:crust"
