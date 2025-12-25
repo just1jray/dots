@@ -29,6 +29,7 @@ Used across various platforms for various things.
 
 **Recommended:**
 - **[Ghostty](https://ghostty.org/)** - Fast, feature-rich terminal emulator
+- **[MesloLGS NF](https://github.com/romkatv/powerlevel10k#fonts)** - Nerd Font with icon support (required for prompt symbols)
 - **[Starship](https://starship.rs/)** - Fast, customizable cross-shell prompt
 - **[Neovim](https://neovim.io/)** - Modern vim with [NVChad](https://nvchad.com/) configuration
 - **[tmux](https://github.com/tmux/tmux)** - Terminal multiplexer with plugin support
