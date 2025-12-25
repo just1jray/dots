@@ -295,6 +295,7 @@ link_config_files() {
         "vim/vimrc|$HOME/.vimrc"
         "tmux/tmux.conf|$HOME/.tmux.conf"
         "starship/starship.toml|$HOME/.config/starship.toml"
+        "ghostty/config|$HOME/Library/Application Support/com.mitchellh.ghostty/config"
     )
 
     # Add aliases file if it exists

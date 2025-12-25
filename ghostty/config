@@ -1,0 +1,8 @@
+font-size = 14
+font-family = "MesloLGS NF"
+cursor-style-blink = true
+theme = "Catppuccin Mocha"
+title = 👻
+maximize = true
+keybind = shift+enter=text:\x1b\r
+shell-integration = zsh
