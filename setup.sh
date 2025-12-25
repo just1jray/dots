@@ -291,6 +291,7 @@ link_config_files() {
 
     local config_files=(
         "zsh/zshrc|$HOME/.zshrc"
+        "zsh/zshenv|$HOME/.zshenv"
         "vim/vimrc|$HOME/.vimrc"
         "tmux/tmux.conf|$HOME/.tmux.conf"
         "starship/starship.toml|$HOME/.config/starship.toml"

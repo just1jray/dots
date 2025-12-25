@@ -1,0 +1,5 @@
+# .zshenv - Sourced for all zsh sessions (interactive, non-interactive, login, non-login)
+# This file is loaded before .zshrc
+
+# Homebrew path (required for non-interactive shells like mosh-server)
+export PATH="/opt/homebrew/bin:$PATH"
