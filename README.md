@@ -38,6 +38,7 @@ Used across various platforms for various things.
 
 **Optional:**
 - **[vivid](https://github.com/sharkdp/vivid)** - LS_COLORS generator (Catppuccin theme)
+- **[mosh](https://mosh.org/)** - Mobile shell for better remote connections
 - **[pyenv](https://github.com/pyenv/pyenv)** - Python version manager
 - **[nvm](https://github.com/nvm-sh/nvm)** - Node version manager
 
