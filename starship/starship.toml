@@ -3,14 +3,15 @@
 format = """
 [](red)\
 $os\
+[](bg:peach fg:red)\
 $hostname\
 $username\
-[](bg:peach fg:red)\
-$directory\
 [](bg:yellow fg:peach)\
+$directory\
+[](bg:green fg:yellow)\
 $git_branch\
 $git_status\
-[](fg:yellow bg:green)\
+[](fg:green bg:sapphire)\
 $c\
 $rust\
 $golang\
@@ -20,10 +21,8 @@ $java\
 $kotlin\
 $haskell\
 $python\
-[](fg:green bg:sapphire)\
-$conda\
 [](fg:sapphire bg:lavender)\
-$time\
+$conda\
 [ ](fg:lavender)\
 $cmd_duration\
 $line_break\
@@ -59,18 +58,18 @@ RedHatEnterprise = "󱄛 "
 
 [hostname]
 ssh_only = true
-style = "bg:red fg:crust"
-ssh_symbol = '🧊 '
+style = "bg:peach fg:crust"
+ssh_symbol = ' '
 format = '[$ssh_symbol$hostname 🫆]($style)'
 
 [username]
 show_always = false
-style_user = "bg:red fg:crust"
-style_root = "bg:red fg:crust"
+style_user = "bg:peach fg:crust"
+style_root = "bg:peach fg:crust"
 format = '[ $user ]($style)'
 
 [directory]
-style = "bg:peach fg:crust"
+style = "bg:yellow fg:crust"
 format = "[ $path ]($style)"
 truncation_length = 3
 truncation_symbol = "…/"
@@ -84,12 +83,12 @@ truncation_symbol = "…/"
 
 [git_branch]
 symbol = ""
-style = "bg:yellow"
-format = '[[ $symbol $branch ](fg:crust bg:yellow)]($style)'
+style = "bg:green"
+format = '[[ $symbol $branch ](fg:crust bg:green)]($style)'
 
 [git_status]
-style = "bg:yellow"
-format = '[[($all_status$ahead_behind )](fg:crust bg:yellow)]($style)'
+style = "bg:green"
+format = '[[($all_status$ahead_behind )](fg:crust bg:green)]($style)'
 
 [nodejs]
 symbol = ""
@@ -148,7 +147,7 @@ format = '[$symbol$environment ]($style)'
 ignore_base = false
 
 [time]
-disabled = false
+disabled = true 
 time_format = "%R"
 style = "bg:lavender"
 format = '[[  $time ](fg:crust bg:lavender)]($style)'
