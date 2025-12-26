@@ -162,5 +162,8 @@ export PATH="/Users/jesse/.codeium/windsurf/bin:$PATH"
 # Disable paste highlighting for cleaner pasting
 zle_highlight=('paste:none')
 
+# Increase function nesting limit for Starship vi mode integration
+FUNCNEST=1000
+
 # Initialize Starship prompt
 eval "$(starship init zsh)"
