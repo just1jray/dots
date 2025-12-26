@@ -62,7 +62,7 @@ RedHatEnterprise = "󱄛 "
 ssh_only = true
 style = "bg:peach fg:crust"
 ssh_symbol = ' '
-format = '[$ssh_symbol$hostname 🫆]($style)'
+format = '[$ssh_symbol$hostname ☠︎]($style)'
 
 [username]
 show_always = false
