@@ -169,7 +169,9 @@ install_plugins() {
 # Install Tmux Plugin Manager and plugins
 install_tmux_plugins() {
     log_info "Setting up Tmux plugins..."
-    
+
+    local failed_plugins=()
+
     # Install Tmux Plugin Manager (tpm)
     if [ ! -d "$TMUX_PLUGINS_DIR/tpm" ]; then
         if [ "$DRY_RUN" = true ]; then
@@ -179,8 +181,9 @@ install_tmux_plugins() {
             if git clone --depth=1 https://github.com/tmux-plugins/tpm "$TMUX_PLUGINS_DIR/tpm"; then
                 log_success "Installed Tmux Plugin Manager"
             else
-                log_error "Failed to install Tmux Plugin Manager"
-                return
+                log_error "Failed to install Tmux Plugin Manager - this is a critical failure"
+                log_error "Tmux plugin system will not work without TPM"
+                return 1
             fi
         fi
     else
@@ -199,7 +202,7 @@ install_tmux_plugins() {
     for plugin in "${tmux_plugins[@]}"; do
         IFS='|' read -r repo_url install_dir <<< "$plugin"
         plugin_name=$(basename "$install_dir")
-        
+
         if [ ! -d "$install_dir" ]; then
             if [ "$DRY_RUN" = true ]; then
                 log_info "Would install Tmux plugin: $plugin_name"
@@ -209,12 +212,22 @@ install_tmux_plugins() {
                     log_success "Installed Tmux plugin: $plugin_name"
                 else
                     log_error "Failed to install Tmux plugin: $plugin_name"
+                    failed_plugins+=("$plugin_name")
                 fi
             fi
         else
             log_info "Tmux plugin already installed: $plugin_name"
         fi
     done
+
+    # Report any failures
+    if [ ${#failed_plugins[@]} -gt 0 ]; then
+        log_warning "Some tmux plugins failed to install:"
+        for plugin in "${failed_plugins[@]}"; do
+            echo "  - $plugin"
+        done
+        log_warning "These plugins can be installed later via: ~/.tmux/plugins/tpm/bin/install_plugins"
+    fi
 
     # Install all plugins defined in tmux.conf via TPM
     if [ "$DRY_RUN" = false ] && [ -f "$TMUX_PLUGINS_DIR/tpm/bin/install_plugins" ]; then
@@ -244,16 +257,25 @@ backup_config_file() {
             if [ "$DRY_RUN" = true ]; then
                 log_info "Would remove existing file without backup: $file"
             else
-                rm -f "$file"
-                log_warning "Removed existing file without backup: $file"
+                if rm -f "$file"; then
+                    log_warning "Removed existing file without backup: $file"
+                else
+                    log_error "Failed to remove file: $file"
+                    return 1
+                fi
             fi
         else
-            local backup_file="${file}.old_$(date +%F_%H-%M-%S)"
+            local backup_file
+            backup_file="${file}.old_$(date +%F_%H-%M-%S)"
             if [ "$DRY_RUN" = true ]; then
                 log_info "Would backup file: $file → $backup_file"
             else
-                mv -v "$file" "$backup_file"
-                log_success "Backed up file: $file → $backup_file"
+                if mv "$file" "$backup_file"; then
+                    log_success "Backed up file: $file → $backup_file"
+                else
+                    log_error "Failed to backup file: $file"
+                    return 1
+                fi
             fi
         fi
     # Handle directories (not symlinks)
@@ -262,16 +284,25 @@ backup_config_file() {
             if [ "$DRY_RUN" = true ]; then
                 log_info "Would remove existing directory without backup: $file"
             else
-                rm -rf "$file"
-                log_warning "Removed existing directory without backup: $file"
+                if rm -rf "$file"; then
+                    log_warning "Removed existing directory without backup: $file"
+                else
+                    log_error "Failed to remove directory: $file"
+                    return 1
+                fi
             fi
         else
-            local backup_dir="${file}.backup_$(date +%F_%H-%M-%S)"
+            local backup_dir
+            backup_dir="${file}.backup_$(date +%F_%H-%M-%S)"
             if [ "$DRY_RUN" = true ]; then
                 log_info "Would backup directory: $file → $backup_dir"
             else
-                mv "$file" "$backup_dir"
-                log_success "Backed up directory: $file → $backup_dir"
+                if mv "$file" "$backup_dir"; then
+                    log_success "Backed up directory: $file → $backup_dir"
+                else
+                    log_error "Failed to backup directory: $file"
+                    return 1
+                fi
             fi
         fi
     # Handle symlinks
@@ -295,8 +326,14 @@ link_config_files() {
         "vim/vimrc|$HOME/.vimrc"
         "tmux/tmux.conf|$HOME/.tmux.conf"
         "starship/starship.toml|$HOME/.config/starship.toml"
-        "ghostty/config|$HOME/Library/Application Support/com.mitchellh.ghostty/config"
+        "git/gitconfig|$HOME/.gitconfig"
+        "git/gitignore_global|$HOME/.gitignore_global"
     )
+
+    # Add Ghostty config only on macOS
+    if [[ $(uname) == "Darwin" ]]; then
+        config_files+=("ghostty/config|$HOME/Library/Application Support/com.mitchellh.ghostty/config")
+    fi
 
     # Add aliases file if it exists
     if [ -f "$(pwd)/zsh/aliases" ]; then
@@ -326,33 +363,54 @@ link_config_files() {
             continue
         fi
 
-        backup_config_file "$target_file"
+        if ! backup_config_file "$target_file"; then
+            log_error "Backup failed for $target_file, skipping to prevent data loss"
+            continue
+        fi
 
         if [ "$DRY_RUN" = true ]; then
             log_info "Would link file: $source_path → $target_file"
         else
             if ln -sf "$source_path" "$target_file"; then
-                log_success "Linked file: $source_path → $target_file"
+                # Verify symlink was created and target exists
+                if [ -L "$target_file" ] && [ -e "$target_file" ]; then
+                    log_success "Linked file: $source_path → $target_file"
+                else
+                    log_error "Symlink created but target is broken: $target_file"
+                    log_error "Source may not exist: $source_path"
+                    rm -f "$target_file"  # Remove broken symlink
+                fi
             else
-                log_error "Failed to link file: $source_path → $target_file"
+                log_error "Failed to create symlink: $source_path → $target_file"
             fi
         fi
     done
 
     # Link NVChad config directory
-    local nvim_source="$(pwd)/nvim"
+    local nvim_source
+    nvim_source="$(pwd)/nvim"
     local nvim_target="$HOME/.config/nvim"
 
     if [ -d "$nvim_source" ]; then
-        backup_config_file "$nvim_target"
+        if ! backup_config_file "$nvim_target"; then
+            log_error "Backup failed for $nvim_target, skipping to prevent data loss"
+            return 1
+        fi
 
         if [ "$DRY_RUN" = true ]; then
             log_info "Would link directory: $nvim_source → $nvim_target"
         else
             if ln -sf "$nvim_source" "$nvim_target"; then
-                log_success "Linked NVChad config: $nvim_source → $nvim_target"
+                # Verify symlink was created and target exists
+                if [ -L "$nvim_target" ] && [ -e "$nvim_target" ]; then
+                    log_success "Linked NVChad config: $nvim_source → $nvim_target"
+                else
+                    log_error "Symlink created but target is broken: $nvim_target"
+                    log_error "Source may not exist: $nvim_source"
+                    rm -f "$nvim_target"  # Remove broken symlink
+                fi
             else
-                log_error "Failed to link NVChad config: $nvim_source → $nvim_target"
+                log_error "Failed to create symlink: $nvim_source → $nvim_target"
             fi
         fi
     else
@@ -367,12 +425,13 @@ check_nvchad() {
 
     # Check if nvim config symlink exists
     if [ -L "$HOME/.config/nvim" ]; then
-        local target=$(readlink "$HOME/.config/nvim")
+        local target
+        target=$(readlink "$HOME/.config/nvim")
         log_success "NVChad config symlinked: $HOME/.config/nvim -> $target"
     elif [ -d "$HOME/.config/nvim" ]; then
-        log_warning "~/.config/nvim exists but is not a symlink"
+        log_warning "$HOME/.config/nvim exists but is not a symlink"
     else
-        log_error "~/.config/nvim not found"
+        log_error "$HOME/.config/nvim not found"
         return 1
     fi
 
@@ -400,7 +459,8 @@ check_nvchad() {
 
     # Check neovim version
     if command_exists nvim; then
-        local nvim_version=$(nvim --version | head -n1)
+        local nvim_version
+        nvim_version=$(nvim --version | head -n1)
         log_info "Neovim version: $nvim_version"
     fi
 
@@ -432,7 +492,8 @@ install_nvchad() {
     fi
 
     # Run nvim headlessly to install plugins
-    local install_output=$(mktemp)
+    local install_output
+    install_output=$(mktemp)
     if nvim --headless "+Lazy! sync" +qa > "$install_output" 2>&1; then
         log_success "NVChad plugins installed successfully"
     else

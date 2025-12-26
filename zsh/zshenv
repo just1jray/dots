@@ -1,5 +1,59 @@
 # .zshenv - Sourced for all zsh sessions (interactive, non-interactive, login, non-login)
 # This file is loaded before .zshrc
+# All PATH modifications should be centralized here
 
-# Homebrew path (required for non-interactive shells like mosh-server)
-export PATH="/opt/homebrew/bin:$PATH"
+# Function to add directories to PATH without duplicates
+add_to_path() {
+    if [[ -d "$1" ]] && [[ ":$PATH:" != *":$1:"* ]]; then
+        export PATH="$1:$PATH"
+    fi
+}
+
+# Function to append directories to PATH without duplicates
+append_to_path() {
+    if [[ -d "$1" ]] && [[ ":$PATH:" != *":$1:"* ]]; then
+        export PATH="$PATH:$1"
+    fi
+}
+
+# Homebrew (required early for non-interactive shells like mosh-server)
+# macOS (Apple Silicon)
+if [[ -d "/opt/homebrew/bin" ]]; then
+    add_to_path "/opt/homebrew/bin"
+    add_to_path "/opt/homebrew/sbin"
+fi
+
+# Homebrew (Intel Mac or Linux)
+if [[ -d "/usr/local/bin" ]]; then
+    add_to_path "/usr/local/bin"
+fi
+
+# Local bin directories
+add_to_path "$HOME/.local/bin"
+add_to_path "$HOME/bin"
+
+# Development tool paths (will be properly initialized in zshrc)
+# pyenv
+if [[ -d "$HOME/.pyenv/bin" ]]; then
+    export PYENV_ROOT="$HOME/.pyenv"
+    add_to_path "$PYENV_ROOT/bin"
+fi
+
+# Cargo (Rust)
+if [[ -d "$HOME/.cargo/bin" ]]; then
+    add_to_path "$HOME/.cargo/bin"
+fi
+
+# Go
+if [[ -d "$HOME/go/bin" ]]; then
+    add_to_path "$HOME/go/bin"
+fi
+
+# Ruby gems
+if [[ -d "$HOME/.gem/ruby" ]]; then
+    # Find the latest Ruby version directory (only match valid version patterns)
+    latest_ruby=$(find "$HOME/.gem/ruby" -maxdepth 1 -type d -name "[0-9]*.[0-9]*" 2>/dev/null | sort -V | tail -1)
+    if [[ -n "$latest_ruby" ]]; then
+        add_to_path "$latest_ruby/bin"
+    fi
+fi

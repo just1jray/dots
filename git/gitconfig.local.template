@@ -1,0 +1,21 @@
+# Local Git Configuration Template
+# Copy this to ~/.gitconfig.local and customize with your personal settings
+# The main gitconfig will automatically include this file
+
+[user]
+    name = Your Name
+    email = your.email@example.com
+    # Uncomment and set if using GPG signing
+    # signingkey = YOUR_GPG_KEY_ID
+
+# Uncomment to enable commit signing
+# [commit]
+#     gpgsign = true
+
+# macOS-specific credential helper
+# [credential]
+#     helper = osxkeychain
+
+# Linux-specific credential helper
+# [credential]
+#     helper = /usr/share/git/credential/libsecret/git-credential-libsecret

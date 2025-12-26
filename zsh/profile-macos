@@ -1,7 +1,11 @@
 # macOS-specific configurations
 
 # Homebrew
-eval "$(/opt/homebrew/bin/brew shellenv)"
+if command -v /opt/homebrew/bin/brew &> /dev/null; then
+    if ! eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null)"; then
+        echo "Warning: Failed to initialize Homebrew" >&2
+    fi
+fi
 
 # Docker Desktop
 if command -v docker &> /dev/null; then

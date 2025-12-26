@@ -1,0 +1,39 @@
+# ShellCheck configuration
+# https://www.shellcheck.net/wiki/Directive
+
+# Disable specific checks
+
+# SC1090: Can't follow non-constant source
+# Reason: We source files with variables in paths
+disable=SC1090
+
+# SC1091: Not following sourced files
+# Reason: Some sourced files may not exist yet or are external
+disable=SC1091
+
+# SC2148: Tips depend on target shell
+# Reason: We explicitly set shell in shebang
+disable=SC2148
+
+# SC2312: Consider invoking this command separately to avoid masking its return value
+# Reason: We intentionally use command substitution in some contexts
+disable=SC2312
+
+# Enable optional checks for better code quality
+
+# Suggest adding quotes around variables
+enable=quote-safe-variables
+
+# Warn about unquoted variables in [[ ]]
+enable=avoid-nullary-conditions
+
+# Require explicit [[ -v var ]] instead of [[ -n $var ]]
+enable=check-unassigned-uppercase
+
+# Default shell dialect
+# This can be overridden with shebang or shellcheck directive
+shell=bash
+
+# External sources to follow
+# Add paths to external scripts that shellcheck should analyze
+# external-sources=true

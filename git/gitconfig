@@ -1,0 +1,123 @@
+# Git Configuration
+# User settings should be configured locally per machine using:
+# git config --global user.name "Your Name"
+# git config --global user.email "your.email@example.com"
+
+[core]
+    excludesfile = ~/.gitignore_global
+    editor = nvim
+    autocrlf = input
+    # Improve performance for large repositories
+    preloadindex = true
+    fscache = true
+
+[init]
+    defaultBranch = main
+
+[pull]
+    rebase = false
+
+[push]
+    default = simple
+    autoSetupRemote = true
+    followTags = true
+
+[fetch]
+    prune = true
+    prunetagss = true
+
+[color]
+    ui = auto
+    branch = auto
+    diff = auto
+    status = auto
+
+[color "branch"]
+    current = yellow reverse
+    local = yellow
+    remote = green
+
+[color "diff"]
+    meta = yellow bold
+    frag = magenta bold
+    old = red bold
+    new = green bold
+
+[color "status"]
+    added = yellow
+    changed = green
+    untracked = cyan
+
+[diff]
+    colorMoved = default
+
+[merge]
+    conflictstyle = diff3
+    # Show common ancestor in merge conflicts
+
+[rebase]
+    autoStash = true
+    autoSquash = true
+
+[alias]
+    # Short status
+    st = status -sb
+
+    # Checkout shortcuts
+    co = checkout
+    cob = checkout -b
+
+    # Branch management
+    br = branch
+    brd = branch -d
+    brD = branch -D
+
+    # Commit shortcuts
+    ci = commit
+    ca = commit -a
+    cm = commit -m
+    cam = commit -am
+    amend = commit --amend
+    amendf = commit --amend --no-edit
+
+    # Log aliases
+    lg = log --oneline --graph --decorate
+    lga = log --oneline --graph --decorate --all
+    last = log -1 HEAD --stat
+
+    # Diff shortcuts
+    df = diff
+    dfc = diff --cached
+
+    # Stash shortcuts
+    sl = stash list
+    sa = stash apply
+    ss = stash save
+
+    # Undo last commit but keep changes
+    undo = reset HEAD~1 --mixed
+
+    # Show contributors
+    contributors = shortlog --summary --numbered
+
+    # Find branches containing commit
+    fb = "!f() { git branch -a --contains $1; }; f"
+
+    # Find tags containing commit
+    ft = "!f() { git describe --always --contains $1; }; f"
+
+    # Find commits by source code
+    fc = "!f() { git log --pretty=format:'%C(yellow)%h  %Cblue%ad  %Creset%s%Cgreen  [%cn] %Cred%d' --decorate --date=short -S$1; }; f"
+
+    # Find commits by commit message
+    fm = "!f() { git log --pretty=format:'%C(yellow)%h  %Cblue%ad  %Creset%s%Cgreen  [%cn] %Cred%d' --decorate --date=short --grep=$1; }; f"
+
+[help]
+    autocorrect = 1
+
+[credential]
+    helper = cache --timeout=3600
+
+# Platform-specific settings
+[includeIf "gitdir:~/"]
+    path = ~/.gitconfig.local
