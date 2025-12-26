@@ -1,6 +1,20 @@
 # ZSH Configuration Aliases
 alias zfig="$EDITOR ~/.zshrc"
-alias zfresh="source ~/.zshrc"
+alias zfresh="source ~/.zshenv && source ~/.zshrc"
+
+# Refresh all configurations
+efresh() {
+    echo "♻️  Refreshing configurations..."
+    source ~/.zshenv && source ~/.zshrc
+    echo "✓ ZSH config reloaded"
+
+    if [[ -n "$TMUX" ]]; then
+        tmux source-file ~/.tmux.conf
+        echo "✓ Tmux config reloaded"
+    fi
+
+    echo "✨ All configs refreshed!"
+}
 
 # Navigation Aliases
 alias dev="cd ~/Developer && ls -lah --color=auto"
@@ -74,4 +88,5 @@ fi
 if command -v tmux &> /dev/null; then
     alias sesh="tmux new-session -A -s sesh"
     alias t="tmux new-session -A -s sesh"
+    alias tfresh="tmux source-file ~/.tmux.conf"
 fi

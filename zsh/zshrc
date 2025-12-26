@@ -167,11 +167,6 @@ if command -v tmux &> /dev/null; then
     add-zsh-hook precmd _start_tmux_after_init
 fi
 
-# Added by Windsurf (conditional to avoid hardcoded paths)
-if [[ -d "$HOME/.codeium/windsurf/bin" ]]; then
-    add_to_path "$HOME/.codeium/windsurf/bin"
-fi
-
 # Disable paste highlighting for cleaner pasting
 zle_highlight=('paste:none')
 
