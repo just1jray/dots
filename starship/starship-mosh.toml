@@ -2,18 +2,19 @@
 
 command_timeout = 1000
 
+# Catppuccin-inspired colors using Starship's basic color names for mosh compatibility
 format = """
-[](204)\
+[](red)\
 $os\
-[](bg:216 fg:204)\
+[](bg:yellow fg:red)\
 $hostname\
 $username\
-[](bg:223 fg:216)\
+[](bg:bright-yellow fg:yellow)\
 $directory\
-[](bg:151 fg:223)\
+[](bg:green fg:bright-yellow)\
 $git_branch\
 $git_status\
-[](fg:151 bg:117)\
+[](fg:green bg:cyan)\
 $c\
 $rust\
 $golang\
@@ -23,19 +24,16 @@ $java\
 $kotlin\
 $haskell\
 $python\
-[](fg:117 bg:147)\
+[](fg:cyan bg:purple)\
 $conda\
-[ ](fg:147)\
+[ ](fg:purple)\
 $cmd_duration\
 $line_break\
 $character"""
 
-# Using 256 colors for mosh compatibility instead of hex palette
-# 204=red, 216=peach, 223=yellow, 151=green, 117=sapphire, 147=lavender, 234=crust
-
 [os]
 disabled = false
-style = "bg:204 fg:234"
+style = "bg:red fg:black"
 
 [os.symbols]
 Windows = " "
@@ -61,18 +59,18 @@ RedHatEnterprise = "󱄛 "
 
 [hostname]
 ssh_only = true
-style = "bg:216 fg:234"
+style = "bg:yellow fg:black"
 ssh_symbol = ' '
 format = '[$ssh_symbol$hostname 🫆]($style)'
 
 [username]
 show_always = false
-style_user = "bg:216 fg:234"
-style_root = "bg:216 fg:234"
+style_user = "bg:yellow fg:black"
+style_root = "bg:yellow fg:black"
 format = '[ $user ]($style)'
 
 [directory]
-style = "bg:223 fg:234"
+style = "bg:bright-yellow fg:black"
 format = "[ $path ]($style)"
 truncation_length = 3
 truncation_symbol = "…/"
@@ -86,94 +84,94 @@ truncation_symbol = "…/"
 
 [git_branch]
 symbol = ""
-style = "bg:151"
-format = '[[ $symbol $branch ](fg:234 bg:151)]($style)'
+style = "bg:green"
+format = '[[ $symbol $branch ](fg:black bg:green)]($style)'
 
 [git_status]
-style = "bg:151"
-format = '[[($all_status$ahead_behind )](fg:234 bg:151)]($style)'
+style = "bg:green"
+format = '[[($all_status$ahead_behind )](fg:black bg:green)]($style)'
 
 [nodejs]
 symbol = ""
-style = "bg:117"
-format = '[[ $symbol( $version) ](fg:234 bg:117)]($style)'
+style = "bg:cyan"
+format = '[[ $symbol( $version) ](fg:black bg:cyan)]($style)'
 
 [c]
 symbol = " "
-style = "bg:117"
-format = '[[ $symbol( $version) ](fg:234 bg:117)]($style)'
+style = "bg:cyan"
+format = '[[ $symbol( $version) ](fg:black bg:cyan)]($style)'
 
 [rust]
 symbol = ""
-style = "bg:117"
-format = '[[ $symbol( $version) ](fg:234 bg:117)]($style)'
+style = "bg:cyan"
+format = '[[ $symbol( $version) ](fg:black bg:cyan)]($style)'
 
 [golang]
 symbol = ""
-style = "bg:117"
-format = '[[ $symbol( $version) ](fg:234 bg:117)]($style)'
+style = "bg:cyan"
+format = '[[ $symbol( $version) ](fg:black bg:cyan)]($style)'
 
 [php]
 symbol = ""
-style = "bg:117"
-format = '[[ $symbol( $version) ](fg:234 bg:117)]($style)'
+style = "bg:cyan"
+format = '[[ $symbol( $version) ](fg:black bg:cyan)]($style)'
 
 [java]
 symbol = " "
-style = "bg:117"
-format = '[[ $symbol( $version) ](fg:234 bg:117)]($style)'
+style = "bg:cyan"
+format = '[[ $symbol( $version) ](fg:black bg:cyan)]($style)'
 
 [kotlin]
 symbol = ""
-style = "bg:117"
-format = '[[ $symbol( $version) ](fg:234 bg:117)]($style)'
+style = "bg:cyan"
+format = '[[ $symbol( $version) ](fg:black bg:cyan)]($style)'
 
 [haskell]
 symbol = ""
-style = "bg:117"
-format = '[[ $symbol( $version) ](fg:234 bg:117)]($style)'
+style = "bg:cyan"
+format = '[[ $symbol( $version) ](fg:black bg:cyan)]($style)'
 
 [python]
 symbol = ""
-style = "bg:117"
-format = '[[ $symbol( $version)(\(#$virtualenv\)) ](fg:234 bg:117)]($style)'
+style = "bg:cyan"
+format = '[[ $symbol( $version)(\(#$virtualenv\)) ](fg:black bg:cyan)]($style)'
 detect_extensions = []
 detect_files = ['.python-version', 'Pipfile', 'pyproject.toml', 'requirements.txt', 'setup.py', 'tox.ini']
 detect_folders = ['.venv', 'venv']
 
 [docker_context]
 symbol = ""
-style = "bg:117"
-format = '[[ $symbol( $context) ](fg:234 bg:117)]($style)'
+style = "bg:cyan"
+format = '[[ $symbol( $context) ](fg:black bg:cyan)]($style)'
 
 [conda]
 symbol = "  "
-style = "fg:234 bg:117"
+style = "fg:black bg:cyan"
 format = '[$symbol$environment ]($style)'
 ignore_base = false
 
 [time]
 disabled = true
 time_format = "%R"
-style = "bg:147"
-format = '[[  $time ](fg:234 bg:147)]($style)'
+style = "bg:purple"
+format = '[[  $time ](fg:black bg:purple)]($style)'
 
 [line_break]
 disabled = false
 
 [character]
 disabled = false
-success_symbol = '[❯](bold fg:151)'
-error_symbol = '[❯](bold fg:204)'
-vimcmd_symbol = '[❮](bold fg:151)'
-vimcmd_replace_one_symbol = '[❮](bold fg:147)'
-vimcmd_replace_symbol = '[❮](bold fg:147)'
-vimcmd_visual_symbol = '[❮](bold fg:223)'
+success_symbol = '[❯](bold fg:green)'
+error_symbol = '[❯](bold fg:red)'
+vimcmd_symbol = '[❮](bold fg:green)'
+vimcmd_replace_one_symbol = '[❮](bold fg:purple)'
+vimcmd_replace_symbol = '[❮](bold fg:purple)'
+vimcmd_visual_symbol = '[❮](bold fg:bright-yellow)'
 
 [cmd_duration]
 show_milliseconds = false
 format = " in $duration "
-style = "bg:147"
+style = "bg:purple"
 disabled = false
 show_notifications = true
 min_time_to_notify = 45000
