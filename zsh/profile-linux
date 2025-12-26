@@ -2,14 +2,6 @@
 
 # Add any Linux-specific settings here
 
-# Fix colors for SSH/mosh sessions
-if [[ -n "$SSH_CONNECTION" ]] || [[ -n "$SSH_CLIENT" ]]; then
-    # Ensure proper color support for terminal colors
-    export TERM="xterm-256color"
-    export COLORTERM="truecolor"
-
-    # Use 256-color Starship config only for mosh (detect by checking if mosh-server is running)
-    if [[ -n "$STY" ]] || pgrep -x mosh-server >/dev/null 2>&1; then
-        export STARSHIP_CONFIG="$HOME/.config/starship-mosh.toml"
-    fi
-fi
+# Use default Starship prompt on Linux (works best over SSH/mosh)
+# Unset STARSHIP_CONFIG to use built-in default instead of custom theme
+unset STARSHIP_CONFIG
