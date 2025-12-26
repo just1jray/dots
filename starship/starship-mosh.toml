@@ -1,0 +1,179 @@
+"$schema" = 'https://starship.rs/config-schema.json'
+
+command_timeout = 1000
+
+format = """
+[](204)\
+$os\
+[](bg:216 fg:204)\
+$hostname\
+$username\
+[](bg:223 fg:216)\
+$directory\
+[](bg:151 fg:223)\
+$git_branch\
+$git_status\
+[](fg:151 bg:117)\
+$c\
+$rust\
+$golang\
+$nodejs\
+$php\
+$java\
+$kotlin\
+$haskell\
+$python\
+[](fg:117 bg:147)\
+$conda\
+[ ](fg:147)\
+$cmd_duration\
+$line_break\
+$character"""
+
+# Using 256 colors for mosh compatibility instead of hex palette
+# 204=red, 216=peach, 223=yellow, 151=green, 117=sapphire, 147=lavender, 234=crust
+
+[os]
+disabled = false
+style = "bg:204 fg:234"
+
+[os.symbols]
+Windows = " "
+Ubuntu = "󰕈 "
+SUSE = " "
+Raspbian = "󰐿 "
+Mint = "󰣭 "
+Macos = "󰀵 "
+Manjaro = " "
+Linux = "󰌽 "
+Gentoo = "󰣨 "
+Fedora = "󰣛 "
+Alpine = " "
+Amazon = " "
+Android = " "
+AOSC = " "
+Arch = "󰣇 "
+Artix = "󰣇 "
+CentOS = " "
+Debian = "󰣚 "
+Redhat = "󱄛 "
+RedHatEnterprise = "󱄛 "
+
+[hostname]
+ssh_only = true
+style = "bg:216 fg:234"
+ssh_symbol = ' '
+format = '[$ssh_symbol$hostname 🫆]($style)'
+
+[username]
+show_always = false
+style_user = "bg:216 fg:234"
+style_root = "bg:216 fg:234"
+format = '[ $user ]($style)'
+
+[directory]
+style = "bg:223 fg:234"
+format = "[ $path ]($style)"
+truncation_length = 3
+truncation_symbol = "…/"
+
+[directory.substitutions]
+"Documents" = "󰈙 "
+"Downloads" = " "
+"Music" = "󰝚 "
+"Pictures" = " "
+"Developer" = "󰲋 "
+
+[git_branch]
+symbol = ""
+style = "bg:151"
+format = '[[ $symbol $branch ](fg:234 bg:151)]($style)'
+
+[git_status]
+style = "bg:151"
+format = '[[($all_status$ahead_behind )](fg:234 bg:151)]($style)'
+
+[nodejs]
+symbol = ""
+style = "bg:117"
+format = '[[ $symbol( $version) ](fg:234 bg:117)]($style)'
+
+[c]
+symbol = " "
+style = "bg:117"
+format = '[[ $symbol( $version) ](fg:234 bg:117)]($style)'
+
+[rust]
+symbol = ""
+style = "bg:117"
+format = '[[ $symbol( $version) ](fg:234 bg:117)]($style)'
+
+[golang]
+symbol = ""
+style = "bg:117"
+format = '[[ $symbol( $version) ](fg:234 bg:117)]($style)'
+
+[php]
+symbol = ""
+style = "bg:117"
+format = '[[ $symbol( $version) ](fg:234 bg:117)]($style)'
+
+[java]
+symbol = " "
+style = "bg:117"
+format = '[[ $symbol( $version) ](fg:234 bg:117)]($style)'
+
+[kotlin]
+symbol = ""
+style = "bg:117"
+format = '[[ $symbol( $version) ](fg:234 bg:117)]($style)'
+
+[haskell]
+symbol = ""
+style = "bg:117"
+format = '[[ $symbol( $version) ](fg:234 bg:117)]($style)'
+
+[python]
+symbol = ""
+style = "bg:117"
+format = '[[ $symbol( $version)(\(#$virtualenv\)) ](fg:234 bg:117)]($style)'
+detect_extensions = []
+detect_files = ['.python-version', 'Pipfile', 'pyproject.toml', 'requirements.txt', 'setup.py', 'tox.ini']
+detect_folders = ['.venv', 'venv']
+
+[docker_context]
+symbol = ""
+style = "bg:117"
+format = '[[ $symbol( $context) ](fg:234 bg:117)]($style)'
+
+[conda]
+symbol = "  "
+style = "fg:234 bg:117"
+format = '[$symbol$environment ]($style)'
+ignore_base = false
+
+[time]
+disabled = true
+time_format = "%R"
+style = "bg:147"
+format = '[[  $time ](fg:234 bg:147)]($style)'
+
+[line_break]
+disabled = false
+
+[character]
+disabled = false
+success_symbol = '[❯](bold fg:151)'
+error_symbol = '[❯](bold fg:204)'
+vimcmd_symbol = '[❮](bold fg:151)'
+vimcmd_replace_one_symbol = '[❮](bold fg:147)'
+vimcmd_replace_symbol = '[❮](bold fg:147)'
+vimcmd_visual_symbol = '[❮](bold fg:223)'
+
+[cmd_duration]
+show_milliseconds = false
+format = " in $duration "
+style = "bg:147"
+disabled = false
+show_notifications = true
+min_time_to_notify = 45000

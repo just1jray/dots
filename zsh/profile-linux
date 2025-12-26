@@ -2,9 +2,12 @@
 
 # Add any Linux-specific settings here
 
-# Fix colors for mosh sessions
+# Fix colors for mosh/SSH sessions
 if [[ -n "$SSH_CONNECTION" ]] || [[ -n "$SSH_CLIENT" ]]; then
-    # Ensure proper color support for Starship and terminal colors
+    # Ensure proper color support for terminal colors
     export TERM="xterm-256color"
     export COLORTERM="truecolor"
+
+    # Use 256-color Starship config for mosh compatibility
+    export STARSHIP_CONFIG="$HOME/.config/starship-mosh.toml"
 fi

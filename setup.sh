@@ -295,6 +295,7 @@ link_config_files() {
         "vim/vimrc|$HOME/.vimrc"
         "tmux/tmux.conf|$HOME/.tmux.conf"
         "starship/starship.toml|$HOME/.config/starship.toml"
+        "starship/starship-mosh.toml|$HOME/.config/starship-mosh.toml"
         "ghostty/config|$HOME/Library/Application Support/com.mitchellh.ghostty/config"
     )
 
