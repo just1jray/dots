@@ -1,0 +1,111 @@
+---
+# AWS CLI and tools configuration role
+# Installs AWS CLI, configures credentials, installs helpful tools
+
+- name: Check if AWS CLI v2 is installed
+  command: aws --version
+  register: aws_check
+  changed_when: false
+  failed_when: false
+
+- name: Install AWS CLI v2 (macOS)
+  block:
+    - name: Download AWS CLI installer (macOS)
+      get_url:
+        url: https://awscli.amazonaws.com/AWSCLIV2.pkg
+        dest: /tmp/AWSCLIV2.pkg
+        mode: '0644'
+      when: aws_check.rc != 0
+
+    - name: Install AWS CLI (macOS)
+      command: sudo installer -pkg /tmp/AWSCLIV2.pkg -target /
+      when: aws_check.rc != 0
+      become: yes
+      register: aws_install
+      changed_when: aws_install.rc == 0
+
+    - name: Remove installer
+      file:
+        path: /tmp/AWSCLIV2.pkg
+        state: absent
+  when:
+    - ansible_os_family == "Darwin"
+    - aws_check.rc != 0
+
+- name: Install AWS CLI v2 (Linux)
+  block:
+    - name: Download AWS CLI installer (Linux)
+      get_url:
+        url: "https://awscli.amazonaws.com/awscli-exe-linux-{{ 'aarch64' if ansible_architecture == 'aarch64' else 'x86_64' }}.zip"
+        dest: /tmp/awscliv2.zip
+        mode: '0644'
+
+    - name: Install unzip if needed
+      apt:
+        name: unzip
+        state: present
+      become: yes
+      when: ansible_os_family == "Debian"
+
+    - name: Unzip AWS CLI installer
+      unarchive:
+        src: /tmp/awscliv2.zip
+        dest: /tmp/
+        remote_src: yes
+
+    - name: Install AWS CLI
+      command: /tmp/aws/install
+      become: yes
+      register: aws_install_linux
+      changed_when: aws_install_linux.rc == 0
+      failed_when: false
+
+    - name: Remove installer files
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /tmp/awscliv2.zip
+        - /tmp/aws
+  when:
+    - ansible_os_family != "Darwin"
+    - aws_check.rc != 0
+
+- name: Install AWS-related Homebrew packages (macOS)
+  community.general.homebrew:
+    name: "{{ aws_homebrew_packages }}"
+    state: present
+  when: ansible_os_family == "Darwin"
+
+- name: Create AWS config directory
+  file:
+    path: "{{ ansible_env.HOME }}/.aws"
+    state: directory
+    mode: '0700'
+
+- name: Deploy AWS config template (if credentials not already configured)
+  template:
+    src: aws_config.j2
+    dest: "{{ ansible_env.HOME }}/.aws/config"
+    mode: '0600'
+    force: no
+  when: aws_configure_profiles | default(false)
+
+- name: Display AWS configuration message
+  debug:
+    msg:
+      - "✅ AWS CLI installed!"
+      - ""
+      - "Configure credentials with:"
+      - "  aws configure"
+      - ""
+      - "Or use AWS SSO:"
+      - "  aws configure sso"
+      - ""
+      - "Additional tools installed:"
+      - "  - aws-vault (credential manager)"
+      - "  - awscli-local (LocalStack integration)"
+      - ""
+      - "Useful aliases available in zshrc:"
+      - "  awsp - AWS profile switcher"
+      - "  awswho - Show current AWS identity"

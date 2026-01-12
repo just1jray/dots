@@ -1,0 +1,83 @@
+---
+# Google Cloud Platform (GCP) CLI and tools configuration role
+# Installs gcloud CLI and related tools
+
+- name: Check if gcloud is installed
+  command: gcloud --version
+  register: gcloud_check
+  changed_when: false
+  failed_when: false
+
+- name: Install gcloud CLI (macOS)
+  block:
+    - name: Install gcloud via Homebrew (macOS)
+      community.general.homebrew_cask:
+        name: google-cloud-sdk
+        state: present
+        accept_external_apps: yes
+  when:
+    - ansible_os_family == "Darwin"
+    - gcloud_check.rc != 0
+
+- name: Install gcloud CLI (Linux)
+  block:
+    - name: Add Google Cloud SDK repository key
+      apt_key:
+        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        state: present
+      become: yes
+
+    - name: Add Google Cloud SDK repository
+      apt_repository:
+        repo: "deb https://packages.cloud.google.com/apt cloud-sdk main"
+        state: present
+        filename: google-cloud-sdk
+      become: yes
+
+    - name: Install google-cloud-sdk
+      apt:
+        name:
+          - google-cloud-sdk
+          - google-cloud-sdk-gke-gcloud-auth-plugin
+        state: present
+        update_cache: yes
+      become: yes
+  when:
+    - ansible_os_family == "Debian"
+    - gcloud_check.rc != 0
+
+- name: Install GCP-related Homebrew packages (macOS)
+  community.general.homebrew:
+    name: "{{ gcp_homebrew_packages }}"
+    state: present
+  when: ansible_os_family == "Darwin"
+
+- name: Create gcloud config directory
+  file:
+    path: "{{ ansible_env.HOME }}/.config/gcloud"
+    state: directory
+    mode: '0700'
+
+- name: Display GCP configuration message
+  debug:
+    msg:
+      - "✅ Google Cloud SDK installed!"
+      - ""
+      - "Initialize gcloud with:"
+      - "  gcloud init"
+      - ""
+      - "Or authenticate directly:"
+      - "  gcloud auth login"
+      - ""
+      - "For application default credentials:"
+      - "  gcloud auth application-default login"
+      - ""
+      - "Useful commands:"
+      - "  gcloud config list                    # Show config"
+      - "  gcloud projects list                  # List projects"
+      - "  gcloud config set project PROJECT_ID  # Set project"
+      - ""
+      - "Additional components you can install:"
+      - "  gcloud components install kubectl     # Kubernetes"
+      - "  gcloud components install terraform   # Terraform"
+      - "  gcloud components install beta        # Beta features"

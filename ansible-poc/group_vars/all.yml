@@ -89,3 +89,55 @@ macos_settings:
     - { domain: "com.apple.screencapture", key: "location", type: "string", value: "{{ ansible_env.HOME }}/Desktop/Screenshots" }
     - { domain: "com.apple.screencapture", key: "type", type: "string", value: "png" }
     - { domain: "com.apple.screencapture", key: "disable-shadow", type: "bool", value: "true" }
+
+# ==============================================================================
+# Cloud & DevOps Tools (AWS, GCP, Kubernetes)
+# ==============================================================================
+
+# AWS CLI and tools
+aws_homebrew_packages:
+  - aws-vault          # Securely store and access AWS credentials
+  - awscli-local       # LocalStack integration
+  - chamber            # Secret management with AWS SSM Parameter Store
+
+aws_default_region: "us-east-1"
+aws_default_output: "json"
+
+# Set to true to configure AWS profiles
+aws_configure_profiles: false
+
+# AWS profiles (example - customize for your needs)
+# Uncomment and modify if aws_configure_profiles: true
+# aws_profiles:
+#   - name: "dev"
+#     region: "us-east-1"
+#     output: "json"
+#   - name: "prod"
+#     region: "us-west-2"
+#     output: "json"
+#   - name: "sso-dev"
+#     region: "us-east-1"
+#     sso_start_url: "https://my-sso.awsapps.com/start"
+#     sso_region: "us-east-1"
+#     sso_account_id: "123456789012"
+#     sso_role_name: "DeveloperAccess"
+
+# GCP (Google Cloud Platform) tools
+gcp_homebrew_packages:
+  - google-cloud-sdk   # Will be installed via cask, this is for components
+
+# Kubernetes tools
+kubernetes_homebrew_packages:
+  - kubectl           # Kubernetes CLI
+  - helm              # Kubernetes package manager
+  - k9s               # Terminal UI for Kubernetes
+  - kubectx           # Context switcher
+  - kubens            # Namespace switcher
+  - stern             # Multi-pod log tailing
+  - kustomize         # Kubernetes native configuration management
+  - kind              # Kubernetes in Docker (local clusters)
+  - minikube          # Local Kubernetes
+  - skaffold          # Continuous development for Kubernetes
+
+# kubectl version (optional - leave undefined for latest stable)
+# kubectl_version: "v1.28.0"

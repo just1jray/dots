@@ -53,6 +53,19 @@
     - role: neovim
       tags: ['dotfiles', 'neovim', 'nvim']
 
+    # Cloud & DevOps Tools
+    # Install AWS CLI and tools
+    - role: aws
+      tags: ['cloud', 'aws', 'devops']
+
+    # Install Google Cloud SDK
+    - role: gcp
+      tags: ['cloud', 'gcp', 'devops']
+
+    # Install Kubernetes tools
+    - role: kubernetes
+      tags: ['cloud', 'kubernetes', 'k8s', 'devops']
+
     # Configure macOS system settings (macOS only)
     - role: macos
       when: ansible_os_family == "Darwin"
@@ -62,14 +75,23 @@
     - name: Display completion message
       debug:
         msg:
-          - "✅ Dotfiles configuration complete!"
+          - "✅ Dotfiles and development environment configuration complete!"
           - ""
           - "Next steps:"
           - "  1. Restart your terminal"
           - "  2. Open tmux and press 'prefix + I' to install plugins"
           - "  3. Open nvim - plugins will install automatically"
+          - "  4. Configure cloud credentials if installed:"
+          - "     - AWS: aws configure"
+          - "     - GCP: gcloud init"
+          - "     - Kubernetes: Add cluster config to ~/.kube/config"
           - ""
           - "Useful commands:"
-          - "  ansible-playbook playbook.yml --tags zsh    # Only update zsh"
-          - "  ansible-playbook playbook.yml --check       # Dry run"
-          - "  ansible-playbook playbook.yml --diff        # Show changes"
+          - "  ansible-playbook playbook.yml --tags zsh        # Only update zsh"
+          - "  ansible-playbook playbook.yml --tags cloud      # Only cloud tools"
+          - "  ansible-playbook playbook.yml --tags aws        # Only AWS tools"
+          - "  ansible-playbook playbook.yml --check --diff    # Preview changes"
+          - ""
+          - "Documentation:"
+          - "  See CLOUD_SKILLS.md for cloud tools guide"
+          - "  See README.md for full documentation"
