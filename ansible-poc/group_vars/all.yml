@@ -1,0 +1,91 @@
+---
+# Global variables for all hosts
+# These can be overridden in inventory.yml or at runtime
+
+# User information (customize these!)
+git_user_name: "Your Name"
+git_user_email: "your.email@example.com"
+
+# Machine type detection
+is_work_machine: "{{ ansible_hostname is search('work') }}"
+
+# Dotfiles repository
+dotfiles_repo: "https://github.com/just1jray/dots.git"
+dotfiles_dir: "{{ ansible_env.HOME }}/Developer/src/dots"
+
+# Homebrew packages (common across all machines)
+homebrew_packages:
+  - git
+  - zsh
+  - starship
+  - fzf
+  - zoxide
+  - ripgrep
+  - fd
+  - bat
+  - eza
+  - delta
+  - neovim
+  - tmux
+  - gh
+  - vivid
+  - tree
+  - htop
+  - jq
+
+# Homebrew packages (work machines only)
+homebrew_work_packages:
+  - kubectl
+  - terraform
+  - ansible
+  - docker
+
+# Homebrew casks
+homebrew_casks:
+  - ghostty
+  - 1password-cli
+  - font-meslo-lg-nerd-font
+
+# Homebrew casks (work machines only)
+homebrew_work_casks:
+  - slack
+  - zoom
+
+# Zsh plugins
+zsh_plugin_repo: "https://github.com/zdharma-continuum/zinit.git"
+zsh_plugin_dir: "{{ ansible_env.HOME }}/.local/share/zinit/zinit.git"
+
+# Tmux Plugin Manager
+tpm_repo: "https://github.com/tmux-plugins/tpm"
+tpm_dir: "{{ ansible_env.HOME }}/.tmux/plugins/tpm"
+
+# NVChad
+nvchad_repo: "https://github.com/NvChad/NvChad"
+nvchad_dir: "{{ ansible_env.HOME }}/.config/nvim"
+
+# macOS settings (defaults write)
+macos_settings:
+  finder:
+    - { domain: "com.apple.finder", key: "AppleShowAllFiles", type: "bool", value: "true" }
+    - { domain: "com.apple.finder", key: "ShowStatusBar", type: "bool", value: "true" }
+    - { domain: "com.apple.finder", key: "ShowPathbar", type: "bool", value: "true" }
+    - { domain: "com.apple.finder", key: "_FXSortFoldersFirst", type: "bool", value: "true" }
+    - { domain: "com.apple.finder", key: "FXEnableExtensionChangeWarning", type: "bool", value: "false" }
+    - { domain: "com.apple.finder", key: "FXPreferredViewStyle", type: "string", value: "Nlsv" }
+  dock:
+    - { domain: "com.apple.dock", key: "tilesize", type: "int", value: "48" }
+    - { domain: "com.apple.dock", key: "minimize-to-application", type: "bool", value: "true" }
+    - { domain: "com.apple.dock", key: "show-recents", type: "bool", value: "false" }
+    - { domain: "com.apple.dock", key: "autohide", type: "bool", value: "true" }
+    - { domain: "com.apple.dock", key: "autohide-delay", type: "float", value: "0" }
+    - { domain: "com.apple.dock", key: "autohide-time-modifier", type: "float", value: "0.4" }
+  keyboard:
+    - { domain: "NSGlobalDomain", key: "AppleKeyboardUIMode", type: "int", value: "3" }
+    - { domain: "NSGlobalDomain", key: "ApplePressAndHoldEnabled", type: "bool", value: "false" }
+    - { domain: "NSGlobalDomain", key: "KeyRepeat", type: "int", value: "2" }
+    - { domain: "NSGlobalDomain", key: "InitialKeyRepeat", type: "int", value: "15" }
+    - { domain: "NSGlobalDomain", key: "NSAutomaticSpellingCorrectionEnabled", type: "bool", value: "false" }
+  screenshots:
+    - { domain: "com.apple.screencapture", key: "location", type: "string", value: "{{ ansible_env.HOME }}/Desktop/Screenshots" }
+    - { domain: "com.apple.screencapture", key: "type", type: "string", value: "png" }
+    - { domain: "com.apple.screencapture", key: "disable-shadow", type: "bool", value: "true" }

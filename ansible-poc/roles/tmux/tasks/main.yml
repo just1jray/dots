@@ -1,0 +1,49 @@
+---
+# Tmux configuration role
+
+- name: Install tmux (Linux)
+  apt:
+    name: tmux
+    state: present
+  become: yes
+  when: ansible_os_family == "Debian"
+
+- name: Deploy tmux configuration
+  copy:
+    src: tmux.conf
+    dest: "{{ ansible_env.HOME }}/.tmux.conf"
+    mode: '0644'
+    backup: yes
+
+- name: Create tmux plugin directory
+  file:
+    path: "{{ ansible_env.HOME }}/.tmux/plugins"
+    state: directory
+    mode: '0755'
+
+- name: Check if TPM is installed
+  stat:
+    path: "{{ tpm_dir }}"
+  register: tpm_check
+
+- name: Install Tmux Plugin Manager (TPM)
+  git:
+    repo: "{{ tpm_repo }}"
+    dest: "{{ tpm_dir }}"
+    depth: 1
+  when: not tpm_check.stat.exists
+
+- name: Install TPM plugins
+  shell: |
+    {{ tpm_dir }}/bin/install_plugins
+  when: not tpm_check.stat.exists
+  register: tpm_install
+  changed_when: "'Installing' in tpm_install.stdout"
+  failed_when: false
+
+- name: Display TPM installation message
+  debug:
+    msg:
+      - "Tmux Plugin Manager installed!"
+      - "To install plugins manually, open tmux and press 'prefix + I'"
+  when: not tpm_check.stat.exists

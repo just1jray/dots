@@ -1,0 +1,93 @@
+# ZSH Configuration Aliases
+alias zfig="$EDITOR ~/.zshrc"
+alias zfresh="source ~/.zshenv && source ~/.zshrc"
+
+# Refresh all configurations
+efresh() {
+    echo "♻️  Refreshing configurations..."
+    source ~/.zshenv && source ~/.zshrc
+    echo "✓ ZSH config reloaded"
+
+    if [[ -n "$TMUX" ]]; then
+        tmux source-file ~/.tmux.conf
+        echo "✓ Tmux config reloaded"
+    fi
+
+    echo "✨ All configs refreshed!"
+}
+
+# Navigation Aliases
+alias dev="cd ~/Developer && ls -lah --color=auto"
+alias src="cd ~/Developer/src && ls -lah --color=auto"
+alias dots="cd ~/Developer/src/dots && ls -lah --color=auto"
+alias dl="cd ~/Downloads"
+alias dt="cd ~/Desktop"
+alias ..="cd .."
+alias ...="cd ../.."
+alias ....="cd ../../.."
+alias .....="cd ../../../.."
+alias -- -="cd -"
+
+# Common Command Aliases
+alias ls="ls --color=auto"
+alias ll="ls -lah --color=auto"
+alias la="ls -la --color=auto"
+alias c="clear"
+alias grep="grep --color=auto"
+alias egrep="egrep --color=auto"
+
+# Safety Aliases (verbose output without interactive prompts)
+alias rm="rm -v"
+alias cp="cp -v"
+alias mv="mv -v"
+alias mkdir="mkdir -pv"
+
+# System Information
+alias du1="du -h -d 1"
+alias df="df -h"
+alias path='echo -e ${PATH//:/\\n}'
+psg() { ps aux | grep -v grep | grep -i -e VSZ -e "$@"; }
+alias myip="curl -s ifconfig.me"
+
+# Python Virtual Environment
+alias activate="source ./venv/bin/activate"
+mkvenv() { [[ ! -d "./venv" ]] && python -m venv venv; }
+
+# OS Specific Aliases and Functions
+if [[ $(uname) == "Linux" ]]; then
+    # Run updates
+    alias up="sudo apt update -y && sudo apt upgrade -y && sudo apt autoremove -y"
+fi
+
+if [[ $(uname) == "Darwin" ]]; then
+    # File visibility
+    show() { defaults write com.apple.Finder AppleShowAllFiles true; killall Finder; }
+    hide() { defaults write com.apple.Finder AppleShowAllFiles false; killall Finder; }
+
+    # Enhanced man pages
+    manp() { man -t "$@" | open -f -a "Preview"; }
+    manx() { open x-man-page://$@; }
+
+    # Power management
+    power() {
+        # Get connected charger info
+        powerAdapter=$(system_profiler SPPowerDataType | grep "Power Adapter" | awk '{print $2}')
+        wattage=$(system_profiler SPPowerDataType | grep "Wattage" | awk '{print $3}')
+
+        # Show charger info if connected
+        if [[ -z $powerAdapter && -z $wattage ]]; then
+            echo "No power adapter connected."
+        else
+            [[ -n $powerAdapter ]] && echo $powerAdapter
+            [[ -n $wattage ]] && echo "${wattage}W"
+        fi
+    }
+fi
+
+# TMUX Aliases
+if command -v tmux &> /dev/null; then
+    alias sesh="tmux new-session -A -s sesh"
+    alias t="tmux new-session -A -s sesh"
+    alias tfresh="tmux source-file ~/.tmux.conf"
+    alias tfig="$EDITOR ~/.tmux.conf"
+fi

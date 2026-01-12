@@ -1,0 +1,75 @@
+---
+# Main playbook for dotfiles management
+# Usage: ansible-playbook playbook.yml
+# Dry run: ansible-playbook playbook.yml --check --diff
+# With custom vars: ansible-playbook playbook.yml -e "git_user_name='John Doe'"
+
+- name: Configure dotfiles and development environment
+  hosts: localhost
+  connection: local
+
+  pre_tasks:
+    - name: Display detected system information
+      debug:
+        msg:
+          - "OS Family: {{ ansible_os_family }}"
+          - "Distribution: {{ ansible_distribution | default('N/A') }}"
+          - "Hostname: {{ ansible_hostname }}"
+          - "User: {{ ansible_env.USER }}"
+          - "Home: {{ ansible_env.HOME }}"
+          - "Work machine: {{ is_work_machine }}"
+
+    - name: Ensure required directories exist
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ ansible_env.HOME }}/Developer/src"
+        - "{{ ansible_env.HOME }}/.config/zsh"
+        - "{{ ansible_env.HOME }}/.tmux/plugins"
+        - "{{ ansible_env.HOME }}/.tmux/resurrect"
+        - "{{ ansible_env.HOME }}/Desktop/Screenshots"
+
+  roles:
+    # Install packages first (required for other roles)
+    - role: homebrew
+      when: ansible_os_family == "Darwin"
+      tags: ['packages', 'homebrew']
+
+    # Configure shell
+    - role: zsh
+      tags: ['dotfiles', 'zsh']
+
+    # Configure version control
+    - role: git
+      tags: ['dotfiles', 'git']
+
+    # Configure terminal multiplexer
+    - role: tmux
+      tags: ['dotfiles', 'tmux']
+
+    # Configure editor
+    - role: neovim
+      tags: ['dotfiles', 'neovim', 'nvim']
+
+    # Configure macOS system settings (macOS only)
+    - role: macos
+      when: ansible_os_family == "Darwin"
+      tags: ['macos', 'settings']
+
+  post_tasks:
+    - name: Display completion message
+      debug:
+        msg:
+          - "✅ Dotfiles configuration complete!"
+          - ""
+          - "Next steps:"
+          - "  1. Restart your terminal"
+          - "  2. Open tmux and press 'prefix + I' to install plugins"
+          - "  3. Open nvim - plugins will install automatically"
+          - ""
+          - "Useful commands:"
+          - "  ansible-playbook playbook.yml --tags zsh    # Only update zsh"
+          - "  ansible-playbook playbook.yml --check       # Dry run"
+          - "  ansible-playbook playbook.yml --diff        # Show changes"

@@ -1,0 +1,37 @@
+---
+# Neovim configuration role
+
+- name: Install neovim (Linux)
+  apt:
+    name: neovim
+    state: present
+  become: yes
+  when: ansible_os_family == "Debian"
+
+- name: Check if nvim config already exists
+  stat:
+    path: "{{ ansible_env.HOME }}/.config/nvim"
+  register: nvim_config
+
+- name: Backup existing nvim config if it exists
+  command: mv {{ ansible_env.HOME }}/.config/nvim {{ ansible_env.HOME }}/.config/nvim.backup.{{ ansible_date_time.epoch }}
+  when:
+    - nvim_config.stat.exists
+    - nvim_config.stat.isdir
+  register: nvim_backup
+  changed_when: nvim_backup.rc == 0
+
+- name: Create symlink to nvim config from dotfiles
+  file:
+    src: "{{ dotfiles_dir }}/nvim"
+    dest: "{{ ansible_env.HOME }}/.config/nvim"
+    state: link
+    force: yes
+  when: dotfiles_dir is defined
+
+- name: Display NVChad message
+  debug:
+    msg:
+      - "Neovim configuration linked!"
+      - "Plugins will be installed automatically when you first open nvim"
+      - "NVChad uses Lazy.nvim for plugin management"

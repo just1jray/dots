@@ -1,0 +1,61 @@
+---
+# Homebrew package management role
+# Installs Homebrew and packages
+
+- name: Check if Homebrew is installed
+  stat:
+    path: "{% if ansible_architecture == 'arm64' %}/opt/homebrew/bin/brew{% else %}/usr/local/bin/brew{% endif %}"
+  register: homebrew_check
+
+- name: Install Homebrew
+  shell: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  when: not homebrew_check.stat.exists
+  become: false
+
+- name: Add Homebrew to PATH for this session
+  set_fact:
+    ansible_env: "{{ ansible_env | combine({'PATH': '/opt/homebrew/bin:/usr/local/bin:' + ansible_env.PATH}) }}"
+  when: not homebrew_check.stat.exists
+
+- name: Update Homebrew
+  community.general.homebrew:
+    update_homebrew: yes
+  register: homebrew_update
+  changed_when: homebrew_update.changed
+
+- name: Install Homebrew packages (common)
+  community.general.homebrew:
+    name: "{{ homebrew_packages }}"
+    state: present
+  register: brew_install
+  changed_when: brew_install.changed
+
+- name: Install Homebrew packages (work)
+  community.general.homebrew:
+    name: "{{ homebrew_work_packages }}"
+    state: present
+  when: is_work_machine | bool
+  register: brew_work_install
+  changed_when: brew_work_install.changed
+
+- name: Install Homebrew casks (common)
+  community.general.homebrew_cask:
+    name: "{{ homebrew_casks }}"
+    state: present
+    accept_external_apps: yes
+  register: cask_install
+  changed_when: cask_install.changed
+
+- name: Install Homebrew casks (work)
+  community.general.homebrew_cask:
+    name: "{{ homebrew_work_casks }}"
+    state: present
+    accept_external_apps: yes
+  when: is_work_machine | bool
+  register: cask_work_install
+  changed_when: cask_work_install.changed
+
+- name: Cleanup old Homebrew versions
+  community.general.homebrew:
+    upgrade_all: no
+  changed_when: false

@@ -1,0 +1,96 @@
+---
+# Zsh configuration role
+
+- name: Install zsh (Linux)
+  apt:
+    name: zsh
+    state: present
+  become: yes
+  when: ansible_os_family == "Debian"
+
+- name: Check if Zinit is installed
+  stat:
+    path: "{{ zsh_plugin_dir }}"
+  register: zinit_check
+
+- name: Install Zinit plugin manager
+  git:
+    repo: "{{ zsh_plugin_repo }}"
+    dest: "{{ zsh_plugin_dir }}"
+    depth: 1
+    version: main
+  when: not zinit_check.stat.exists
+
+- name: Set permissions on Zinit directory
+  file:
+    path: "{{ ansible_env.HOME }}/.local/share/zinit"
+    mode: '0755'
+    recurse: no
+  when: not zinit_check.stat.exists
+
+- name: Create zsh config directories
+  file:
+    path: "{{ ansible_env.HOME }}/.config/zsh/plugins"
+    state: directory
+    mode: '0755'
+
+- name: Deploy zshrc from template
+  template:
+    src: zshrc.j2
+    dest: "{{ ansible_env.HOME }}/.zshrc"
+    mode: '0644'
+    backup: yes
+  register: zshrc_deployed
+
+- name: Deploy zshenv from template
+  template:
+    src: zshenv.j2
+    dest: "{{ ansible_env.HOME }}/.zshenv"
+    mode: '0644'
+    backup: yes
+
+- name: Deploy zsh aliases
+  copy:
+    src: aliases
+    dest: "{{ ansible_env.HOME }}/.config/zsh/aliases"
+    mode: '0644'
+    backup: yes
+
+- name: Deploy platform-specific profiles (macOS)
+  copy:
+    src: profile-macos
+    dest: "{{ ansible_env.HOME }}/.config/zsh/profile-macos"
+    mode: '0644'
+    backup: yes
+  when: ansible_os_family == "Darwin"
+
+- name: Deploy platform-specific profiles (Linux)
+  copy:
+    src: profile-linux
+    dest: "{{ ansible_env.HOME }}/.config/zsh/profile-linux"
+    mode: '0644'
+    backup: yes
+  when: ansible_os_family != "Darwin"
+
+- name: Check current shell
+  command: echo $SHELL
+  register: current_shell
+  changed_when: false
+
+- name: Set zsh as default shell
+  user:
+    name: "{{ ansible_env.USER }}"
+    shell: "{{ ansible_facts.userdir }}/bin/zsh"
+  become: yes
+  when:
+    - "'zsh' not in current_shell.stdout"
+    - ansible_os_family != "Darwin"
+
+- name: Set zsh as default shell (macOS)
+  command: chsh -s $(which zsh)
+  when:
+    - ansible_os_family == "Darwin"
+    - "'zsh' not in current_shell.stdout"
+  register: chsh_result
+  changed_when: chsh_result.rc == 0
+  failed_when: false

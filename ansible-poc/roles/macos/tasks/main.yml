@@ -1,0 +1,86 @@
+---
+# macOS system configuration role
+# Only runs on macOS systems
+
+- name: Close System Preferences to prevent conflicts
+  command: osascript -e 'tell application "System Preferences" to quit'
+  changed_when: false
+  failed_when: false
+
+- name: Configure Finder settings
+  community.general.osx_defaults:
+    domain: "{{ item.domain }}"
+    key: "{{ item.key }}"
+    type: "{{ item.type }}"
+    value: "{{ item.value }}"
+    state: present
+  loop: "{{ macos_settings.finder }}"
+  notify: restart finder
+
+- name: Configure Dock settings
+  community.general.osx_defaults:
+    domain: "{{ item.domain }}"
+    key: "{{ item.key }}"
+    type: "{{ item.type }}"
+    value: "{{ item.value }}"
+    state: present
+  loop: "{{ macos_settings.dock }}"
+  notify: restart dock
+
+- name: Configure keyboard settings
+  community.general.osx_defaults:
+    domain: "{{ item.domain }}"
+    key: "{{ item.key }}"
+    type: "{{ item.type }}"
+    value: "{{ item.value }}"
+    state: present
+  loop: "{{ macos_settings.keyboard }}"
+
+- name: Ensure Screenshots directory exists
+  file:
+    path: "{{ ansible_env.HOME }}/Desktop/Screenshots"
+    state: directory
+    mode: '0755'
+
+- name: Configure screenshot settings
+  community.general.osx_defaults:
+    domain: "{{ item.domain }}"
+    key: "{{ item.key }}"
+    type: "{{ item.type }}"
+    value: "{{ item.value }}"
+    state: present
+  loop: "{{ macos_settings.screenshots }}"
+
+- name: Show ~/Library folder
+  command: chflags nohidden {{ ansible_env.HOME }}/Library
+  changed_when: false
+
+- name: Remove com.apple.FinderInfo from ~/Library
+  command: xattr -d com.apple.FinderInfo {{ ansible_env.HOME }}/Library
+  changed_when: false
+  failed_when: false
+
+- name: Show /Volumes folder
+  command: chflags nohidden /Volumes
+  become: yes
+  changed_when: false
+  failed_when: false
+
+- name: Display macOS configuration message
+  debug:
+    msg:
+      - "✅ macOS system settings configured!"
+      - "⚠️  Some changes require logout/restart to take effect"
+      - "Finder and Dock will be restarted automatically"
+
+# Handlers are defined below
+handlers:
+  - name: restart finder
+    command: killall Finder
+    listen: restart finder
+    failed_when: false
+
+  - name: restart dock
+    command: killall Dock
+    listen: restart dock
+    failed_when: false

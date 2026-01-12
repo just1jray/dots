@@ -1,0 +1,43 @@
+---
+# Git configuration role
+
+- name: Deploy gitconfig from template
+  template:
+    src: gitconfig.j2
+    dest: "{{ ansible_env.HOME }}/.gitconfig"
+    mode: '0644'
+    backup: yes
+
+- name: Deploy global gitignore from template
+  template:
+    src: gitignore_global.j2
+    dest: "{{ ansible_env.HOME }}/.gitignore_global"
+    mode: '0644'
+    backup: yes
+
+- name: Create gitconfig.local template if it doesn't exist
+  copy:
+    content: |
+      # Local git configuration
+      # Add machine-specific settings here
+      # This file is gitignored and not committed to the repository
+
+      # Example:
+      # [user]
+      #     signingkey = YOUR_GPG_KEY_ID
+      # [commit]
+      #     gpgsign = true
+    dest: "{{ ansible_env.HOME }}/.gitconfig.local"
+    mode: '0644'
+    force: no
+  when: ansible_env.HOME is defined
+
+- name: Check if gh (GitHub CLI) is installed
+  command: which gh
+  register: gh_check
+  changed_when: false
+  failed_when: false
+
+- name: Display GitHub CLI status
+  debug:
+    msg: "GitHub CLI is {{ 'installed' if gh_check.rc == 0 else 'not installed' }}"

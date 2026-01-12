@@ -1,0 +1,7 @@
+# Linux-specific configurations
+
+# Add any Linux-specific settings here
+
+# Use default Starship prompt on Linux (works best over SSH/mosh)
+# Unset STARSHIP_CONFIG to use built-in default instead of custom theme
+unset STARSHIP_CONFIG
