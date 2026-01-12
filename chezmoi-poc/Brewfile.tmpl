@@ -1,0 +1,64 @@
+{{- if eq .chezmoi.os "darwin" -}}
+# Homebrew Bundle for {{ .chezmoi.hostname }}
+# Run: brew bundle --global
+
+# Taps
+tap "homebrew/cask-fonts"
+
+# Essential CLI tools
+brew "git"
+brew "zsh"
+brew "curl"
+brew "wget"
+
+# Modern shell tools
+brew "starship"       # Modern prompt
+brew "fzf"           # Fuzzy finder
+brew "zoxide"        # Smarter cd
+brew "ripgrep"       # Fast grep
+brew "fd"            # Fast find
+brew "bat"           # Better cat
+brew "eza"           # Better ls
+brew "delta"         # Better diff
+
+# Development tools
+brew "neovim"        # Editor
+brew "tmux"          # Terminal multiplexer
+brew "gh"            # GitHub CLI
+
+# Optional tools
+brew "vivid"         # LS_COLORS generator
+brew "mosh"          # Mobile shell
+brew "tree"          # Directory visualization
+brew "htop"          # System monitor
+brew "jq"            # JSON processor
+
+{{- if .work }}
+# Work-specific tools
+brew "kubectl"
+brew "terraform"
+brew "ansible"
+brew "docker"
+{{- end }}
+
+# Version managers
+brew "pyenv"         # Python version manager
+brew "nvm"           # Node version manager
+
+# Cask applications
+cask "ghostty"       # Terminal emulator
+cask "1password-cli" # 1Password CLI for Chezmoi
+
+# Fonts
+cask "font-meslo-lg-nerd-font"  # Nerd font for icons
+
+{{- if .work }}
+# Work applications
+cask "slack"
+cask "zoom"
+{{- end }}
+
+# MAS (Mac App Store) - requires `mas` to be installed
+# brew "mas"
+# mas "1Password", id: 1333542190
+{{- end -}}

@@ -1,0 +1,87 @@
+#!/bin/bash
+# run_once_before_install-packages.sh.tmpl
+# Runs once on initial setup to install required packages
+# The "before" prefix ensures this runs before dotfiles are linked
+
+set -euo pipefail
+
+echo "🔧 Installing packages for {{ .chezmoi.hostname }}..."
+
+{{- if eq .chezmoi.os "darwin" }}
+
+# Install Homebrew if not present
+if ! command -v brew &> /dev/null; then
+    echo "📦 Installing Homebrew..."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+    # Add Homebrew to PATH for this script
+    {{- if eq .chezmoi.arch "arm64" }}
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+    {{- else }}
+    eval "$(/usr/local/bin/brew shellenv)"
+    {{- end }}
+fi
+
+# Install packages from Brewfile
+if [ -f "$HOME/.Brewfile" ]; then
+    echo "📋 Installing packages from Brewfile..."
+    brew bundle --global --no-lock
+else
+    echo "⚠️  Brewfile not found, skipping package installation"
+fi
+
+# Install 1Password CLI if not present (needed for secrets)
+if ! command -v op &> /dev/null; then
+    echo "🔐 Installing 1Password CLI..."
+    brew install --cask 1password-cli
+fi
+
+{{- else if eq .chezmoi.os "linux" }}
+
+# Update package lists
+echo "📦 Updating package lists..."
+sudo apt update
+
+# Install essential packages
+echo "📋 Installing essential packages..."
+sudo apt install -y \
+    git \
+    zsh \
+    curl \
+    wget \
+    build-essential
+
+# Install starship
+if ! command -v starship &> /dev/null; then
+    echo "⭐ Installing Starship..."
+    curl -sS https://starship.rs/install.sh | sh -s -- -y
+fi
+
+# Install fzf
+if ! command -v fzf &> /dev/null; then
+    echo "🔍 Installing fzf..."
+    git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf
+    ~/.fzf/install --all --no-bash --no-fish
+fi
+
+# Install zoxide
+if ! command -v zoxide &> /dev/null; then
+    echo "📂 Installing zoxide..."
+    curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash
+fi
+
+# Install neovim (if not present)
+if ! command -v nvim &> /dev/null; then
+    echo "📝 Installing Neovim..."
+    sudo apt install -y neovim
+fi
+
+# Install tmux
+if ! command -v tmux &> /dev/null; then
+    echo "🖥️  Installing tmux..."
+    sudo apt install -y tmux
+fi
+
+{{- end }}
+
+echo "✅ Package installation complete!"

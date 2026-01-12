@@ -1,0 +1,69 @@
+#!/bin/bash
+# run_once_after_install-plugins.sh.tmpl
+# Runs once after dotfiles are installed to set up plugin managers
+
+set -euo pipefail
+
+echo "🔌 Installing plugin managers..."
+
+# Create necessary directories
+mkdir -p ~/.config/zsh/plugins
+mkdir -p ~/Developer/src
+mkdir -p ~/.tmux/plugins
+mkdir -p ~/.tmux/resurrect
+
+# Install Zinit (zsh plugin manager)
+if [[ ! -d "$HOME/.local/share/zinit/zinit.git" ]]; then
+    echo "📦 Installing Zinit..."
+    git clone https://github.com/zdharma-continuum/zinit.git \
+        "$HOME/.local/share/zinit/zinit.git" --depth 1
+    echo "✅ Zinit installed"
+else
+    echo "✓ Zinit already installed"
+fi
+
+# Install Tmux Plugin Manager (TPM)
+if [[ ! -d "$HOME/.tmux/plugins/tpm" ]]; then
+    echo "🖥️  Installing Tmux Plugin Manager..."
+    git clone https://github.com/tmux-plugins/tpm \
+        "$HOME/.tmux/plugins/tpm" --depth 1
+    echo "✅ TPM installed"
+else
+    echo "✓ TPM already installed"
+fi
+
+# Install TPM plugins
+if command -v tmux &> /dev/null && [[ -d "$HOME/.tmux/plugins/tpm" ]]; then
+    echo "🔌 Installing tmux plugins..."
+    # Run TPM install script
+    "$HOME/.tmux/plugins/tpm/bin/install_plugins" || true
+fi
+
+# Install NVChad (if neovim is installed)
+if command -v nvim &> /dev/null; then
+    if [[ ! -d "$HOME/.config/nvim" ]]; then
+        echo "⚠️  NVChad will be installed when dotfiles are linked"
+    else
+        echo "✓ Neovim config already exists"
+    fi
+else
+    echo "⚠️  Neovim not installed, skipping NVChad setup"
+fi
+
+# Set zsh as default shell (if not already)
+if [[ "$SHELL" != *"zsh"* ]] && command -v zsh &> /dev/null; then
+    echo "🐚 Setting zsh as default shell..."
+    {{- if eq .chezmoi.os "darwin" }}
+    chsh -s "$(which zsh)"
+    {{- else }}
+    sudo chsh -s "$(which zsh)" "$(whoami)"
+    {{- end }}
+    echo "✅ Default shell changed to zsh (restart required)"
+fi
+
+echo "✅ Plugin installation complete!"
+echo ""
+echo "Next steps:"
+echo "  1. Restart your terminal"
+echo "  2. Open tmux and press 'prefix + I' to install tmux plugins"
+echo "  3. Open nvim - plugins will install automatically"

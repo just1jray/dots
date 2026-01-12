@@ -1,0 +1,23 @@
+#!/bin/bash
+# run_onchange_after_brewfile-update.sh.tmpl
+# Runs whenever the Brewfile changes
+# Hash: {{ include "Brewfile.tmpl" | sha256sum }}
+
+{{- if eq .chezmoi.os "darwin" }}
+
+set -euo pipefail
+
+echo "🍺 Brewfile changed, updating packages..."
+
+if command -v brew &> /dev/null; then
+    brew bundle --global --no-lock
+    echo "✅ Brew packages updated!"
+else
+    echo "⚠️  Homebrew not installed, skipping"
+    exit 0
+fi
+
+{{- else }}
+# Not macOS, skip brew operations
+exit 0
+{{- end }}

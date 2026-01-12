@@ -1,0 +1,29 @@
+# Chezmoi ignore file
+# Files/patterns listed here won't be installed to home directory
+
+README.md
+LICENSE
+.git/
+.github/
+
+# Brewfile stays in chezmoi source dir, gets symlinked to ~/.Brewfile
+{{- if ne .chezmoi.os "darwin" }}
+Brewfile.tmpl
+{{- end }}
+
+# macOS-specific files (ignore on Linux)
+{{- if ne .chezmoi.os "darwin" }}
+.config/ghostty/
+Library/
+{{- end }}
+
+# Work-specific files (ignore on personal machines)
+{{- if not .work }}
+.config/zsh/profile-work
+{{- end }}
+
+# Development/testing files
+*.swp
+*.swo
+*~
+.DS_Store

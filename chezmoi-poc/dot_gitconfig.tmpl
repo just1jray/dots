@@ -1,0 +1,128 @@
+# Git Configuration
+# Managed by Chezmoi - templated for {{ .chezmoi.hostname }}
+
+[user]
+    name = {{ .name }}
+    email = {{ .email }}
+{{- if .work }}
+    # Work machine - using work email
+{{- end }}
+
+[core]
+    excludesfile = ~/.gitignore_global
+    editor = nvim
+    autocrlf = input
+    preloadindex = true
+    fscache = true
+
+[init]
+    defaultBranch = main
+
+[pull]
+    rebase = false
+
+[push]
+    default = simple
+    autoSetupRemote = true
+    followTags = true
+
+[fetch]
+    prune = true
+    prunetagss = true
+
+[color]
+    ui = auto
+    branch = auto
+    diff = auto
+    status = auto
+
+[color "branch"]
+    current = yellow reverse
+    local = yellow
+    remote = green
+
+[color "diff"]
+    meta = yellow bold
+    frag = magenta bold
+    old = red bold
+    new = green bold
+
+[color "status"]
+    added = yellow
+    changed = green
+    untracked = cyan
+
+[diff]
+    colorMoved = default
+
+[merge]
+    conflictstyle = diff3
+
+[rebase]
+    autoStash = true
+    autoSquash = true
+
+[alias]
+    st = status -sb
+    co = checkout
+    cob = checkout -b
+    br = branch
+    brd = branch -d
+    brD = branch -D
+    ci = commit
+    ca = commit -a
+    cm = commit -m
+    cam = commit -am
+    amend = commit --amend
+    amendf = commit --amend --no-edit
+    lg = log --oneline --graph --decorate
+    lga = log --oneline --graph --decorate --all
+    last = log -1 HEAD --stat
+    df = diff
+    dfc = diff --cached
+    sl = stash list
+    sa = stash apply
+    ss = stash save
+    undo = reset HEAD~1 --mixed
+    contributors = shortlog --summary --numbered
+    fb = "!f() { git branch -a --contains $1; }; f"
+    ft = "!f() { git describe --always --contains $1; }; f"
+    fc = "!f() { git log --pretty=format:'%C(yellow)%h  %Cblue%ad  %Creset%s%Cgreen  [%cn] %Cred%d' --decorate --date=short -S$1; }; f"
+    fm = "!f() { git log --pretty=format:'%C(yellow)%h  %Cblue%ad  %Creset%s%Cgreen  [%cn] %Cred%d' --decorate --date=short --grep=$1; }; f"
+
+[help]
+    autocorrect = 1
+
+[credential]
+{{- if eq .chezmoi.os "darwin" }}
+    helper = osxkeychain
+{{- else }}
+    helper = cache --timeout=3600
+{{- end }}
+
+{{- /* Uncomment when ready to use 1Password for GitHub token */ -}}
+{{- /* GitHub CLI authentication via 1Password
+[credential "https://github.com"]
+    helper =
+    helper = !gh auth git-credential
+
+# Or use 1Password directly:
+# helper = !{{ onepasswordRead "op://Private/GitHub/credential" }}
+*/ -}}
+
+{{- /* SSH signing (requires GPG or SSH key) */ -}}
+{{- if eq .chezmoi.hostname "personal-macbook" }}
+# SSH commit signing
+[gpg]
+    format = ssh
+
+[commit]
+    gpgsign = true
+
+[user]
+    signingkey = ~/.ssh/id_ed25519.pub
+{{- end }}
+
+# Platform-specific settings
+[includeIf "gitdir:~/"]
+    path = ~/.gitconfig.local
