@@ -90,4 +90,27 @@ if command -v tmux &> /dev/null; then
     alias t="tmux new-session -A -s sesh"
     alias tfresh="tmux source-file ~/.tmux.conf"
     alias tfig="$EDITOR ~/.tmux.conf"
+
+    # Reset tmux session (works from inside or outside tmux)
+    # Use -c flag to also clear tmux-resurrect saved state
+    treset() {
+        # Clear resurrect saved state if -c flag provided
+        if [[ "$1" == "-c" ]]; then
+            rm -f ~/.tmux/resurrect/last 2>/dev/null
+            echo "Cleared tmux-resurrect saved state"
+        fi
+
+        if [[ -n "$TMUX" ]]; then
+            # Inside tmux: create new session, switch to it, kill old one
+            local old_session=$(tmux display-message -p '#S')
+            tmux new-session -d -s "sesh-tmp"
+            tmux switch-client -t "sesh-tmp"
+            tmux kill-session -t "$old_session"
+            tmux rename-session "sesh"
+        else
+            # Outside tmux: kill and start fresh
+            tmux kill-session -t sesh 2>/dev/null
+            tmux new-session -s sesh
+        fi
+    }
 fi
