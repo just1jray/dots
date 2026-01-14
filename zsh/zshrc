@@ -135,11 +135,10 @@ if command -v pyenv &> /dev/null; then
     fi
 fi
 
-if command -v nvm &> /dev/null; then
-    export NVM_DIR="$HOME/.nvm"
-    [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
-    [ -s "$NVM_DIR/bash_completion" ] && source "$NVM_DIR/bash_completion"
-fi
+# nvm is a shell function, not a binary - check for the directory instead
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+[ -s "$NVM_DIR/bash_completion" ] && source "$NVM_DIR/bash_completion"
 
 # TMUX Session Management
 if command -v tmux &> /dev/null; then
@@ -170,12 +169,15 @@ fi
 # Disable paste highlighting for cleaner pasting
 zle_highlight=('paste:none')
 
-# Increase function nesting limit for Starship vi mode integration
-FUNCNEST=1000
-
-# Initialize Starship prompt
-if command -v starship &> /dev/null; then
+# Initialize Starship prompt (guard against re-initialization to prevent
+# zle-keymap-select wrapper recursion when sourcing .zshrc multiple times)
+if command -v starship &> /dev/null && ! typeset -f starship_zle-keymap-select > /dev/null; then
     if ! eval "$(starship init zsh 2>/dev/null)"; then
         echo "Warning: Failed to initialize Starship prompt" >&2
     fi
 fi
+# The following lines have been added by Docker Desktop to enable Docker CLI completions.
+fpath=(/Users/jesse/.docker/completions $fpath)
+autoload -Uz compinit
+compinit
+# End of Docker CLI completions
