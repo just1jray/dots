@@ -126,6 +126,9 @@ zinit snippet OMZP::kubectl
 zinit snippet OMZP::kubectx
 zinit snippet OMZP::command-not-found
 
+# Remove conflicting aliases from OMZ plugins
+unalias gam 2>/dev/null || true
+
 # Development Environment Managers
 # Note: PYENV_ROOT and PATH are set in .zshenv
 if command -v pyenv &> /dev/null; then
