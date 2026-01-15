@@ -1,5 +1,25 @@
 # Quick Start Guide
 
+## Prerequisites (First-Time Setup)
+
+If this is your first time using the Chezmoi POC (e.g., in a fresh VM):
+
+```bash
+cd ~/dots/chezmoi-poc
+./bootstrap.sh
+```
+
+**What it installs:**
+- **Homebrew** (macOS only, if missing)
+- **chezmoi** (the dotfile manager)
+- **1Password CLI** (macOS only, for secrets integration)
+
+**Takes:** ~2-5 minutes depending on your connection
+
+After bootstrap completes, continue with the instructions below.
+
+---
+
 ## 🚀 Test the POC in 5 Minutes
 
 ### 1. Install Chezmoi (if not installed)

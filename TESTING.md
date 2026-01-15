@@ -85,15 +85,34 @@ scp -r ~/dots user@VM_IP:~/
 cd ~/dots
 ```
 
-**3. Test Chezmoi POC**
+**3. Run Bootstrap Script**
+
+Before testing, run the bootstrap script to install prerequisites:
 
 ```bash
-# In VM (Ubuntu example):
+# In VM (macOS or Linux):
 cd ~/dots/chezmoi-poc
+./bootstrap.sh
 
-# Install Chezmoi
-curl -sfL https://git.io/chezmoi | sh
-# Or: brew install chezmoi (if macOS VM)
+# What this installs:
+# - macOS: Homebrew, chezmoi, 1Password CLI
+# - Linux: git/curl (if needed), chezmoi
+
+# Takes ~2-5 minutes
+# You'll see clear progress messages
+```
+
+**Why bootstrap first:**
+- Installs chezmoi (required for testing)
+- Installs Homebrew (macOS, needed for packages)
+- Installs 1Password CLI (macOS, for secrets)
+- Adds tools to your PATH automatically
+
+**4. Test Chezmoi POC**
+
+```bash
+# In VM:
+cd ~/dots/chezmoi-poc
 
 # Preview changes
 ./TEST.sh
@@ -107,7 +126,7 @@ curl -sfL https://git.io/chezmoi | sh
 ls -la ~/ | grep -E '\.(zshrc|gitconfig|tmux.conf)'
 ```
 
-**4. Test Ansible POC**
+**5. Test Ansible POC**
 
 ```bash
 # In VM:
@@ -140,7 +159,7 @@ which starship fzf zoxide
 ls -la ~/.zshrc ~/.gitconfig
 ```
 
-**5. Restore from Snapshot** (if needed)
+**6. Restore from Snapshot** (if needed)
 
 ```bash
 # If something goes wrong:
@@ -235,22 +254,23 @@ docker run -it --rm ubuntu:22.04 bash
 ```bash
 # Now you're in an Ubuntu container!
 
-# Install dependencies
-apt update
-apt install -y git curl
-
-# Install Chezmoi
-sh -c "$(curl -fsLS get.chezmoi.io)"
-
 # Clone your dotfiles
+apt update && apt install -y git curl
 git clone https://github.com/just1jray/dots.git ~/dots
 cd ~/dots
 git checkout claude/stow-dotfiles-evaluation-42Mqb
 
-# Test Chezmoi
+# Run bootstrap (installs chezmoi automatically)
 cd chezmoi-poc
-/root/.local/bin/chezmoi init --source .
-/root/.local/bin/chezmoi diff
+./bootstrap.sh
+
+# Test Chezmoi
+./TEST.sh
+# Select option 1 (dry run)
+
+# Or test manually
+chezmoi init --source .
+chezmoi diff
 
 # Exit when done (container is deleted automatically)
 exit
@@ -276,11 +296,15 @@ docker run -it --rm \
 cd /workspace/chezmoi-poc
 ls  # See your files from Mac!
 
-apt update && apt install -y git curl
-sh -c "$(curl -fsLS get.chezmoi.io)"
+# Run bootstrap (installs chezmoi + prerequisites)
+./bootstrap.sh
 
-/root/.local/bin/chezmoi init --source .
-/root/.local/bin/chezmoi diff
+# Test with interactive script
+./TEST.sh
+
+# Or test manually
+chezmoi init --source .
+chezmoi diff
 ```
 
 ### Testing Ansible in Docker

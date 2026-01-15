@@ -16,9 +16,13 @@ echo ""
 if ! command -v chezmoi &> /dev/null; then
     echo "❌ Chezmoi is not installed"
     echo ""
-    echo "Install it with:"
-    echo "  macOS:  brew install chezmoi"
-    echo "  Linux:  curl -sfL https://git.io/chezmoi | sh"
+    echo "Run the bootstrap script first:"
+    echo "  ./bootstrap.sh"
+    echo ""
+    echo "This will install:"
+    echo "  - Homebrew (macOS, if needed)"
+    echo "  - chezmoi (the dotfile manager)"
+    echo "  - 1Password CLI (macOS, for secrets)"
     echo ""
     exit 1
 fi

@@ -106,6 +106,44 @@ Linux-specific content
 {{ onepasswordRead "op://Private/GitHub/token" }}
 ```
 
+## Prerequisites (First-Time Setup)
+
+If this is your first time using the Chezmoi POC (e.g., in a fresh VM or new machine), run the bootstrap script to install prerequisites:
+
+```bash
+cd ~/dots/chezmoi-poc
+./bootstrap.sh
+```
+
+**What it installs:**
+- **Homebrew** (macOS only, if not already installed)
+- **chezmoi** (the dotfile manager)
+- **1Password CLI** (macOS only, for secrets integration)
+- **git/curl** (Linux only, if not already installed)
+
+**Installation time:** ~2-5 minutes depending on your internet connection
+
+**After bootstrap completes**, proceed with testing using one of the options below.
+
+### Bootstrap Script Details
+
+The `bootstrap.sh` script:
+- Detects your OS (macOS or Linux) and architecture
+- Installs tools only if they're missing (idempotent - safe to re-run)
+- Adds executables to your PATH automatically
+- Displays clear progress messages
+- Shows helpful next steps after completion
+
+**Manual installation (if you prefer):**
+```bash
+# macOS
+brew install chezmoi
+brew install --cask 1password-cli
+
+# Linux
+sh -c "$(curl -fsLS get.chezmoi.io)"
+```
+
 ## Testing the POC
 
 ### Option 1: Test in Docker (Safe)
@@ -125,13 +163,11 @@ Use UTM, Parallels, or VirtualBox with a fresh macOS/Linux VM
 
 ### Option 3: Test on Current Machine (with dry-run)
 ```bash
-# Install Chezmoi
-brew install chezmoi  # macOS
-# or
-curl -sfL https://git.io/chezmoi | sh  # Linux
+# Run bootstrap to install prerequisites
+cd ~/dots/chezmoi-poc
+./bootstrap.sh
 
 # Initialize with this POC directory
-cd ~/dots/chezmoi-poc
 chezmoi init --source .
 
 # Preview what would happen (DRY RUN)
@@ -147,9 +183,9 @@ chezmoi managed
 ## Migration Path
 
 ### Phase 1: Initial Setup (Do this first)
-1. Install Chezmoi: `brew install chezmoi`
-2. Install 1Password CLI: `brew install --cask 1password-cli` (optional)
-3. Create a test branch: `git checkout -b chezmoi-migration`
+1. Run bootstrap script: `cd ~/dots/chezmoi-poc && ./bootstrap.sh`
+   - This installs Chezmoi, Homebrew (macOS), and 1Password CLI (macOS)
+2. Create a test branch: `git checkout -b chezmoi-migration`
 
 ### Phase 2: Convert Files Gradually
 ```bash
