@@ -46,6 +46,15 @@ if [[ "$OS" == "Darwin" ]]; then
         echo "✅ chezmoi already installed"
     fi
 
+    # Install 1Password desktop app (user preference: auto-install on macOS)
+    if ! brew list --cask 1password &> /dev/null; then
+        echo "📦 Installing 1Password desktop app..."
+        brew install --cask 1password
+        echo "✅ 1Password desktop app installed"
+    else
+        echo "✅ 1Password desktop app already installed"
+    fi
+
     # Install 1Password CLI (user preference: auto-install on macOS)
     if ! command -v op &> /dev/null; then
         echo "📦 Installing 1Password CLI..."
@@ -90,6 +99,7 @@ echo "Installed:"
 if [[ "$OS" == "Darwin" ]]; then
     echo "  ✓ Homebrew (macOS package manager)"
     echo "  ✓ chezmoi (dotfile manager)"
+    echo "  ✓ 1Password desktop app (for signing in)"
     echo "  ✓ 1Password CLI (for secrets integration)"
 else
     echo "  ✓ chezmoi (dotfile manager)"
@@ -132,7 +142,9 @@ echo "     chezmoi diff          # Preview changes"
 echo "     chezmoi apply -v      # Apply changes"
 echo ""
 echo "  3. For 1Password integration (optional):"
-echo "     - Sign in first: op signin"
+echo "     - Open 1Password app and sign in to your account"
+echo "     - Enable CLI: Settings → Developer → Command-Line Interface"
+echo "     - Sign in to CLI: op signin"
 echo "     - Re-run: chezmoi init --source ."
 echo "     - Answer 'true' to use_1password prompt"
 echo ""

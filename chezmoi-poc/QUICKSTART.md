@@ -12,6 +12,7 @@ cd ~/dots/chezmoi-poc
 **What it installs:**
 - **Homebrew** (macOS only, if missing)
 - **chezmoi** (the dotfile manager)
+- **1Password desktop app** (macOS only, for signing in)
 - **1Password CLI** (macOS only, for secrets integration)
 
 **Takes:** ~2-5 minutes depending on your connection
@@ -246,10 +247,10 @@ use_1password (bool) [false]: true    ← Answer 'true' to enable
 - No `op signin` required
 
 ### Prerequisites
-1. Install 1Password desktop app (if not already installed)
-2. Install 1Password CLI: `brew install --cask 1password-cli` (or run `./bootstrap.sh`)
-3. Enable CLI in 1Password settings: Settings → Developer → CLI
-4. Sign in: `op signin`
+1. Run `./bootstrap.sh` (installs 1Password desktop app and CLI automatically on macOS)
+2. Open 1Password app and sign in to your account
+3. Enable CLI in 1Password settings: Settings → Developer → Command-Line Interface
+4. Sign in to CLI: `op signin`
 
 ### Store Secrets in 1Password
 1. Open 1Password desktop app
