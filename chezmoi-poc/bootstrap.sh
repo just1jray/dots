@@ -100,14 +100,22 @@ echo "⚠️  IMPORTANT: Reload your shell to update PATH"
 echo ""
 if [[ "$OS" == "Darwin" ]]; then
     echo "Run this command now:"
-    echo "  source ~/.zshrc"
+    if [[ -f "$HOME/.zshrc" ]]; then
+        echo "  source ~/.zshrc"
+    else
+        echo "  source ~/.zprofile"
+    fi
     echo ""
-    echo "Or open a new terminal window."
+    echo "Or simply open a new terminal window."
 else
     echo "Run this command now:"
-    echo "  source ~/.bashrc"
+    if [[ -f "$HOME/.bashrc" ]]; then
+        echo "  source ~/.bashrc"
+    else
+        echo "  source ~/.profile"
+    fi
     echo ""
-    echo "Or open a new terminal window."
+    echo "Or simply open a new terminal window."
 fi
 echo ""
 echo "Then proceed with testing:"
