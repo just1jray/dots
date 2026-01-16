@@ -273,13 +273,16 @@ name [Your Name]: Jesse Ray
 email [your.email@example.com]: jesse@example.com
 work (bool) [false]: false
 use_1password (bool) [false]: true
+1password_github_ref [op://Private/GitHub/credential]: op://Private/GitHub Token/credential
 ```
+
+**Note:** The last prompt only appears if you answer "true" to `use_1password`.
 
 **If you answer "true" to `use_1password`:**
 - Chezmoi will fetch secrets from 1Password automatically
 - You MUST run `op signin` first (before `chezmoi apply`)
-- GitHub credentials will be pulled from your 1Password vault
-- SSH signing keys will be pulled from your 1Password vault
+- You'll be prompted for the exact 1Password item reference
+- GitHub credentials will be pulled from your specified item
 
 **If you answer "false" (default):**
 - No 1Password integration
@@ -294,15 +297,32 @@ use_1password (bool) [false]: true
 5. Store secrets in your vault (see below)
 
 ### Store Secrets in 1Password
-```bash
-# Store GitHub token in 1Password
-# Item: "GitHub" in "Private" vault
-# Field: "credential" (or "token")
 
-# Store SSH signing key in 1Password
-# Item: "SSH" in "Private" vault
-# Field: "signing_key"
+**Create a unique item for your GitHub token:**
+1. Open 1Password desktop app
+2. Create a new item in "Private" vault
+3. **Use a unique name** (e.g., "GitHub Token" not just "GitHub")
+4. Add a field called "credential" with your GitHub personal access token
+
+**Item reference format:**
 ```
+op://VAULT/ITEM_NAME/FIELD_NAME
+```
+
+**Examples:**
+```bash
+# Good - unique item name
+op://Private/GitHub Token/credential
+op://Private/GitHub Personal Access Token/token
+
+# Bad - ambiguous if multiple "GitHub" items exist
+op://Private/GitHub/credential  # Error if you have multiple "GitHub" items
+```
+
+**If you have multiple items with the same name:**
+- Either rename them to be unique (recommended)
+- Or use the item ID instead: `op://Private/63ztuiynkmjtdjajw37u4iux2m/credential`
+  - Find item ID with: `op item list --vault Private | grep GitHub`
 
 ### How It Works
 The templates use conditional logic:

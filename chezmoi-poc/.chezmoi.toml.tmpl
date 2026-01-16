@@ -2,6 +2,8 @@
 {{- $email := "your.email@example.com" -}}
 {{- $work := false -}}
 {{- $use_1password := false -}}
+{{- $onepassword_github_ref := "op://Private/GitHub/credential" -}}
+{{- $onepassword_ssh_ref := "op://Private/SSH/signing_key" -}}
 
 {{- if eq .chezmoi.hostname "work-macbook" -}}
 {{-   $work = true -}}
@@ -15,6 +17,9 @@
 {{-   $email = promptString "email" $email -}}
 {{-   $work = promptBool "work" $work -}}
 {{-   $use_1password = promptBool "use_1password" $use_1password -}}
+{{-   if $use_1password -}}
+{{-     $onepassword_github_ref = promptString "1password_github_ref (e.g., op://Private/GitHub Token/credential)" $onepassword_github_ref -}}
+{{-   end -}}
 {{- end -}}
 
 [data]
@@ -26,10 +31,10 @@
     {{- if $use_1password }}
     # 1Password integration - requires 'op signin' first
     # Get GitHub token from 1Password
-    github_token = {{ onepasswordRead "op://Private/GitHub/credential" | quote }}
+    github_token = {{ onepasswordRead $onepassword_github_ref | quote }}
 
-    # Get SSH signing key from 1Password
-    ssh_signing_key = {{ onepasswordRead "op://Private/SSH/signing_key" | quote }}
+    # Get SSH signing key from 1Password (optional - commented out by default)
+    # ssh_signing_key = {{ onepasswordRead $onepassword_ssh_ref | quote }}
     {{- else }}
     # 1Password integration disabled
     # Uncomment and configure manually if needed

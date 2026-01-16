@@ -232,13 +232,21 @@ When you run `chezmoi init --source .`, you'll be prompted:
 ```
 name [Your Name]: Jesse Ray
 email [your.email@example.com]: jesse@example.com
-work (bool) [false]: false
-use_1password (bool) [false]: true    ← Answer 'true' to enable
+work (bool) [false]: f
+use_1password (bool) [false]: t    ← Single char works! t=true, f=false
+1password_github_ref [op://Private/GitHub/credential]: op://Private/GitHub Token/credential
 ```
+
+**Note:** The last prompt only appears if you answer "t" (true) to `use_1password`.
+
+**Boolean shortcuts:**
+- **t**, y, true, yes, 1 = enable
+- **f**, n, false, no, 0 = disable
 
 **If you enable it (`true`):**
 - Chezmoi will automatically fetch secrets from 1Password
 - You MUST run `op signin` before `chezmoi apply`
+- You'll specify the exact 1Password item reference
 - Templates will use real secrets from your vault
 
 **If you disable it (`false`, default):**
@@ -253,10 +261,33 @@ use_1password (bool) [false]: true    ← Answer 'true' to enable
 4. Sign in to CLI: `op signin`
 
 ### Store Secrets in 1Password
+
+**Create a unique item:**
 1. Open 1Password desktop app
-2. Create item in "Private" vault called "GitHub"
-3. Add field called "credential" with your GitHub token
-4. Optionally create "SSH" item with "signing_key" field
+2. Create a new item in "Private" vault
+3. **Use a unique name** like "GitHub Token" (not just "GitHub")
+4. Add a field called "credential" with your GitHub personal access token
+
+**Item reference format:**
+```
+op://VAULT/ITEM_NAME/FIELD_NAME
+```
+
+**Examples to enter at the prompt:**
+```bash
+# ✅ Good - unique item names
+op://Private/GitHub Token/credential
+op://Private/GitHub Personal Access Token/token
+op://Private/My GitHub PAT/password
+
+# ❌ Bad - will fail if multiple "GitHub" items exist
+op://Private/GitHub/credential
+```
+
+**Troubleshooting:** If you see "More than one item matches":
+- Rename your items in 1Password to be unique, OR
+- Use the item ID: `op://Private/63ztuiynkmjtdjajw37u4iux2m/credential`
+  - Find ID with: `op item list --vault Private | grep "GitHub"`
 
 ### How It Works
 The templates automatically check the `use_1password` flag:
