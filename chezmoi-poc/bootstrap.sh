@@ -96,7 +96,21 @@ else
     echo "  ✓ git and curl (if needed)"
 fi
 echo ""
-echo "Next steps:"
+echo "⚠️  IMPORTANT: Reload your shell to update PATH"
+echo ""
+if [[ "$OS" == "Darwin" ]]; then
+    echo "Run this command now:"
+    echo "  source ~/.zshrc"
+    echo ""
+    echo "Or open a new terminal window."
+else
+    echo "Run this command now:"
+    echo "  source ~/.bashrc"
+    echo ""
+    echo "Or open a new terminal window."
+fi
+echo ""
+echo "Then proceed with testing:"
 echo "  1. Run the interactive test script:"
 echo "     ./TEST.sh"
 echo ""
