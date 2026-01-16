@@ -224,32 +224,54 @@ chezmoi init --apply https://github.com/just1jray/dots.git
 
 ## 🔐 1Password Integration (Advanced)
 
-### Setup
-1. Install 1Password and CLI: `brew install --cask 1password-cli`
-2. Enable CLI in 1Password settings: Settings → Developer → CLI
-3. Sign in: `op signin`
+### Enable Integration
 
-### Store a Secret
+When you run `chezmoi init --source .`, you'll be prompted:
+
+```
+name [Your Name]: Jesse Ray
+email [your.email@example.com]: jesse@example.com
+work (bool) [false]: false
+use_1password (bool) [false]: true    ← Answer 'true' to enable
+```
+
+**If you enable it (`true`):**
+- Chezmoi will automatically fetch secrets from 1Password
+- You MUST run `op signin` before `chezmoi apply`
+- Templates will use real secrets from your vault
+
+**If you disable it (`false`, default):**
+- No 1Password integration
+- Standard credential helpers used
+- No `op signin` required
+
+### Prerequisites
+1. Install 1Password desktop app (if not already installed)
+2. Install 1Password CLI: `brew install --cask 1password-cli` (or run `./bootstrap.sh`)
+3. Enable CLI in 1Password settings: Settings → Developer → CLI
+4. Sign in: `op signin`
+
+### Store Secrets in 1Password
 1. Open 1Password desktop app
 2. Create item in "Private" vault called "GitHub"
-3. Add field called "token" with your GitHub token
+3. Add field called "credential" with your GitHub token
+4. Optionally create "SSH" item with "signing_key" field
 
-### Use in Template
-Uncomment in `.chezmoi.toml.tmpl`:
+### How It Works
+The templates automatically check the `use_1password` flag:
+
 ```toml
-[data]
-    github_token = {{ onepasswordRead "op://Private/GitHub/token" | quote }}
+# .chezmoi.toml.tmpl
+{{- if $use_1password }}
+    github_token = {{ onepasswordRead "op://Private/GitHub/credential" | quote }}
+{{- end }}
 ```
 
-Use in any template:
-```bash
-# In dot_zshrc.tmpl
-export GITHUB_TOKEN="{{ .github_token }}"
-```
+No need to uncomment anything - just answer the prompt!
 
 ### Security Notes
 - Secrets never stored in Git
-- Retrieved at apply time
+- Retrieved at apply time only
 - Requires 1Password unlocked
 - Can use Touch ID/biometrics
 

@@ -100,15 +100,12 @@
     helper = cache --timeout=3600
 {{- end }}
 
-{{- /* Uncomment when ready to use 1Password for GitHub token */ -}}
-{{- /* GitHub CLI authentication via 1Password
+{{- if .use_1password }}
+# 1Password integration enabled
 [credential "https://github.com"]
     helper =
     helper = !gh auth git-credential
-
-# Or use 1Password directly:
-# helper = !{{ onepasswordRead "op://Private/GitHub/credential" }}
-*/ -}}
+{{- end }}
 
 {{- /* SSH signing (requires GPG or SSH key) */ -}}
 {{- if eq .chezmoi.hostname "personal-macbook" }}

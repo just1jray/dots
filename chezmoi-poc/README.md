@@ -264,36 +264,57 @@ chezmoi init --apply https://github.com/just1jray/dots.git
 
 ## Using 1Password Integration
 
-### Setup
-1. Install 1Password desktop app and CLI
+### Enable During Setup
+When you run `chezmoi init --source .`, you'll be prompted:
+
+```
+name [Your Name]: Jesse Ray
+email [your.email@example.com]: jesse@example.com
+work (bool) [false]: false
+use_1password (bool) [false]: true
+```
+
+**If you answer "true" to `use_1password`:**
+- Chezmoi will fetch secrets from 1Password automatically
+- You MUST run `op signin` first (before `chezmoi apply`)
+- GitHub credentials will be pulled from your 1Password vault
+- SSH signing keys will be pulled from your 1Password vault
+
+**If you answer "false" (default):**
+- No 1Password integration
+- Standard credential helpers used (osxkeychain on macOS)
+- No need to sign in to 1Password
+
+### Prerequisites for 1Password Integration
+1. Install 1Password desktop app and CLI (bootstrap script installs CLI on macOS)
 2. Sign in: `op signin`
 3. Enable CLI integration in 1Password settings
+4. Store secrets in your vault (see below)
 
-### Store Secrets
+### Store Secrets in 1Password
 ```bash
 # Store GitHub token in 1Password
 # Item: "GitHub" in "Private" vault
-# Field: "credential" or "token"
+# Field: "credential" (or "token")
 
-# Store SSH key
+# Store SSH signing key in 1Password
 # Item: "SSH" in "Private" vault
 # Field: "signing_key"
 ```
 
-### Use in Templates
-Uncomment the 1Password lines in `.chezmoi.toml.tmpl` and templates:
+### How It Works
+The templates use conditional logic:
 
 ```toml
 # .chezmoi.toml.tmpl
-[data]
+{{- if $use_1password }}
     github_token = {{ onepasswordRead "op://Private/GitHub/credential" | quote }}
+{{- else }}
+    # 1Password integration disabled
+{{- end }}
 ```
 
-```gitconfig
-# dot_gitconfig.tmpl
-[credential "https://github.com"]
-    helper = !echo "username=just1jray\npassword={{ .github_token }}"
-```
+This prevents errors when `op` isn't available or you're not signed in.
 
 ## Next Steps
 

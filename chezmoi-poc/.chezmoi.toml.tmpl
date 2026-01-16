@@ -1,6 +1,7 @@
 {{- $name := "Your Name" -}}
 {{- $email := "your.email@example.com" -}}
 {{- $work := false -}}
+{{- $use_1password := false -}}
 
 {{- if eq .chezmoi.hostname "work-macbook" -}}
 {{-   $work = true -}}
@@ -13,19 +14,28 @@
 {{-   $name = promptString "name" $name -}}
 {{-   $email = promptString "email" $email -}}
 {{-   $work = promptBool "work" $work -}}
+{{-   $use_1password = promptBool "use_1password" $use_1password -}}
 {{- end -}}
 
 [data]
     name = {{ $name | quote }}
     email = {{ $email | quote }}
     work = {{ $work }}
+    use_1password = {{ $use_1password }}
 
-    # 1Password integration - CLI must be installed
+    {{- if $use_1password }}
+    # 1Password integration - requires 'op signin' first
     # Get GitHub token from 1Password
-    # github_token = {{ onepasswordRead "op://Private/GitHub/credential" | quote }}
+    github_token = {{ onepasswordRead "op://Private/GitHub/credential" | quote }}
 
     # Get SSH signing key from 1Password
-    # ssh_signing_key = {{ onepasswordRead "op://Private/SSH/signing_key" | quote }}
+    ssh_signing_key = {{ onepasswordRead "op://Private/SSH/signing_key" | quote }}
+    {{- else }}
+    # 1Password integration disabled
+    # Uncomment and configure manually if needed
+    # github_token = ""
+    # ssh_signing_key = ""
+    {{- end }}
 
 [diff]
     pager = "delta"
@@ -33,3 +43,4 @@
 [merge]
     command = "nvim"
     args = ["-d", "{{ "{{ .Destination }}" }}", "{{ "{{ .Source }}" }}", "{{ "{{ .Target }}" }}"]
+
