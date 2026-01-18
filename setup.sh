@@ -425,33 +425,47 @@ link_config_files() {
         log_warning "NVChad config directory does not exist: $nvim_source"
     fi
 
-    # Link Claude Code config directory
+    # Link Claude Code config files (only portable settings, not ephemeral data)
     local claude_source
     claude_source="$(pwd)/claude"
     local claude_target="$HOME/.claude"
 
     if [ -d "$claude_source" ]; then
-        if ! backup_config_file "$claude_target"; then
-            log_error "Backup failed for $claude_target, skipping to prevent data loss"
-            return 1
+        # Create ~/.claude directory if it doesn't exist (Claude Code manages ephemeral data here)
+        if [ "$DRY_RUN" = true ]; then
+            log_info "Would create directory: $claude_target"
+        else
+            mkdir -p "$claude_target"
         fi
 
-        if [ "$DRY_RUN" = true ]; then
-            log_info "Would link directory: $claude_source → $claude_target"
-        else
-            if ln -sf "$claude_source" "$claude_target"; then
-                # Verify symlink was created and target exists
-                if [ -L "$claude_target" ] && [ -e "$claude_target" ]; then
-                    log_success "Linked Claude Code config: $claude_source → $claude_target"
-                else
-                    log_error "Symlink created but target is broken: $claude_target"
-                    log_error "Source may not exist: $claude_source"
-                    rm -f "$claude_target"  # Remove broken symlink
+        # Symlink individual portable config files/directories
+        local claude_items=("settings.json" "hooks" "skills")
+        for item in "${claude_items[@]}"; do
+            local item_source="$claude_source/$item"
+            local item_target="$claude_target/$item"
+
+            if [ -e "$item_source" ] || [ -L "$item_source" ]; then
+                if ! backup_config_file "$item_target"; then
+                    log_error "Backup failed for $item_target, skipping"
+                    continue
                 fi
-            else
-                log_error "Failed to create symlink: $claude_source → $claude_target"
+
+                if [ "$DRY_RUN" = true ]; then
+                    log_info "Would link: $item_source → $item_target"
+                else
+                    if ln -sf "$item_source" "$item_target"; then
+                        if [ -L "$item_target" ] && [ -e "$item_target" ]; then
+                            log_success "Linked Claude Code config: $item → $item_target"
+                        else
+                            log_error "Symlink created but target is broken: $item_target"
+                            rm -f "$item_target"
+                        fi
+                    else
+                        log_error "Failed to create symlink: $item_source → $item_target"
+                    fi
+                fi
             fi
-        fi
+        done
     else
         log_warning "Claude Code config directory does not exist: $claude_source"
     fi

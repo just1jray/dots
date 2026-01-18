@@ -7,7 +7,7 @@
                 "hooks": [
                     {
                         "type": "command",
-                        "command": "~/.claude/stop-hook-git-check.sh"
+                        "command": "~/.claude/hooks/stop-hook-git-check.sh"
                     }
                 ]
             }

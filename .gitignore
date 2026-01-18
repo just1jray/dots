@@ -1,6 +1,20 @@
 zsh/hosts
-.claude/
 .DS_Store
+
+# Claude Code ephemeral data (safety net if full folder gets symlinked)
+claude/cache/
+claude/chrome/
+claude/debug/
+claude/file-history/
+claude/history.jsonl
+claude/ide/
+claude/plans/
+claude/plugins/
+claude/projects/
+claude/session-env/
+claude/shell-snapshots/
+claude/statsig/
+claude/todos/
 
 # Backup files
 *.backup
