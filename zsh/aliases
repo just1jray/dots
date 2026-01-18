@@ -1,4 +1,5 @@
 # ZSH Configuration Aliases
+# shellcheck disable=SC2139,SC2154  # intentional expansion at definition time
 alias zfig="$EDITOR ~/.zshrc"
 alias zfresh="source ~/.zshenv && source ~/.zshrc"
 
@@ -66,7 +67,7 @@ if [[ $(uname) == "Darwin" ]]; then
 
     # Enhanced man pages
     manp() { man -t "$@" | open -f -a "Preview"; }
-    manx() { open x-man-page://$@; }
+    manx() { open "x-man-page://$*"; }
 
     # Power management
     power() {
@@ -89,6 +90,7 @@ if command -v tmux &> /dev/null; then
     alias sesh="tmux new-session -A -s sesh"
     alias t="tmux new-session -A -s sesh"
     alias tfresh="tmux source-file ~/.tmux.conf"
+    # shellcheck disable=SC2139  # intentional expansion at definition time
     alias tfig="$EDITOR ~/.tmux.conf"
 
     # Reset tmux session (works from inside or outside tmux)
@@ -102,7 +104,8 @@ if command -v tmux &> /dev/null; then
 
         if [[ -n "$TMUX" ]]; then
             # Inside tmux: create new session, switch to it, kill old one
-            local old_session=$(tmux display-message -p '#S')
+            local old_session
+            old_session=$(tmux display-message -p '#S')
             tmux new-session -d -s "sesh-tmp"
             tmux switch-client -t "sesh-tmp"
             tmux kill-session -t "$old_session"

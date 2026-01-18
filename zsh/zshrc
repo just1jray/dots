@@ -9,13 +9,15 @@ fi
 
 source "$HOME/.local/share/zinit/zinit.git/zinit.zsh"
 autoload -Uz _zinit
+# shellcheck disable=SC2154  # _comps is a zsh completion array
 (( ${+_comps} )) && _comps[zinit]=_zinit
 ### End of Zinit's installer chunk
 
 # Environment Setup
 export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
-export EDITOR=$(command -v nvim >/dev/null && echo "nvim" || echo "vim")
+EDITOR=$(command -v nvim >/dev/null && echo "nvim" || echo "vim")
+export EDITOR
 [[ $EDITOR == "nvim" ]] && alias vim="nvim"
 command -v codium &> /dev/null && alias code="codium"
 
@@ -23,7 +25,8 @@ command -v codium &> /dev/null && alias code="codium"
 
 # Set LS_COLORS for file type coloring
 if command -v vivid &> /dev/null; then
-    export LS_COLORS="$(vivid generate catppuccin-mocha)"
+    LS_COLORS="$(vivid generate catppuccin-mocha)"
+    export LS_COLORS
 fi
 
 # Load Custom Aliases
@@ -44,7 +47,9 @@ bindkey '^\[w' kill-region
 # History Configuration
 HISTSIZE=50000                      # Increased from 5000 for better history retention
 HISTFILE=~/.zsh_history
+# shellcheck disable=SC2034  # SAVEHIST is used by zsh
 SAVEHIST=$HISTSIZE
+# shellcheck disable=SC2034  # HISTDUP is used by zsh
 HISTDUP=erase
 setopt appendhistory                # Append to history file, don't overwrite
 setopt sharehistory                 # Share history between all sessions
@@ -60,10 +65,12 @@ setopt auto_cd                      # Auto cd to a directory without typing cd
 
 # Completion styling
 zstyle ':completion:*' matcher-list 'm:{a-z}={A-Za-z}'
+# shellcheck disable=SC2296  # zsh parameter expansion syntax
 zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
 zstyle ':completion:*' menu no
 
 # Load Custom Host Configurations
+# shellcheck disable=SC2139  # intentional expansion at definition time
 [[ -f "$HOME/.config/zsh/hosts" ]] && source "$HOME/.config/zsh/hosts" && alias hosts="cat $HOME/.config/zsh/hosts"
 
 # ZSH Plugins
@@ -150,6 +157,7 @@ if command -v tmux &> /dev/null; then
 
         # Only try to start tmux if we're not already in a tmux session
         # Skip auto-start if we're in an SSH session to prevent nesting
+        # shellcheck disable=SC2154  # TERM_PROGRAM is set by terminal emulators
         if [[ -z "$TMUX" && -n "$PS1" && \
               -z "$SSH_CONNECTION" && \
               ! "$TERM" = *screen* && \
@@ -167,6 +175,7 @@ if command -v tmux &> /dev/null; then
 fi
 
 # Disable paste highlighting for cleaner pasting
+# shellcheck disable=SC2034  # zle_highlight is used by zsh
 zle_highlight=('paste:none')
 
 # Initialize Starship prompt (guard against re-initialization to prevent
@@ -177,7 +186,8 @@ if command -v starship &> /dev/null && ! typeset -f starship_zle-keymap-select >
     fi
 fi
 # The following lines have been added by Docker Desktop to enable Docker CLI completions.
-fpath=(/Users/jesse/.docker/completions $fpath)
+# shellcheck disable=SC2206  # zsh array assignment syntax
+fpath=("$HOME/.docker/completions" $fpath)
 autoload -Uz compinit
 compinit
 # End of Docker CLI completions
