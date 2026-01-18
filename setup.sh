@@ -416,6 +416,37 @@ link_config_files() {
     else
         log_warning "NVChad config directory does not exist: $nvim_source"
     fi
+
+    # Link Claude Code config directory
+    local claude_source
+    claude_source="$(pwd)/claude"
+    local claude_target="$HOME/.claude"
+
+    if [ -d "$claude_source" ]; then
+        if ! backup_config_file "$claude_target"; then
+            log_error "Backup failed for $claude_target, skipping to prevent data loss"
+            return 1
+        fi
+
+        if [ "$DRY_RUN" = true ]; then
+            log_info "Would link directory: $claude_source → $claude_target"
+        else
+            if ln -sf "$claude_source" "$claude_target"; then
+                # Verify symlink was created and target exists
+                if [ -L "$claude_target" ] && [ -e "$claude_target" ]; then
+                    log_success "Linked Claude Code config: $claude_source → $claude_target"
+                else
+                    log_error "Symlink created but target is broken: $claude_target"
+                    log_error "Source may not exist: $claude_source"
+                    rm -f "$claude_target"  # Remove broken symlink
+                fi
+            else
+                log_error "Failed to create symlink: $claude_source → $claude_target"
+            fi
+        fi
+    else
+        log_warning "Claude Code config directory does not exist: $claude_source"
+    fi
 }
 
 # Check NVChad installation

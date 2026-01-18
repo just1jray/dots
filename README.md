@@ -16,6 +16,7 @@ Used across various platforms for various things.
 - **Modern tooling** with Starship prompt, Zinit plugin manager, and NVChad
 - **Vi mode** keybindings in zsh for modal editing
 - **Tmux integration** with plugin management and custom layouts
+- **Claude Code configuration** with custom skills and git safety hooks
 
 ## Tools & Prerequisites
 
@@ -41,6 +42,7 @@ Used across various platforms for various things.
 - **[mosh](https://mosh.org/)** - Mobile shell for better remote connections
 - **[pyenv](https://github.com/pyenv/pyenv)** - Python version manager
 - **[nvm](https://github.com/nvm-sh/nvm)** - Node version manager
+- **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)** - AI-powered coding assistant CLI
 
 *The setup script automatically installs [Zinit](https://github.com/zdharma-continuum/zinit) plugin manager, NVChad, and Tmux Plugin Manager.*
 
@@ -93,6 +95,7 @@ Options:
    - `~/.config/nvim/` → `nvim/`
    - `~/.tmux.conf` → `tmux/tmux.conf`
    - `~/.vimrc` → `vim/vimrc`
+   - `~/.claude/` → `claude/` (if Claude Code is installed)
 4. **Installs Zinit** plugin manager for zsh
 5. **Installs NVChad** for Neovim (if nvim is installed)
 6. **Installs Tmux Plugin Manager** (TPM) and plugins
@@ -119,6 +122,20 @@ Customize Neovim by editing files in `nvim/lua/`:
 - `options.lua` - Vim options
 - `mappings.lua` - Custom keybindings
 - `plugins/` - Plugin configurations
+
+### Claude Code
+
+The dotfiles include Claude Code configuration in the `claude/` directory:
+
+- **settings.json** - Claude Code settings with hooks configuration
+- **hooks/** - Custom hook scripts
+  - `stop-hook-git-check.sh` - Git safety hook that prevents closing sessions with uncommitted/unpushed changes
+- **skills/** - Custom Claude Code skills
+  - `session-start-hook/` - Skill for creating startup hooks in repositories
+
+The setup script automatically symlinks `~/.claude/` to the `claude/` directory in this repository.
+
+**Note:** Claude Code will create additional directories in `~/.claude/` for session data, plans, and other runtime files. These are managed by Claude and not tracked in this dotfiles repository.
 
 ---
 
