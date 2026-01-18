@@ -4,6 +4,8 @@
 # This script sets up configuration files and plugins for zsh, vim, nvim, and tmux
 # 
 
+set -euo pipefail
+
 # Color definitions
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -28,6 +30,7 @@ print_usage() {
     echo "  -n, --dry-run       Show what would be done without making changes"
     echo "  -s, --skip-plugins  Skip plugin installation"
     echo "  -c, --check-nvchad  Check NVChad installation status and exit"
+    echo "  -i, --install-font  Install MesloLGS NF font (recommended for prompt symbols)"
     echo
     echo "This script sets up dotfiles for zsh, vim, nvim, and tmux."
     echo "It creates necessary directories, installs plugins, and symlinks config files."
@@ -38,6 +41,7 @@ FORCE=false
 DRY_RUN=false
 SKIP_PLUGINS=false
 CHECK_NVCHAD_ONLY=false
+INSTALL_FONT=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -59,6 +63,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         -c|--check-nvchad)
             CHECK_NVCHAD_ONLY=true
+            shift
+            ;;
+        -i|--install-font)
+            INSTALL_FONT=true
             shift
             ;;
         *)
@@ -503,6 +511,76 @@ install_nvchad() {
     rm -f "$install_output"
 }
 
+# Install MesloLGS NF Font
+install_font() {
+    if [ "$INSTALL_FONT" = false ]; then
+        return
+    fi
+
+    log_info "Attempting to install MesloLGS NF Font..."
+
+    if [[ "$(uname)" == "Darwin" ]]; then
+        # macOS
+        local font_dir="$HOME/Library/Fonts"
+        local font_url="https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Regular.ttf"
+        local font_file="MesloLGS NF Regular.ttf"
+    elif [[ "$(uname)" == "Linux" ]]; then
+        # Linux
+        local font_dir="$HOME/.local/share/fonts"
+        local font_url="https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Regular.ttf"
+        local font_file="MesloLGS NF Regular.ttf"
+    else
+        log_warning "Font installation not supported on this OS."
+        return
+    fi
+
+    if [ ! -d "$font_dir" ]; then
+        if [ "$DRY_RUN" = true ]; then
+            log_info "Would create font directory: $font_dir"
+        else
+            mkdir -p "$font_dir"
+            log_success "Created font directory: $font_dir"
+        fi
+    fi
+
+    if [ ! -f "$font_dir/$font_file" ]; then
+        if [ "$DRY_RUN" = true ]; then
+            log_info "Would download font from $font_url to $font_dir/$font_file"
+        else
+            log_info "Downloading $font_file..."
+            if command_exists curl; then
+                if curl -fLo "$font_dir/$font_file" "$font_url"; then
+                    log_success "Downloaded $font_file to $font_dir"
+                    # On Linux, refresh font cache
+                    if [[ "$(uname)" == "Linux" ]] && command_exists fc-cache; then
+                        log_info "Updating font cache..."
+                        fc-cache -fv >/dev/null 2>&1
+                        log_success "Font cache updated."
+                    fi
+                else
+                    log_error "Failed to download $font_file using curl."
+                fi
+            elif command_exists wget; then
+                if wget -qO "$font_dir/$font_file" "$font_url"; then
+                    log_success "Downloaded $font_file to $font_dir"
+                    # On Linux, refresh font cache
+                    if [[ "$(uname)" == "Linux" ]] && command_exists fc-cache; then
+                        log_info "Updating font cache..."
+                        fc-cache -fv >/dev/null 2>&1
+                        log_success "Font cache updated."
+                    fi
+                else
+                    log_error "Failed to download $font_file using wget."
+                fi
+            else
+                log_error "Neither curl nor wget found. Cannot download font."
+            fi
+        fi
+    else
+        log_info "MesloLGS NF Font already exists at $font_dir/$font_file"
+    fi
+}
+
 # Main function
 main() {
     # If check-nvchad flag is set, only run the check
@@ -525,6 +603,7 @@ main() {
     check_requirements
     create_directories
     install_plugins
+    install_font
     link_config_files
     install_nvchad
     check_nvchad
