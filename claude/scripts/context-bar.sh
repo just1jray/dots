@@ -169,8 +169,8 @@ else
 fi
 
 # Build output: Model | Dir | Branch (uncommitted) | Context
-output="${C_ACCENT}${model}${C_GRAY} | 📁${dir}"
-[[ -n "$branch" ]] && output+=" | 🔀${branch} ${git_status}"
+output="${C_ACCENT}${model}${C_GRAY} | 📁 ${dir}"
+[[ -n "$branch" ]] && output+=" | 🔀 ${branch} ${git_status}"
 output+=" | ${ctx}${C_RESET}"
 
 printf '%b\n' "$output"
@@ -178,8 +178,8 @@ printf '%b\n' "$output"
 # Get user's last message (text only, not tool results, skip unhelpful messages)
 if [[ -n "$transcript_path" && -f "$transcript_path" ]]; then
     # Calculate visible length (without ANSI codes) - 10 chars for bar + content
-    plain_output="${model} | 📁${dir}"
-    [[ -n "$branch" ]] && plain_output+=" | 🔀${branch} ${git_status}"
+    plain_output="${model} | 📁 ${dir}"
+    [[ -n "$branch" ]] && plain_output+=" | 🔀 ${branch} ${git_status}"
     plain_output+=" | xxxxxxxxxx ${pct}% of ${max_k}k tokens"
     max_len=${#plain_output}
     last_user_msg=$(jq -rs '
