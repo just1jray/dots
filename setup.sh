@@ -139,6 +139,7 @@ create_directories() {
         "$DEV_DIR"
         "$TMUX_PLUGINS_DIR"
         "$TMUX_PLUGIN_RESURRECT_DIR"
+        "$HOME/.config/opencode"
     )
 
     for dir in "${directories[@]}"; do
@@ -336,6 +337,7 @@ link_config_files() {
         "starship/starship.toml|$HOME/.config/starship.toml"
         "git/gitconfig|$HOME/.gitconfig"
         "git/gitignore_global|$HOME/.gitignore_global"
+        "opencode/opencode.json|$HOME/.config/opencode/opencode.json"
     )
 
     # Add aliases file if it exists
