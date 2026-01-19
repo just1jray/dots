@@ -1,0 +1,39 @@
+name: BATS Tests
+
+on:
+  push:
+    branches: [main, add-bats-tests]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install jq (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Install jq (macOS)
+        if: matrix.os == 'macos-latest'
+        run: brew install jq
+
+      - name: Run BATS tests
+        run: ./tests/bats/bats-core/bin/bats tests/*.bats
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.os }}
+          path: tests/*.bats
+          retention-days: 7
