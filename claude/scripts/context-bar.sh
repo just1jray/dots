@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # Color theme: gray, orange, blue, teal, green, lavender, rose, gold, slate, cyan
 # Preview colors with: bash scripts/color-preview.sh
