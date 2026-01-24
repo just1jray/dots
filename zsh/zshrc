@@ -72,6 +72,11 @@ zstyle ':completion:*' menu no
 # shellcheck disable=SC2139  # intentional expansion at definition time
 [[ -f "$HOME/.config/zsh/hosts" ]] && source "$HOME/.config/zsh/hosts" && alias hosts="cat $HOME/.config/zsh/hosts"
 
+# Docker CLI completions (fpath must be set before compinit)
+# Note: Docker Desktop may re-add compinit lines at end of file - remove them if so
+# shellcheck disable=SC2206  # zsh array assignment syntax
+[[ -d "$HOME/.docker/completions" ]] && fpath=("$HOME/.docker/completions" $fpath)
+
 # ZSH Plugins
 # Load fast-syntax-highlighting synchronously to avoid prompt issues
 zinit light-mode for \
@@ -187,9 +192,3 @@ if command -v starship &> /dev/null && ! typeset -f starship_zle-keymap-select >
         echo "Warning: Failed to initialize Starship prompt" >&2
     fi
 fi
-# The following lines have been added by Docker Desktop to enable Docker CLI completions.
-# shellcheck disable=SC2206  # zsh array assignment syntax
-fpath=("$HOME/.docker/completions" $fpath)
-autoload -Uz compinit
-compinit
-# End of Docker CLI completions
