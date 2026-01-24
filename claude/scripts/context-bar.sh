@@ -40,6 +40,7 @@ if [[ -n "$cwd" && -d "$cwd" ]]; then
 
         # Check sync status with upstream
         sync_status=""
+        # shellcheck disable=SC1083  # @{upstream} is valid git syntax
         upstream=$(git -C "$cwd" rev-parse --abbrev-ref @{upstream} 2>/dev/null)
         if [[ -n "$upstream" ]]; then
             # Get last fetch time
@@ -62,6 +63,7 @@ if [[ -n "$cwd" && -d "$cwd" ]]; then
                 fi
             fi
 
+            # shellcheck disable=SC1083  # @{upstream} is valid git syntax
             counts=$(git -C "$cwd" rev-list --left-right --count HEAD...@{upstream} 2>/dev/null)
             ahead=$(echo "$counts" | cut -f1)
             behind=$(echo "$counts" | cut -f2)
