@@ -9,13 +9,6 @@ add_to_path() {
     fi
 }
 
-# Function to append directories to PATH without duplicates
-append_to_path() {
-    if [[ -d "$1" ]] && [[ ":$PATH:" != *":$1:"* ]]; then
-        export PATH="$PATH:$1"
-    fi
-}
-
 # Homebrew (required early for non-interactive shells like mosh-server)
 # macOS (Apple Silicon)
 if [[ -d "/opt/homebrew/bin" ]]; then
