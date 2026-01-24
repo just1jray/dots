@@ -57,6 +57,14 @@ The setup script creates these symlinks:
 - `~/.gitconfig` → `git/gitconfig`
 - `~/.claude/{settings.json,hooks,skills}` → individual items in `claude/`
 
+## Python Development
+
+- **Always use virtual environments** - Never run Python commands directly in the system environment
+- Create a venv if one doesn't exist: `python3 -m venv venv`
+- Activate before any Python operations: `source venv/bin/activate`
+- Install packages only within activated venv: `pip install <package>`
+- Deactivate when done: `deactivate`
+
 ## Theme
 
 Catppuccin Mocha is used consistently across Ghostty, fzf, Neovim, and tmux.
