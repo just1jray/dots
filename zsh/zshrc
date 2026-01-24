@@ -56,7 +56,6 @@ setopt sharehistory                 # Share history between all sessions
 setopt extended_history             # Record timestamp of command in HISTFILE
 setopt hist_ignore_space            # Ignore commands that start with space
 setopt hist_ignore_all_dups         # Delete old recorded entry if new entry is a duplicate
-setopt hist_ignore_dups             # Don't record an entry that was just recorded again
 setopt hist_save_no_dups            # Don't write duplicate entries in the history file
 setopt hist_find_no_dups            # Don't display a line previously found
 setopt hist_reduce_blanks           # Remove superfluous blanks before recording entry
