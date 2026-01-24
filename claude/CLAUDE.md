@@ -6,11 +6,14 @@ This file provides global guidance to Claude Code across all projects.
 
 ### Python Development
 
+**Version Management (pyenv):**
+- pyenv is available for managing Python versions
+- Check available versions: `pyenv versions`
+- Set local version for project: `pyenv local <version>`
+- Install new version: `pyenv install <version>`
+
+**Virtual Environments (required):**
 - **Always use virtual environments** - Never run Python commands directly in the system environment
-- **Python version management** - pyenv is available for managing Python versions
-  - Check available versions: `pyenv versions`
-  - Set local version: `pyenv local <version>`
-  - Install new version: `pyenv install <version>`
 - Create a venv if one doesn't exist: `python3 -m venv venv`
 - Activate before any Python operations: `source venv/bin/activate`
 - Install packages only within activated venv: `pip install <package>`
