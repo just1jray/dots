@@ -1,4 +1,11 @@
 #!/bin/bash
+set -euo pipefail
+
+# Validate jq is available (required for JSON parsing)
+if ! command -v jq &>/dev/null; then
+    echo "Error: jq is required but not installed" >&2
+    exit 1
+fi
 
 # Read the JSON input from stdin
 input=$(cat)

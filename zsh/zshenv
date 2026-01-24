@@ -9,13 +9,6 @@ add_to_path() {
     fi
 }
 
-# Function to append directories to PATH without duplicates
-append_to_path() {
-    if [[ -d "$1" ]] && [[ ":$PATH:" != *":$1:"* ]]; then
-        export PATH="$PATH:$1"
-    fi
-}
-
 # Homebrew (required early for non-interactive shells like mosh-server)
 # macOS (Apple Silicon)
 if [[ -d "/opt/homebrew/bin" ]]; then
@@ -56,9 +49,4 @@ if [[ -d "$HOME/.gem/ruby" ]]; then
     if [[ -n "$latest_ruby" ]]; then
         add_to_path "$latest_ruby/bin"
     fi
-fi
-
-# Windsurf (Codeium)
-if [[ -d "$HOME/.codeium/windsurf/bin" ]]; then
-    add_to_path "$HOME/.codeium/windsurf/bin"
 fi

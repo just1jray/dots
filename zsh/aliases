@@ -87,8 +87,8 @@ fi
 
 # TMUX Aliases
 if command -v tmux &> /dev/null; then
-    alias sesh="tmux new-session -A -s sesh"
     alias t="tmux new-session -A -s sesh"
+    alias sesh="t"  # Alias for `t` - both attach to the "sesh" session
     alias tfresh="tmux source-file ~/.tmux.conf"
     # shellcheck disable=SC2139  # intentional expansion at definition time
     alias tfig="$EDITOR ~/.tmux.conf"

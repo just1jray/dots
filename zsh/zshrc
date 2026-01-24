@@ -56,7 +56,6 @@ setopt sharehistory                 # Share history between all sessions
 setopt extended_history             # Record timestamp of command in HISTFILE
 setopt hist_ignore_space            # Ignore commands that start with space
 setopt hist_ignore_all_dups         # Delete old recorded entry if new entry is a duplicate
-setopt hist_ignore_dups             # Don't record an entry that was just recorded again
 setopt hist_save_no_dups            # Don't write duplicate entries in the history file
 setopt hist_find_no_dups            # Don't display a line previously found
 setopt hist_reduce_blanks           # Remove superfluous blanks before recording entry
@@ -72,6 +71,11 @@ zstyle ':completion:*' menu no
 # Load Custom Host Configurations
 # shellcheck disable=SC2139  # intentional expansion at definition time
 [[ -f "$HOME/.config/zsh/hosts" ]] && source "$HOME/.config/zsh/hosts" && alias hosts="cat $HOME/.config/zsh/hosts"
+
+# Docker CLI completions (fpath must be set before compinit)
+# Note: Docker Desktop may re-add compinit lines at end of file - remove them if so
+# shellcheck disable=SC2206  # zsh array assignment syntax
+[[ -d "$HOME/.docker/completions" ]] && fpath=("$HOME/.docker/completions" $fpath)
 
 # ZSH Plugins
 # Load fast-syntax-highlighting synchronously to avoid prompt issues
@@ -145,10 +149,28 @@ if command -v pyenv &> /dev/null; then
     fi
 fi
 
-# nvm is a shell function, not a binary - check for the directory instead
+# NVM lazy-loading: Unlike fzf/zoxide/pyenv which use eval-on-check,
+# NVM is loaded via wrapper functions because it adds 300-800ms to startup.
+# This pattern defers loading until first use of node/npm/nvm commands.
 export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
-[ -s "$NVM_DIR/bash_completion" ] && source "$NVM_DIR/bash_completion"
+
+if [[ -s "$NVM_DIR/nvm.sh" ]]; then
+    _nvm_loaded=false
+
+    _load_nvm() {
+        [[ "$_nvm_loaded" == true ]] && return
+        _nvm_loaded=true
+        unset -f nvm node npm npx 2>/dev/null
+        source "$NVM_DIR/nvm.sh"
+        [[ -s "$NVM_DIR/bash_completion" ]] && source "$NVM_DIR/bash_completion"
+    }
+
+    # Wrapper functions trigger lazy load on first use
+    nvm() { _load_nvm; nvm "$@"; }
+    node() { _load_nvm; node "$@"; }
+    npm() { _load_nvm; npm "$@"; }
+    npx() { _load_nvm; npx "$@"; }
+fi
 
 # TMUX Session Management
 if command -v tmux &> /dev/null; then
@@ -188,9 +210,3 @@ if command -v starship &> /dev/null && ! typeset -f starship_zle-keymap-select >
         echo "Warning: Failed to initialize Starship prompt" >&2
     fi
 fi
-# The following lines have been added by Docker Desktop to enable Docker CLI completions.
-# shellcheck disable=SC2206  # zsh array assignment syntax
-fpath=("$HOME/.docker/completions" $fpath)
-autoload -Uz compinit
-compinit
-# End of Docker CLI completions
