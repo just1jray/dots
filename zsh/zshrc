@@ -149,10 +149,28 @@ if command -v pyenv &> /dev/null; then
     fi
 fi
 
-# nvm is a shell function, not a binary - check for the directory instead
+# NVM lazy-loading: Unlike fzf/zoxide/pyenv which use eval-on-check,
+# NVM is loaded via wrapper functions because it adds 300-800ms to startup.
+# This pattern defers loading until first use of node/npm/nvm commands.
 export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
-[ -s "$NVM_DIR/bash_completion" ] && source "$NVM_DIR/bash_completion"
+
+if [[ -s "$NVM_DIR/nvm.sh" ]]; then
+    _nvm_loaded=false
+
+    _load_nvm() {
+        [[ "$_nvm_loaded" == true ]] && return
+        _nvm_loaded=true
+        unset -f nvm node npm npx 2>/dev/null
+        source "$NVM_DIR/nvm.sh"
+        [[ -s "$NVM_DIR/bash_completion" ]] && source "$NVM_DIR/bash_completion"
+    }
+
+    # Wrapper functions trigger lazy load on first use
+    nvm() { _load_nvm; nvm "$@"; }
+    node() { _load_nvm; node "$@"; }
+    npm() { _load_nvm; npm "$@"; }
+    npx() { _load_nvm; npx "$@"; }
+fi
 
 # TMUX Session Management
 if command -v tmux &> /dev/null; then
