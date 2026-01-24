@@ -57,8 +57,3 @@ if [[ -d "$HOME/.gem/ruby" ]]; then
         add_to_path "$latest_ruby/bin"
     fi
 fi
-
-# Windsurf (Codeium)
-if [[ -d "$HOME/.codeium/windsurf/bin" ]]; then
-    add_to_path "$HOME/.codeium/windsurf/bin"
-fi
