@@ -172,6 +172,10 @@ if [[ -s "$NVM_DIR/nvm.sh" ]]; then
     npx() { _load_nvm; npx "$@"; }
 fi
 
+# Bun completions
+# Note: BUN_INSTALL and PATH are set in .zshenv
+[[ -s "$HOME/.bun/_bun" ]] && source "$HOME/.bun/_bun"
+
 # TMUX Session Management
 if command -v tmux &> /dev/null; then
     # Auto-start TMUX only in regular terminal

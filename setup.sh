@@ -338,11 +338,6 @@ link_config_files() {
         "git/gitignore_global|$HOME/.gitignore_global"
     )
 
-    # Add Ghostty config only on macOS
-    if [[ $(uname) == "Darwin" ]]; then
-        config_files+=("ghostty/config|$HOME/Library/Application Support/com.mitchellh.ghostty/config")
-    fi
-
     # Add aliases file if it exists
     if [ -f "$(pwd)/zsh/aliases" ]; then
         config_files+=("zsh/aliases|$HOME/.config/zsh/aliases")
@@ -423,6 +418,34 @@ link_config_files() {
         fi
     else
         log_warning "NVChad config directory does not exist: $nvim_source"
+    fi
+
+    # Link Ghostty config directory
+    local ghostty_source
+    ghostty_source="$(pwd)/ghostty"
+    local ghostty_target="$HOME/.config/ghostty"
+
+    if [ -d "$ghostty_source" ]; then
+        if ! backup_config_file "$ghostty_target"; then
+            log_error "Backup failed for $ghostty_target, skipping"
+        else
+            if [ "$DRY_RUN" = true ]; then
+                log_info "Would link directory: $ghostty_source → $ghostty_target"
+            else
+                if ln -sf "$ghostty_source" "$ghostty_target"; then
+                    if [ -L "$ghostty_target" ] && [ -e "$ghostty_target" ]; then
+                        log_success "Linked Ghostty config: $ghostty_source → $ghostty_target"
+                    else
+                        log_error "Symlink created but target is broken: $ghostty_target"
+                        rm -f "$ghostty_target"
+                    fi
+                else
+                    log_error "Failed to create symlink: $ghostty_source → $ghostty_target"
+                fi
+            fi
+        fi
+    else
+        log_warning "Ghostty config directory does not exist: $ghostty_source"
     fi
 
     # Link Claude Code config files (only portable settings, not ephemeral data)
@@ -556,28 +579,26 @@ install_nvchad() {
     rm -f "$install_output"
 }
 
-# Install MesloLGS NF Font
+# Install JetBrains Mono Nerd Font
 install_font() {
     if [ "$INSTALL_FONT" = false ]; then
         return
     fi
 
-    log_info "Attempting to install MesloLGS NF Font..."
+    log_info "Attempting to install JetBrains Mono Nerd Font..."
 
+    local font_dir
     if [[ "$(uname)" == "Darwin" ]]; then
-        # macOS
-        local font_dir="$HOME/Library/Fonts"
-        local font_url="https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Regular.ttf"
-        local font_file="MesloLGS NF Regular.ttf"
+        font_dir="$HOME/Library/Fonts"
     elif [[ "$(uname)" == "Linux" ]]; then
-        # Linux
-        local font_dir="$HOME/.local/share/fonts"
-        local font_url="https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Regular.ttf"
-        local font_file="MesloLGS NF Regular.ttf"
+        font_dir="$HOME/.local/share/fonts"
     else
         log_warning "Font installation not supported on this OS."
         return
     fi
+
+    local font_url="https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip"
+    local font_check_file="JetBrainsMonoNerdFontMono-Regular.ttf"
 
     if [ ! -d "$font_dir" ]; then
         if [ "$DRY_RUN" = true ]; then
@@ -588,41 +609,69 @@ install_font() {
         fi
     fi
 
-    if [ ! -f "$font_dir/$font_file" ]; then
+    if [ ! -f "$font_dir/$font_check_file" ]; then
         if [ "$DRY_RUN" = true ]; then
-            log_info "Would download font from $font_url to $font_dir/$font_file"
+            log_info "Would download and extract JetBrains Mono Nerd Font to $font_dir"
         else
-            log_info "Downloading $font_file..."
+            if ! command_exists unzip; then
+                log_error "unzip command not found. Cannot extract font archive."
+                return
+            fi
+
+            local temp_dir
+            temp_dir=$(mktemp -d)
+            local zip_file="$temp_dir/JetBrainsMono.zip"
+
+            log_info "Downloading JetBrains Mono Nerd Font..."
+            local download_success=false
             if command_exists curl; then
-                if curl -fLo "$font_dir/$font_file" "$font_url"; then
-                    log_success "Downloaded $font_file to $font_dir"
-                    # On Linux, refresh font cache
-                    if [[ "$(uname)" == "Linux" ]] && command_exists fc-cache; then
-                        log_info "Updating font cache..."
-                        fc-cache -fv >/dev/null 2>&1
-                        log_success "Font cache updated."
-                    fi
-                else
-                    log_error "Failed to download $font_file using curl."
+                if curl -fLo "$zip_file" "$font_url"; then
+                    download_success=true
                 fi
             elif command_exists wget; then
-                if wget -qO "$font_dir/$font_file" "$font_url"; then
-                    log_success "Downloaded $font_file to $font_dir"
-                    # On Linux, refresh font cache
-                    if [[ "$(uname)" == "Linux" ]] && command_exists fc-cache; then
-                        log_info "Updating font cache..."
-                        fc-cache -fv >/dev/null 2>&1
-                        log_success "Font cache updated."
-                    fi
-                else
-                    log_error "Failed to download $font_file using wget."
+                if wget -qO "$zip_file" "$font_url"; then
+                    download_success=true
                 fi
             else
                 log_error "Neither curl nor wget found. Cannot download font."
+                rm -rf "$temp_dir"
+                return
             fi
+
+            if [ "$download_success" = true ]; then
+                log_info "Extracting fonts..."
+                if unzip -q "$zip_file" -d "$temp_dir"; then
+                    # Copy only the Mono variant ttf files (not variable fonts)
+                    local fonts_copied=0
+                    for ttf in "$temp_dir"/JetBrainsMonoNerdFontMono-*.ttf; do
+                        if [ -f "$ttf" ]; then
+                            cp "$ttf" "$font_dir/"
+                            ((fonts_copied++))
+                        fi
+                    done
+                    if [ "$fonts_copied" -gt 0 ]; then
+                        log_success "Installed $fonts_copied JetBrains Mono Nerd Font files to $font_dir"
+                    else
+                        log_error "No font files found in archive"
+                    fi
+
+                    # On Linux, refresh font cache
+                    if [[ "$(uname)" == "Linux" ]] && command_exists fc-cache; then
+                        log_info "Updating font cache..."
+                        fc-cache -fv >/dev/null 2>&1
+                        log_success "Font cache updated."
+                    fi
+                else
+                    log_error "Failed to extract font archive."
+                fi
+            else
+                log_error "Failed to download font archive."
+            fi
+
+            rm -rf "$temp_dir"
         fi
     else
-        log_info "MesloLGS NF Font already exists at $font_dir/$font_file"
+        log_info "JetBrains Mono Nerd Font already installed at $font_dir"
     fi
 }
 

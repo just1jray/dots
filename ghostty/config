@@ -1,8 +1,52 @@
+# Font
+font-family = "JetBrains Mono"
 font-size = 14
-font-family = "MesloLGS NF"
-cursor-style-blink = true
+
+# Theme (Catppuccin Mocha)
 theme = "Catppuccin Mocha"
-title = 👻
+
+# Window
 maximize = true
-keybind = shift+enter=text:\x1b\r
+title = 👻 
+window-padding-x = 8
+window-padding-y = 8
+window-padding-balance = true
+
+# Cursor
+cursor-style-blink = true
+
+# Shell Integration
 shell-integration = zsh
+shell-integration-features = cursor,sudo,title
+
+# Links
+link-url = true
+
+# Clipboard & Selection
+copy-on-select = clipboard
+clipboard-paste-protection = true
+clipboard-trim-trailing-spaces = true
+
+# Mouse
+mouse-hide-while-typing = true
+cursor-click-to-move = true
+
+# Splits
+unfocused-split-opacity = 0.85
+
+# CRT Shader
+custom-shader = ~/.config/ghostty/shaders/crt-shader-with-chromatic-aberration-glow-scanlines-dot-matrix.glsl
+custom-shader-animation = true
+
+# Quick Terminal
+quick-terminal-position = top
+quick-terminal-size = 40%
+quick-terminal-animation-duration = 0.15
+quick-terminal-autohide = true
+
+# Keybindings
+keybind = shift+enter=text:\x1b\r
+keybind = global:ctrl+grave_accent=toggle_quick_terminal
+keybind = cmd+shift+enter=new_split:right
+keybind = cmd+opt+enter=new_split:down
+keybind = cmd+d=close_surface

@@ -9,6 +9,9 @@ COLOR="orange"
 C_RESET='\033[0m'
 C_GRAY='\033[38;5;245m'  # explicit gray for default text
 C_BAR_EMPTY='\033[38;5;238m'
+BAR_FULL='▰'
+BAR_HALF='▰'
+BAR_EMPTY='▱'
 case "$COLOR" in
     orange)   C_ACCENT='\033[38;5;173m' ;;
     blue)     C_ACCENT='\033[38;5;74m' ;;
@@ -41,7 +44,7 @@ if [[ -n "$cwd" && -d "$cwd" ]]; then
         # Check sync status with upstream
         sync_status=""
         # shellcheck disable=SC1083  # @{upstream} is valid git syntax
-        upstream=$(git -C "$cwd" rev-parse --abbrev-ref @{upstream} 2>/dev/null)
+        upstream=$(git -C "$cwd" rev-parse --abbrev-ref @{upstream} 2>/dev/null || true)
         if [[ -n "$upstream" ]]; then
             # Get last fetch time
             fetch_head="$cwd/.git/FETCH_HEAD"
@@ -139,11 +142,11 @@ if [[ -n "$transcript_path" && -f "$transcript_path" ]]; then
         bar_start=$((i * 10))
         progress=$((pct - bar_start))
         if [[ $progress -ge 8 ]]; then
-            bar+="${C_ACCENT}█${C_RESET}"
+            bar+="${C_ACCENT}${BAR_FULL}${C_RESET}"
         elif [[ $progress -ge 3 ]]; then
-            bar+="${C_ACCENT}▄${C_RESET}"
+            bar+="${C_ACCENT}${BAR_HALF}${C_RESET}"
         else
-            bar+="${C_BAR_EMPTY}░${C_RESET}"
+            bar+="${C_BAR_EMPTY}${BAR_EMPTY}${C_RESET}"
         fi
     done
 
@@ -160,11 +163,11 @@ else
         bar_start=$((i * 10))
         progress=$((pct - bar_start))
         if [[ $progress -ge 8 ]]; then
-            bar+="${C_ACCENT}█${C_RESET}"
+            bar+="${C_ACCENT}${BAR_FULL}${C_RESET}"
         elif [[ $progress -ge 3 ]]; then
-            bar+="${C_ACCENT}▄${C_RESET}"
+            bar+="${C_ACCENT}${BAR_HALF}${C_RESET}"
         else
-            bar+="${C_BAR_EMPTY}░${C_RESET}"
+            bar+="${C_BAR_EMPTY}${BAR_EMPTY}${C_RESET}"
         fi
     done
 

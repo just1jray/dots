@@ -30,7 +30,7 @@ Used across various platforms for various things.
 
 **Recommended:**
 - **[Ghostty](https://ghostty.org/)** - Fast, feature-rich terminal emulator
-- **[MesloLGS NF](https://github.com/romkatv/powerlevel10k#fonts)** - Nerd Font with icon support (required for prompt symbols)
+- **[JetBrains Mono Nerd Font](https://www.nerdfonts.com/font-downloads)** - Nerd Font with icon support (required for prompt symbols)
 - **[Starship](https://starship.rs/)** - Fast, customizable cross-shell prompt
 - **[Neovim](https://neovim.io/)** - Modern vim with [NVChad](https://nvchad.com/) configuration
 - **[tmux](https://github.com/tmux/tmux)** - Terminal multiplexer with plugin support
@@ -42,6 +42,7 @@ Used across various platforms for various things.
 - **[mosh](https://mosh.org/)** - Mobile shell for better remote connections
 - **[pyenv](https://github.com/pyenv/pyenv)** - Python version manager
 - **[nvm](https://github.com/nvm-sh/nvm)** - Node version manager
+- **[Bun](https://bun.sh/)** - Fast JavaScript runtime and package manager
 - **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)** - AI-powered coding assistant CLI
 
 *The setup script automatically installs [Zinit](https://github.com/zdharma-continuum/zinit) plugin manager, NVChad, and Tmux Plugin Manager.*
@@ -115,6 +116,17 @@ Add platform-specific environment variables, paths, or aliases to these files.
 
 Edit `starship/starship.toml` to customize your prompt appearance and modules.
 
+### Ghostty
+
+The `ghostty/config` includes several customizations:
+
+- **Custom GLSL shaders** - CRT effects and water distortion shaders in `ghostty/shaders/`
+- **Quick terminal** - Toggle terminal with `ctrl+\`` (requires Ghostty 1.1+)
+- **Split keybindings**:
+  - `cmd+shift+enter` - Horizontal split
+  - `cmd+opt+enter` - Vertical split
+  - `cmd+d` - Close split
+
 ### NVChad
 
 Customize Neovim by editing files in `nvim/lua/`:
@@ -130,8 +142,11 @@ The dotfiles include Claude Code configuration in the `claude/` directory:
 - **settings.json** - Claude Code settings with hooks configuration
 - **hooks/** - Custom hook scripts
   - `stop-hook-git-check.sh` - Git safety hook that prevents closing sessions with uncommitted/unpushed changes
+- **commands/** - Custom slash commands
+  - `/review-edu` - Educational code review command
 - **skills/** - Custom Claude Code skills
   - `session-start-hook/` - Skill for creating startup hooks in repositories
+  - `code-review-edu/` - Thorough code review skill (triggers on "review this code", "find bugs", etc.)
 
 The setup script automatically symlinks `~/.claude/` to the `claude/` directory in this repository.
 

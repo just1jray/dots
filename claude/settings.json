@@ -4,19 +4,6 @@
         "type": "command",
         "command": "~/.claude/scripts/context-bar.sh"
     },
-    "hooks": {
-        "Stop": [
-            {
-                "matcher": "",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "~/.claude/hooks/stop-hook-git-check.sh"
-                    }
-                ]
-            }
-        ]
-    },
     "permissions": {
         "allow": ["Skill"]
     }
