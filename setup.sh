@@ -464,7 +464,7 @@ link_config_files() {
         fi
 
         # Symlink individual portable config files/directories
-        local claude_items=("settings.json" "hooks" "skills" "CLAUDE.md")
+        local claude_items=("settings.json" "hooks" "skills" "scripts" "CLAUDE.md")
         for item in "${claude_items[@]}"; do
             local item_source="$claude_source/$item"
             local item_target="$claude_target/$item"
