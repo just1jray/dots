@@ -50,3 +50,9 @@ if [[ -d "$HOME/.gem/ruby" ]]; then
         add_to_path "$latest_ruby/bin"
     fi
 fi
+
+# Bun
+if [[ -d "$HOME/.bun/bin" ]]; then
+    export BUN_INSTALL="$HOME/.bun"
+    add_to_path "$BUN_INSTALL/bin"
+fi

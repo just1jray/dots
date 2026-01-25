@@ -1,6 +1,6 @@
 # Global Claude Code Settings
 
-This file provides global guidance to Claude Code across all projects.
+- For GitHub URLs, use gh CLI instead of web scraping
 
 ## Development Tool Standards
 
@@ -20,6 +20,12 @@ This file provides global guidance to Claude Code across all projects.
 - Deactivate when done: `deactivate`
 
 ### Node.js Development
+
+- **Prefer Bun over npm/npx** - Bun is available and faster for most JavaScript tasks
+  - Run scripts: `bun run <script>`
+  - Install packages: `bun install` or `bun add <package>`
+  - Execute packages: `bunx <package>` (instead of npx)
+  - Run TypeScript directly: `bun <file.ts>`
 
 - **Node version management** - nvm is available for managing Node.js versions
   - Check available versions: `nvm list`
