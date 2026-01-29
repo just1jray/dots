@@ -1,0 +1,4 @@
+export GAMCFGDIR="/Users/$USER/Developer/GAM/GAMConfig"
+alias gam="$HOME/bin/gam7/gam"
+alias gam7="$HOME/bin/gam7/gam"
+alias gws="$HOME/bin/gam7/gam"

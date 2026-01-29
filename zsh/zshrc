@@ -140,6 +140,9 @@ zinit snippet OMZP::command-not-found
 # Remove conflicting aliases from OMZ plugins
 unalias gam 2>/dev/null || true
 
+# Work profile loaded after plugins to allow overriding plugin aliases (e.g., gam)
+[[ -f "$HOME/.config/zsh/profile-work" ]] && source "$HOME/.config/zsh/profile-work"
+
 # Development Environment Managers
 # Note: PYENV_ROOT and PATH are set in .zshenv
 if command -v pyenv &> /dev/null; then

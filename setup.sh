@@ -350,13 +350,17 @@ link_config_files() {
         config_files+=("zsh/hosts|$HOME/.config/zsh/hosts")
     fi
 
-    # Add platform-specific profile files if they exist
+    # Add platform and work specific profile files if they exist
     if [ -f "$(pwd)/zsh/profile-macos" ]; then
         config_files+=("zsh/profile-macos|$HOME/.config/zsh/profile-macos")
     fi
 
     if [ -f "$(pwd)/zsh/profile-linux" ]; then
         config_files+=("zsh/profile-linux|$HOME/.config/zsh/profile-linux")
+    fi
+    
+    if [ -f "$(pwd)/zsh/profile-work" ]; then
+        config_files+=("zsh/profile-work|$HOME/.config/zsh/profile-work")
     fi
 
     for config in "${config_files[@]}"; do
