@@ -30,14 +30,18 @@ if command -v vivid &> /dev/null; then
 fi
 
 # Load Custom Aliases
-source ~/.config/zsh/aliases
+if [[ -f "$HOME/.config/zsh/aliases" ]]; then
+    source "$HOME/.config/zsh/aliases"
+else
+    echo "Warning: ~/.config/zsh/aliases not found; skipping custom aliases." >&2
+fi
 
 # Allow aliases to work with sudo
 alias sudo='sudo '
 
 # Vi mode
 bindkey -v
-export KEYTIMEOUT=1  # Fast mode switching (10ms)
+export KEYTIMEOUT=20  # Allow double-Esc bindings (200ms)
 
 # Keybindings (set after vi mode to override defaults)
 bindkey '^p' history-search-backward
@@ -128,17 +132,8 @@ if command -v zoxide &> /dev/null; then
 fi
 
 # Add in snippets
-zinit snippet OMZL::git.zsh
-zinit snippet OMZP::git
 zinit snippet OMZP::sudo
-zinit snippet OMZP::docker
-zinit snippet OMZP::aws
-zinit snippet OMZP::kubectl
-zinit snippet OMZP::kubectx
 zinit snippet OMZP::command-not-found
-
-# Remove conflicting aliases from OMZ plugins
-unalias gam 2>/dev/null || true
 
 # Work profile loaded after plugins to allow overriding plugin aliases (e.g., gam)
 [[ -f "$HOME/.config/zsh/profile-work" ]] && source "$HOME/.config/zsh/profile-work"
