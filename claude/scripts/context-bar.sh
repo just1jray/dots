@@ -72,16 +72,16 @@ if [[ -n "$cwd" && -d "$cwd" ]]; then
             behind=$(echo "$counts" | cut -f2)
             if [[ "$ahead" -eq 0 && "$behind" -eq 0 ]]; then
                 if [[ -n "$fetch_ago" ]]; then
-                    sync_status="synced ${fetch_ago}"
+                    sync_status="♻️ ${fetch_ago}"
                 else
-                    sync_status="synced"
+                    sync_status="♻️"
                 fi
             elif [[ "$ahead" -gt 0 && "$behind" -eq 0 ]]; then
-                sync_status="${ahead} ahead"
+                sync_status="${ahead} ⏩"
             elif [[ "$ahead" -eq 0 && "$behind" -gt 0 ]]; then
-                sync_status="${behind} behind"
+                sync_status="${behind} ⏪"
             else
-                sync_status="${ahead} ahead, ${behind} behind"
+                sync_status="${ahead} ⏩, ${behind} ⏪"
             fi
         else
             sync_status="no upstream"
@@ -89,13 +89,13 @@ if [[ -n "$cwd" && -d "$cwd" ]]; then
 
         # Build git status string
         if [[ "$file_count" -eq 0 ]]; then
-            git_status="(0 files uncommitted, ${sync_status})"
+            git_status="(0 📄 ❗️, ${sync_status})"
         elif [[ "$file_count" -eq 1 ]]; then
             # Show the actual filename when only one file is uncommitted
             single_file=$(git -C "$cwd" --no-optional-locks status --porcelain -uall 2>/dev/null | head -1 | sed 's/^...//')
-            git_status="(${single_file} uncommitted, ${sync_status})"
+            git_status="(${single_file} ❗️, ${sync_status})"
         else
-            git_status="(${file_count} files uncommitted, ${sync_status})"
+            git_status="(${file_count} 📄 ❗️, ${sync_status})"
         fi
     fi
 fi
@@ -150,7 +150,7 @@ if [[ -n "$transcript_path" && -f "$transcript_path" ]]; then
         fi
     done
 
-    ctx="${bar} ${C_GRAY}${pct_prefix}${pct}% of ${max_k}k tokens"
+    ctx="${bar} ${C_GRAY} ${pct_prefix}${pct}% ⚡️ ${max_k}k 🪙"
 else
     # Transcript not available yet - show baseline estimate
     baseline=20000
@@ -171,12 +171,12 @@ else
         fi
     done
 
-    ctx="${bar} ${C_GRAY}~${pct}% of ${max_k}k tokens"
+    ctx="${bar} ${C_GRAY} ~${pct}% ⚡️ ${max_k}k 🪙"
 fi
 
 # Build output: Model | Dir | Branch (uncommitted) | Context
-output="${C_ACCENT}${model}${C_GRAY} | 📁 ${dir}"
-[[ -n "$branch" ]] && output+=" | 🔀 ${branch} ${git_status}"
-output+=" | ${ctx}${C_RESET}"
+output="🧿 ${C_ACCENT}${model}${C_GRAY} / 📦 ${dir}"
+[[ -n "$branch" ]] && output+=" / 🌿 ${branch} ${git_status}"
+output+=" / ${ctx}${C_RESET}"
 
 printf '%b\n' "$output"
