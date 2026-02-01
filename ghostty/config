@@ -34,10 +34,6 @@ cursor-click-to-move = true
 # Splits
 unfocused-split-opacity = 0.85
 
-# CRT Shader
-custom-shader = ~/.config/ghostty/shaders/crt-shader-with-chromatic-aberration-glow-scanlines-dot-matrix.glsl
-custom-shader-animation = true
-
 # Quick Terminal
 quick-terminal-position = top
 quick-terminal-size = 40%

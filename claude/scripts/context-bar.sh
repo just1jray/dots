@@ -1,6 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 
+if ! command -v jq >/dev/null 2>&1; then
+    # Status line should fail gracefully if jq isn't installed.
+    input=$(cat)
+    printf '%s\n' "Claude Code | 📁 ? | jq not found"
+    exit 0
+fi
+
 # Color theme: gray, orange, blue, teal, green, lavender, rose, gold, slate, cyan
 # Preview colors with: bash scripts/color-preview.sh
 COLOR="orange"
