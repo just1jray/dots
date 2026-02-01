@@ -91,18 +91,18 @@ if [[ -n "$cwd" && -d "$cwd" ]]; then
                 sync_status="${ahead} ⏩, ${behind} ⏪"
             fi
         else
-            sync_status="no upstream"
+            sync_status="🚱"
         fi
 
         # Build git status string
         if [[ "$file_count" -eq 0 ]]; then
-            git_status="(0 📄 ❗️, ${sync_status})"
+            git_status="(0 📄❗️, ${sync_status})"
         elif [[ "$file_count" -eq 1 ]]; then
             # Show the actual filename when only one file is uncommitted
             single_file=$(git -C "$cwd" --no-optional-locks status --porcelain -uall 2>/dev/null | head -1 | sed 's/^...//')
-            git_status="(${single_file} ❗️, ${sync_status})"
+            git_status="(${single_file} 📄❗️, ${sync_status})"
         else
-            git_status="(${file_count} 📄 ❗️, ${sync_status})"
+            git_status="(${file_count} 📄❗️, ${sync_status})"
         fi
     fi
 fi
