@@ -33,9 +33,10 @@ alias -- -="cd -"
 alias ls="ls --color=auto"
 alias ll="ls -lah --color=auto"
 alias la="ls -la --color=auto"
-alias c="clear"
+alias cls="clear"
 alias grep="grep --color=auto"
 alias egrep="egrep --color=auto"
+alias c="claude"
 
 # Safety Aliases (verbose output without interactive prompts)
 alias rm="rm -v"
