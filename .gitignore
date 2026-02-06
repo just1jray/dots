@@ -2,6 +2,8 @@ zsh/hosts
 .DS_Store
 .claude/
 
+claude/settings.json
+
 # Claude Code ephemeral data (safety net if full folder gets symlinked)
 claude/cache/
 claude/chrome/

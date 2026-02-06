@@ -21,6 +21,7 @@ efresh() {
 alias dev="cd ~/Developer && ls -lah --color=auto"
 alias src="cd ~/Developer/src && ls -lah --color=auto"
 alias dots="cd ~/Developer/src/dots && ls -lah --color=auto"
+alias docs="cd ~/Documents"
 alias dl="cd ~/Downloads"
 alias dt="cd ~/Desktop"
 alias ..="cd .."
