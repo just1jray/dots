@@ -176,17 +176,17 @@ fi
 
 # TMUX Session Management
 if command -v tmux &> /dev/null; then
-    # Auto-start TMUX only in regular terminal
-    # This function will be called after zsh initialization is complete
+    # Auto-start TMUX only on remote hosts (SSH sessions)
+    # Locally, use `t` or `sesh` alias to start manually
     _start_tmux_after_init() {
         # Only run this function once
         add-zsh-hook -d precmd _start_tmux_after_init
 
         # Only try to start tmux if we're not already in a tmux session
-        # Skip auto-start if we're in an SSH session to prevent nesting
+        # Auto-start only on SSH sessions where window management is limited
         # shellcheck disable=SC2154  # TERM_PROGRAM is set by terminal emulators
         if [[ -z "$TMUX" && -n "$PS1" && \
-              -z "$SSH_CONNECTION" && \
+              -n "$SSH_CONNECTION" && \
               ! "$TERM" = *screen* && \
               ! "$TERM" = *tmux* && \
               "$TERM_PROGRAM" != "vscode" && \
