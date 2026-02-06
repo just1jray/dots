@@ -120,7 +120,6 @@ Edit `starship/starship.toml` to customize your prompt appearance and modules.
 
 The `ghostty/config` includes several customizations:
 
-- **Custom GLSL shaders** - CRT effects and water distortion shaders in `ghostty/shaders/`
 - **Quick terminal** - Toggle terminal with `ctrl+\`` (requires Ghostty 1.1+)
 - **Split keybindings**:
   - `cmd+shift+enter` - Horizontal split
@@ -139,7 +138,6 @@ Customize Neovim by editing files in `nvim/lua/`:
 
 The dotfiles include Claude Code configuration in the `claude/` directory:
 
-- **settings.json** - Claude Code settings with hooks configuration
 - **hooks/** - Custom hook scripts
   - `stop-hook-git-check.sh` - Git safety hook that prevents closing sessions with uncommitted/unpushed changes
 - **commands/** - Custom slash commands
