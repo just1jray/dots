@@ -38,6 +38,9 @@ if [[ -d "$HOME/.cargo/bin" ]]; then
 fi
 
 # Go
+if [[ -d "$HOME/.local/opt/go/bin" ]]; then
+    add_to_path "$HOME/.local/opt/go/bin"
+fi
 if [[ -d "$HOME/go/bin" ]]; then
     add_to_path "$HOME/go/bin"
 fi
