@@ -1,5 +1,7 @@
 # dots
 
+[![ShellCheck](https://github.com/just1jray/dots/actions/workflows/shellcheck.yml/badge.svg)](https://github.com/just1jray/dots/actions/workflows/shellcheck.yml)
+
 A collection of dotfiles to make my life at the command line easier (or harder).
 
 Found, borrowed, stolen, picked, and pulled from peers, colleagues, blogs, forums, posts, AI, Claude, and more. Refined through daily use at home, on the job, and remotely.

@@ -5,12 +5,14 @@ on:
     branches: [ main ]
     paths:
       - '**.sh'
+      - 'zsh/**'
       - '.shellcheckrc'
       - '.github/workflows/shellcheck.yml'
   pull_request:
     branches: [ main ]
     paths:
       - '**.sh'
+      - 'zsh/**'
       - '.shellcheckrc'
       - '.github/workflows/shellcheck.yml'
 
@@ -29,4 +31,4 @@ jobs:
           scandir: '.'
           severity: 'warning'
           format: 'gcc'
-          additional_files: 'zshenv zshrc profile-macos profile-linux aliases'
+          additional_files: 'zsh/zshenv zsh/zshrc zsh/profile-macos zsh/profile-linux zsh/profile-work zsh/aliases'
