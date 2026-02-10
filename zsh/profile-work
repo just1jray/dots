@@ -1,4 +1,10 @@
+# shellcheck disable=SC2139  # intentional expansion at definition time
 export GAMCFGDIR="/Users/$USER/Developer/GAM/GAMConfig"
 alias gam="$HOME/bin/gam7/gam"
 alias gam7="$HOME/bin/gam7/gam"
 alias gws="$HOME/bin/gam7/gam"
+
+# Tailscale Jamf Checker
+if [[ -d ~/Developer/tailscale-jamf-checker ]]; then
+  tc() { (cd ~/Developer/tailscale-jamf-checker && npm run check -- --serial "$1"); }
+fi
