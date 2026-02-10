@@ -23,6 +23,7 @@ $java\
 $kotlin\
 $haskell\
 $python\
+${custom.pyvenv}\
 [](fg:sapphire bg:lavender)\
 $conda\
 [ ](fg:lavender)\
@@ -135,10 +136,15 @@ format = '[[ $symbol( $version) ](fg:crust bg:sapphire)]($style)'
 [python]
 symbol = ""
 style = "bg:sapphire"
-format = '[[ $symbol( $version)(\(#$virtualenv\)) ](fg:crust bg:sapphire)]($style)'
+format = '[[ $symbol ](fg:crust bg:sapphire)]($style)'
 detect_extensions = []
 detect_files = ['.python-version', 'Pipfile', 'pyproject.toml', 'requirements.txt', 'setup.py', 'tox.ini']
 detect_folders = ['.venv', 'venv']
+
+[custom.pyvenv]
+when = 'test -n "$VIRTUAL_ENV"'
+command = 'echo "$(python --version 2>&1 | cut -d" " -f2) ($(basename "$VIRTUAL_ENV"))"'
+format = '[ $output ](fg:crust bg:sapphire)'
 
 [docker_context]
 symbol = ""
