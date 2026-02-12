@@ -42,12 +42,11 @@ dir=$(basename "$cwd" 2>/dev/null || echo "?")
 # Get git branch, uncommitted file count, and sync status
 branch=""
 git_status=""
-if [[ -n "$cwd" && -d "$cwd" ]]; then
+is_git=false
+if [[ -n "$cwd" && -d "$cwd" ]] && git -C "$cwd" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    is_git=true
     branch=$(git -C "$cwd" branch --show-current 2>/dev/null)
     if [[ -n "$branch" ]]; then
-        # Count uncommitted files
-        file_count=$(git -C "$cwd" --no-optional-locks status --porcelain -uall 2>/dev/null | wc -l | tr -d ' ')
-
         # Check sync status with upstream
         sync_status=""
         # shellcheck disable=SC1083  # @{upstream} is valid git syntax
@@ -74,9 +73,11 @@ if [[ -n "$cwd" && -d "$cwd" ]]; then
             fi
 
             # shellcheck disable=SC1083  # @{upstream} is valid git syntax
-            counts=$(git -C "$cwd" rev-list --left-right --count HEAD...@{upstream} 2>/dev/null)
+            counts=$(git -C "$cwd" rev-list --left-right --count HEAD...@{upstream} 2>/dev/null || true)
             ahead=$(echo "$counts" | cut -f1)
             behind=$(echo "$counts" | cut -f2)
+            ahead=${ahead:-0}
+            behind=${behind:-0}
             if [[ "$ahead" -eq 0 && "$behind" -eq 0 ]]; then
                 if [[ -n "$fetch_ago" ]]; then
                     sync_status="♻️ ${fetch_ago}"
@@ -84,26 +85,17 @@ if [[ -n "$cwd" && -d "$cwd" ]]; then
                     sync_status="♻️"
                 fi
             elif [[ "$ahead" -gt 0 && "$behind" -eq 0 ]]; then
-                sync_status="${ahead} ⏩"
+                sync_status="${ahead} ⬆️"
             elif [[ "$ahead" -eq 0 && "$behind" -gt 0 ]]; then
-                sync_status="${behind} ⏪"
+                sync_status="${behind} ⬇️"
             else
-                sync_status="${ahead} ⏩, ${behind} ⏪"
+                sync_status="${ahead} ⬆️ ${behind} ⬇️"
             fi
         else
             sync_status="🚱"
         fi
 
-        # Build git status string
-        if [[ "$file_count" -eq 0 ]]; then
-            git_status="(0 📄❗️, ${sync_status})"
-        elif [[ "$file_count" -eq 1 ]]; then
-            # Show the actual filename when only one file is uncommitted
-            single_file=$(git -C "$cwd" --no-optional-locks status --porcelain -uall 2>/dev/null | head -1 | sed 's/^...//')
-            git_status="(${single_file} 📄❗️, ${sync_status})"
-        else
-            git_status="(${file_count} 📄❗️, ${sync_status})"
-        fi
+        git_status="(${sync_status})"
     fi
 fi
 
@@ -126,7 +118,7 @@ if [[ -n "$transcript_path" && -f "$transcript_path" ]]; then
             (.message.usage.cache_read_input_tokens // 0) +
             (.message.usage.cache_creation_input_tokens // 0)
         else 0 end
-    ' < "$transcript_path")
+    ' < "$transcript_path" 2>/dev/null || echo 0)
 
     # 20k baseline: includes system prompt (~3k), tools (~15k), memory (~300),
     # plus ~2k for git status, env block, XML framing, and other dynamic context
@@ -183,7 +175,11 @@ fi
 
 # Build output: Model | Dir | Branch (uncommitted) | Context
 output="🧿 ${C_ACCENT}${model}${C_GRAY} / 📦 ${dir}"
-[[ -n "$branch" ]] && output+=" / 🌿 ${branch} ${git_status}"
+if [[ -n "$branch" ]]; then
+    output+=" / 🌿 ${branch} ${git_status}"
+elif [[ "$is_git" == false ]]; then
+    output+=" / ⛔️"
+fi
 output+=" / ${ctx}${C_RESET}"
 
 printf '%b\n' "$output"
