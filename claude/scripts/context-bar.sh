@@ -9,8 +9,41 @@ if ! command -v jq >/dev/null 2>&1; then
 fi
 
 # Color theme: gray, orange, blue, teal, green, lavender, rose, gold, slate, cyan
+# Catppuccin Mocha: rosewater, flamingo, pink, mauve, red, maroon, peach, yellow, sky, sapphire
 # Preview colors with: bash scripts/color-preview.sh
 COLOR="orange"
+
+# Randomizer: set to a group name to override COLOR with a random pick each refresh.
+# Leave empty "" to use the fixed COLOR above.
+# Groups: all, catppuccin, classic, blues, greens, warms, cools, pastel, jewel
+RANDOM_COLOR="catppuccin"
+
+# Read stdin early so transcript_path is available for stable color seeding
+input=$(cat)
+
+if [[ -n "$RANDOM_COLOR" ]]; then
+    case "$RANDOM_COLOR" in
+        catppuccin) palette="rosewater flamingo pink mauve red maroon peach yellow sky sapphire" ;;
+        classic)    palette="orange blue teal green lavender rose gold slate cyan" ;;
+        blues)      palette="blue teal cyan sky sapphire" ;;
+        greens)     palette="teal green cyan sky" ;;
+        warms)      palette="orange rose gold red maroon peach yellow flamingo rosewater pink" ;;
+        cools)      palette="blue teal cyan lavender slate sky sapphire mauve" ;;
+        pastel)     palette="rosewater flamingo pink lavender sky" ;;
+        jewel)      palette="sapphire mauve maroon teal gold" ;;
+        *)          palette="orange blue teal green lavender rose gold slate cyan rosewater flamingo pink mauve red maroon peach yellow sky sapphire" ;;
+    esac
+    # shellcheck disable=SC2206
+    colors=($palette)
+    # Seed from transcript path for stable per-session color
+    tp=$(echo "$input" | jq -r '.transcript_path // empty')
+    if [[ -n "$tp" ]]; then
+        hash=$(cksum <<< "$tp" | cut -d' ' -f1)
+    else
+        hash=$RANDOM
+    fi
+    COLOR="${colors[hash % ${#colors[@]}]}"
+fi
 
 # Color codes
 C_RESET='\033[0m'
@@ -19,20 +52,43 @@ C_BAR_EMPTY='\033[38;5;238m'
 BAR_FULL='▰'
 BAR_HALF='▰'
 BAR_EMPTY='▱'
-case "$COLOR" in
-    orange)   C_ACCENT='\033[38;5;173m' ;;
-    blue)     C_ACCENT='\033[38;5;74m' ;;
-    teal)     C_ACCENT='\033[38;5;66m' ;;
-    green)    C_ACCENT='\033[38;5;71m' ;;
-    lavender) C_ACCENT='\033[38;5;139m' ;;
-    rose)     C_ACCENT='\033[38;5;132m' ;;
-    gold)     C_ACCENT='\033[38;5;136m' ;;
-    slate)    C_ACCENT='\033[38;5;60m' ;;
-    cyan)     C_ACCENT='\033[38;5;37m' ;;
-    *)        C_ACCENT="$C_GRAY" ;;  # gray: all same color
-esac
 
-input=$(cat)
+# Context bar gradient: green → yellow → peach → red → mauve (Catppuccin Mocha)
+C_BAR=(
+    '\033[38;2;166;227;161m'  # green
+    '\033[38;2;207;226;168m'  # green-yellow
+    '\033[38;2;249;226;175m'  # yellow
+    '\033[38;2;249;202;155m'  # yellow-peach
+    '\033[38;2;250;179;135m'  # peach
+    '\033[38;2;247;166;146m'  # peach-red
+    '\033[38;2;245;152;157m'  # light red
+    '\033[38;2;243;139;168m'  # red
+    '\033[38;2;223;152;207m'  # red-mauve
+    '\033[38;2;203;166;247m'  # mauve
+)
+case "$COLOR" in
+    orange)    C_ACCENT='\033[38;5;173m' ;;
+    blue)      C_ACCENT='\033[38;5;74m' ;;
+    teal)      C_ACCENT='\033[38;5;66m' ;;
+    green)     C_ACCENT='\033[38;5;71m' ;;
+    lavender)  C_ACCENT='\033[38;5;139m' ;;
+    rose)      C_ACCENT='\033[38;5;132m' ;;
+    gold)      C_ACCENT='\033[38;5;136m' ;;
+    slate)     C_ACCENT='\033[38;5;60m' ;;
+    cyan)      C_ACCENT='\033[38;5;37m' ;;
+    # Catppuccin Mocha palette (true color)
+    rosewater) C_ACCENT='\033[38;2;245;224;220m' ;;
+    flamingo)  C_ACCENT='\033[38;2;242;205;205m' ;;
+    pink)      C_ACCENT='\033[38;2;245;194;231m' ;;
+    mauve)     C_ACCENT='\033[38;2;203;166;247m' ;;
+    red)       C_ACCENT='\033[38;2;243;139;168m' ;;
+    maroon)    C_ACCENT='\033[38;2;235;160;172m' ;;
+    peach)     C_ACCENT='\033[38;2;250;179;135m' ;;
+    yellow)    C_ACCENT='\033[38;2;249;226;175m' ;;
+    sky)       C_ACCENT='\033[38;2;137;220;235m' ;;
+    sapphire)  C_ACCENT='\033[38;2;116;199;236m' ;;
+    *)         C_ACCENT="$C_GRAY" ;;  # gray: all same color
+esac
 
 # Extract model, directory, and cwd
 model=$(echo "$input" | jq -r '.model.display_name // .model.id // "?"')
@@ -141,9 +197,9 @@ if [[ -n "$transcript_path" && -f "$transcript_path" ]]; then
         bar_start=$((i * 10))
         progress=$((pct - bar_start))
         if [[ $progress -ge 8 ]]; then
-            bar+="${C_ACCENT}${BAR_FULL}${C_RESET}"
+            bar+="${C_BAR[$i]}${BAR_FULL}${C_RESET}"
         elif [[ $progress -ge 3 ]]; then
-            bar+="${C_ACCENT}${BAR_HALF}${C_RESET}"
+            bar+="${C_BAR[$i]}${BAR_HALF}${C_RESET}"
         else
             bar+="${C_BAR_EMPTY}${BAR_EMPTY}${C_RESET}"
         fi
@@ -162,9 +218,9 @@ else
         bar_start=$((i * 10))
         progress=$((pct - bar_start))
         if [[ $progress -ge 8 ]]; then
-            bar+="${C_ACCENT}${BAR_FULL}${C_RESET}"
+            bar+="${C_BAR[$i]}${BAR_FULL}${C_RESET}"
         elif [[ $progress -ge 3 ]]; then
-            bar+="${C_ACCENT}${BAR_HALF}${C_RESET}"
+            bar+="${C_BAR[$i]}${BAR_HALF}${C_RESET}"
         else
             bar+="${C_BAR_EMPTY}${BAR_EMPTY}${C_RESET}"
         fi
