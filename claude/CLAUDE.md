@@ -19,6 +19,11 @@
 - Install packages only within activated venv: `pip install <package>`
 - Deactivate when done: `deactivate`
 
+### Shell / Environment
+
+- `cd` is aliased to zoxide (`__zoxide_z`) — use `builtin cd` or absolute paths in Bash tool calls, since Claude Code runs non-interactive shells that don't source `.zshrc`
+- Bun is at `~/.bun/bin/bun`
+
 ### Node.js Development
 
 - **Prefer Bun over npm/npx** - Bun is available and faster for most JavaScript tasks

@@ -468,7 +468,7 @@ link_config_files() {
         fi
 
         # Symlink individual portable config files/directories
-        local claude_items=("settings.json" "hooks" "skills" "scripts" "CLAUDE.md")
+        local claude_items=("hooks" "scripts" "CLAUDE.md")
         for item in "${claude_items[@]}"; do
             local item_source="$claude_source/$item"
             local item_target="$claude_target/$item"
@@ -495,6 +495,107 @@ link_config_files() {
                 fi
             fi
         done
+
+        # Link LLM skills and commands into real directories
+        # Using real directories allows externally installed skills/commands to coexist
+        # without polluting the dotfiles repo
+        local llm_source
+        llm_source="$(pwd)/llm"
+
+        if [ -d "$llm_source" ]; then
+            # Set up ~/.claude/skills/ as a real directory
+            local skills_target="$claude_target/skills"
+            if [ -L "$skills_target" ]; then
+                if [ "$DRY_RUN" = true ]; then
+                    log_info "Would remove skills symlink and create directory: $skills_target"
+                else
+                    rm -f "$skills_target"
+                    log_info "Removed old skills symlink: $skills_target"
+                    mkdir -p "$skills_target"
+                fi
+            elif [ ! -d "$skills_target" ]; then
+                if [ "$DRY_RUN" = true ]; then
+                    log_info "Would create directory: $skills_target"
+                else
+                    mkdir -p "$skills_target"
+                fi
+            fi
+
+            # Symlink each skill from llm/skills/ into ~/.claude/skills/
+            for skill_dir in "$llm_source"/skills/*/; do
+                [ -d "$skill_dir" ] || continue
+                local skill_name
+                skill_name=$(basename "$skill_dir")
+                local skill_source="${skill_dir%/}"
+                local skill_target="$skills_target/$skill_name"
+
+                if ! backup_config_file "$skill_target"; then
+                    log_error "Backup failed for $skill_target, skipping"
+                    continue
+                fi
+
+                if [ "$DRY_RUN" = true ]; then
+                    log_info "Would link skill: $skill_source → $skill_target"
+                else
+                    if ln -sf "$skill_source" "$skill_target"; then
+                        if [ -L "$skill_target" ] && [ -e "$skill_target" ]; then
+                            log_success "Linked skill: $skill_name → $skill_target"
+                        else
+                            log_error "Symlink created but target is broken: $skill_target"
+                            rm -f "$skill_target"
+                        fi
+                    else
+                        log_error "Failed to create symlink: $skill_source → $skill_target"
+                    fi
+                fi
+            done
+
+            # Set up ~/.claude/commands/ as a real directory
+            local commands_target="$claude_target/commands"
+            if [ -L "$commands_target" ]; then
+                if [ "$DRY_RUN" = true ]; then
+                    log_info "Would remove commands symlink and create directory: $commands_target"
+                else
+                    rm -f "$commands_target"
+                    log_info "Removed old commands symlink: $commands_target"
+                    mkdir -p "$commands_target"
+                fi
+            elif [ ! -d "$commands_target" ]; then
+                if [ "$DRY_RUN" = true ]; then
+                    log_info "Would create directory: $commands_target"
+                else
+                    mkdir -p "$commands_target"
+                fi
+            fi
+
+            # Symlink each command from llm/commands/ into ~/.claude/commands/
+            for cmd_file in "$llm_source"/commands/*; do
+                [ -e "$cmd_file" ] || continue
+                local cmd_name
+                cmd_name=$(basename "$cmd_file")
+                local cmd_target="$commands_target/$cmd_name"
+
+                if ! backup_config_file "$cmd_target"; then
+                    log_error "Backup failed for $cmd_target, skipping"
+                    continue
+                fi
+
+                if [ "$DRY_RUN" = true ]; then
+                    log_info "Would link command: $cmd_file → $cmd_target"
+                else
+                    if ln -sf "$cmd_file" "$cmd_target"; then
+                        if [ -L "$cmd_target" ] && [ -e "$cmd_target" ]; then
+                            log_success "Linked command: $cmd_name → $cmd_target"
+                        else
+                            log_error "Symlink created but target is broken: $cmd_target"
+                            rm -f "$cmd_target"
+                        fi
+                    else
+                        log_error "Failed to create symlink: $cmd_file → $cmd_target"
+                    fi
+                fi
+            done
+        fi
     else
         log_warning "Claude Code config directory does not exist: $claude_source"
     fi
