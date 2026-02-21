@@ -59,3 +59,8 @@ if [[ -d "$HOME/.bun/bin" ]]; then
     export BUN_INSTALL="$HOME/.bun"
     add_to_path "$BUN_INSTALL/bin"
 fi
+
+# Zoxide (must be in .zshenv so it's available in non-interactive shells like Claude Code)
+if command -v zoxide &>/dev/null; then
+    eval "$(zoxide init zsh)"
+fi
