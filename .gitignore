@@ -3,6 +3,8 @@ zsh/hosts
 .claude/
 
 claude/settings.json
+claude/commands/
+claude/skills/
 
 # Claude Code ephemeral data (safety net if full folder gets symlinked)
 claude/cache/
