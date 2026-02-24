@@ -95,6 +95,16 @@ if command -v tmux &> /dev/null; then
     # shellcheck disable=SC2139  # intentional expansion at definition time
     alias tfig="$EDITOR ~/.tmux.conf"
 
+    # rAI3DS: 3DS companion controller for Claude Code
+    alias raids='bash ~/Developer/rAI3DS/companion-server/raids.sh'
+    raids-stop() {
+      curl -sf http://localhost:3333/health > /dev/null 2>&1 && \
+        pkill -f "raids.*companion-server" 2>/dev/null && \
+        echo "[raids] Server stopped." || echo "[raids] Server not running."
+      tmux kill-session -t claude-raids 2>/dev/null && \
+        echo "[raids] tmux session killed." || echo "[raids] No tmux session."
+    }
+
     # Reset tmux session (works from inside or outside tmux)
     # Use -c flag to also clear tmux-resurrect saved state
     treset() {
