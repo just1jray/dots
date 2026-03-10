@@ -230,7 +230,7 @@ ctx="${bar} ${C_GRAY} ${pct_prefix}${ctx_col}${pct}%${C_RESET} ⚡️ ${max_k}k 
 # ── Usage stats (5hr / 7day) via Anthropic OAuth API ────────────────
 usage_line=""
 usage_cache="/tmp/claude-statusline-usage.json"
-cache_max_age=60
+cache_max_age=150
 
 get_oauth_token() {
     local blob token creds_file="$HOME/.claude/.credentials.json"
@@ -254,8 +254,8 @@ get_oauth_token() {
 
 build_usage_bar() {
     local pct=$1 width=10
-    [[ "$pct" -lt 0 ]] 2>/dev/null && pct=0
-    [[ "$pct" -gt 100 ]] 2>/dev/null && pct=100
+    [[ "$pct" -lt 0 ]] && pct=0
+    [[ "$pct" -gt 100 ]] && pct=100
     local filled=$(( pct * width / 100 ))
     local bar_col
     bar_col=$(usage_color_for_pct "$pct")
