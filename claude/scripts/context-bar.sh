@@ -253,7 +253,7 @@ get_oauth_token() {
 }
 
 build_usage_bar() {
-    local pct=$1 width=8
+    local pct=$1 width=10
     [[ "$pct" -lt 0 ]] 2>/dev/null && pct=0
     [[ "$pct" -gt 100 ]] 2>/dev/null && pct=100
     local filled=$(( pct * width / 100 ))
