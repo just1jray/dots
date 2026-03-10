@@ -47,24 +47,31 @@ fi
 
 # Color codes
 C_RESET='\033[0m'
-C_GRAY='\033[38;5;245m'  # explicit gray for default text
+C_GRAY='\033[38;5;245m'      # explicit gray for default text
 C_BAR_EMPTY='\033[38;5;238m'
 BAR_FULL='▰'
 BAR_HALF='▰'
 BAR_EMPTY='▱'
 
+# Catppuccin Mocha true colors (shared by bar gradient, accent selector, and usage stats)
+C_GREEN='\033[38;2;166;227;161m'
+C_YELLOW='\033[38;2;249;226;175m'
+C_PEACH='\033[38;2;250;179;135m'
+C_RED='\033[38;2;243;139;168m'
+C_MAUVE='\033[38;2;203;166;247m'
+
 # Context bar gradient: green → yellow → peach → red → mauve (Catppuccin Mocha)
 C_BAR=(
-    '\033[38;2;166;227;161m'  # green
+    "$C_GREEN"
     '\033[38;2;207;226;168m'  # green-yellow
-    '\033[38;2;249;226;175m'  # yellow
+    "$C_YELLOW"
     '\033[38;2;249;202;155m'  # yellow-peach
-    '\033[38;2;250;179;135m'  # peach
+    "$C_PEACH"
     '\033[38;2;247;166;146m'  # peach-red
     '\033[38;2;245;152;157m'  # light red
-    '\033[38;2;243;139;168m'  # red
+    "$C_RED"
     '\033[38;2;223;152;207m'  # red-mauve
-    '\033[38;2;203;166;247m'  # mauve
+    "$C_MAUVE"
 )
 case "$COLOR" in
     orange)    C_ACCENT='\033[38;5;173m' ;;
@@ -80,15 +87,24 @@ case "$COLOR" in
     rosewater) C_ACCENT='\033[38;2;245;224;220m' ;;
     flamingo)  C_ACCENT='\033[38;2;242;205;205m' ;;
     pink)      C_ACCENT='\033[38;2;245;194;231m' ;;
-    mauve)     C_ACCENT='\033[38;2;203;166;247m' ;;
-    red)       C_ACCENT='\033[38;2;243;139;168m' ;;
+    mauve)     C_ACCENT="$C_MAUVE" ;;
+    red)       C_ACCENT="$C_RED" ;;
     maroon)    C_ACCENT='\033[38;2;235;160;172m' ;;
-    peach)     C_ACCENT='\033[38;2;250;179;135m' ;;
-    yellow)    C_ACCENT='\033[38;2;249;226;175m' ;;
+    peach)     C_ACCENT="$C_PEACH" ;;
+    yellow)    C_ACCENT="$C_YELLOW" ;;
     sky)       C_ACCENT='\033[38;2;137;220;235m' ;;
     sapphire)  C_ACCENT='\033[38;2;116;199;236m' ;;
     *)         C_ACCENT="$C_GRAY" ;;  # gray: all same color
 esac
+
+usage_color_for_pct() {
+    local pct=$1
+    if [[ "$pct" -ge 90 ]]; then echo "$C_RED"
+    elif [[ "$pct" -ge 70 ]]; then echo "$C_PEACH"
+    elif [[ "$pct" -ge 50 ]]; then echo "$C_YELLOW"
+    else echo "$C_GREEN"
+    fi
+}
 
 # Extract model, directory, and cwd
 model=$(echo "$input" | jq -r '.model.display_name // .model.id // "?"')
@@ -164,7 +180,13 @@ transcript_path=$(echo "$input" | jq -r '.transcript_path // empty')
 max_context=$(echo "$input" | jq -r '.context_window.context_window_size // 200000')
 max_k=$((max_context / 1000))
 
-# Calculate context bar from transcript
+# Calculate context bar
+# 20k baseline: includes system prompt (~3k), tools (~15k), memory (~300),
+# plus ~2k for git status, env block, XML framing, and other dynamic context
+baseline=20000
+bar_width=10
+pct_prefix="~"
+
 if [[ -n "$transcript_path" && -f "$transcript_path" ]]; then
     context_length=$(jq -s '
         map(select(.message.usage and .isSidechain != true and .isApiErrorMessage != true)) |
@@ -176,60 +198,133 @@ if [[ -n "$transcript_path" && -f "$transcript_path" ]]; then
         else 0 end
     ' < "$transcript_path" 2>/dev/null || echo 0)
 
-    # 20k baseline: includes system prompt (~3k), tools (~15k), memory (~300),
-    # plus ~2k for git status, env block, XML framing, and other dynamic context
-    baseline=20000
-    bar_width=10
-
     if [[ "$context_length" -gt 0 ]]; then
         pct=$((context_length * 100 / max_context))
         pct_prefix=""
     else
         # At conversation start, ~20k baseline is already loaded
         pct=$((baseline * 100 / max_context))
-        pct_prefix="~"
     fi
-
-    [[ $pct -gt 100 ]] && pct=100
-
-    bar=""
-    for ((i=0; i<bar_width; i++)); do
-        bar_start=$((i * 10))
-        progress=$((pct - bar_start))
-        if [[ $progress -ge 8 ]]; then
-            bar+="${C_BAR[$i]}${BAR_FULL}${C_RESET}"
-        elif [[ $progress -ge 3 ]]; then
-            bar+="${C_BAR[$i]}${BAR_HALF}${C_RESET}"
-        else
-            bar+="${C_BAR_EMPTY}${BAR_EMPTY}${C_RESET}"
-        fi
-    done
-
-    ctx="${bar} ${C_GRAY} ${pct_prefix}${pct}% ⚡️ ${max_k}k 🪙"
 else
-    # Transcript not available yet - show baseline estimate
-    baseline=20000
-    bar_width=10
     pct=$((baseline * 100 / max_context))
-    [[ $pct -gt 100 ]] && pct=100
-
-    bar=""
-    for ((i=0; i<bar_width; i++)); do
-        bar_start=$((i * 10))
-        progress=$((pct - bar_start))
-        if [[ $progress -ge 8 ]]; then
-            bar+="${C_BAR[$i]}${BAR_FULL}${C_RESET}"
-        elif [[ $progress -ge 3 ]]; then
-            bar+="${C_BAR[$i]}${BAR_HALF}${C_RESET}"
-        else
-            bar+="${C_BAR_EMPTY}${BAR_EMPTY}${C_RESET}"
-        fi
-    done
-
-    ctx="${bar} ${C_GRAY} ~${pct}% ⚡️ ${max_k}k 🪙"
 fi
 
-# Build output: Model | Dir | Branch (uncommitted) | Context
+[[ $pct -gt 100 ]] && pct=100
+
+bar=""
+for ((i=0; i<bar_width; i++)); do
+    bar_start=$((i * 10))
+    progress=$((pct - bar_start))
+    if [[ $progress -ge 8 ]]; then
+        bar+="${C_BAR[$i]}${BAR_FULL}${C_RESET}"
+    elif [[ $progress -ge 3 ]]; then
+        bar+="${C_BAR[$i]}${BAR_HALF}${C_RESET}"
+    else
+        bar+="${C_BAR_EMPTY}${BAR_EMPTY}${C_RESET}"
+    fi
+done
+
+ctx_col=$(usage_color_for_pct "$pct")
+ctx="${bar} ${C_GRAY} ${pct_prefix}${ctx_col}${pct}%${C_RESET} ⚡️ ${max_k}k 🪙"
+
+# ── Usage stats (5hr / 7day) via Anthropic OAuth API ────────────────
+usage_line=""
+usage_cache="/tmp/claude-statusline-usage.json"
+cache_max_age=60
+
+get_oauth_token() {
+    local blob token creds_file="$HOME/.claude/.credentials.json"
+    if command -v security >/dev/null 2>&1; then
+        blob=$(security find-generic-password -s "Claude Code-credentials" -w 2>/dev/null || true)
+        if [[ -n "$blob" ]]; then
+            token=$(echo "$blob" | jq -r '.claudeAiOauth.accessToken // empty' 2>/dev/null || true)
+            if [[ -n "$token" && "$token" != "null" ]]; then
+                echo "$token"; return 0
+            fi
+        fi
+    fi
+    if [[ -f "$creds_file" ]]; then
+        token=$(jq -r '.claudeAiOauth.accessToken // empty' "$creds_file" 2>/dev/null || true)
+        if [[ -n "$token" && "$token" != "null" ]]; then
+            echo "$token"; return 0
+        fi
+    fi
+    echo ""
+}
+
+build_usage_bar() {
+    local pct=$1 width=8
+    [[ "$pct" -lt 0 ]] 2>/dev/null && pct=0
+    [[ "$pct" -gt 100 ]] 2>/dev/null && pct=100
+    local filled=$(( pct * width / 100 ))
+    local bar_col
+    bar_col=$(usage_color_for_pct "$pct")
+    local bar=""
+    for ((i=0; i<filled; i++)); do bar+="${bar_col}${BAR_FULL}${C_RESET}"; done
+    for ((i=filled; i<width; i++)); do bar+="${C_BAR_EMPTY}${BAR_EMPTY}${C_RESET}"; done
+    echo "$bar"
+}
+
+format_reset_time() {
+    local iso="$1" style="$2"
+    [[ -z "$iso" || "$iso" == "null" ]] && return
+    local stripped="${iso%%.*}"; stripped="${stripped%%Z}"
+    local epoch
+    epoch=$(date -j -f "%Y-%m-%dT%H:%M:%S" "$stripped" +%s 2>/dev/null || date -d "$iso" +%s 2>/dev/null || true)
+    [[ -z "$epoch" ]] && return
+    if [[ "$style" == "time" ]]; then
+        date -j -r "$epoch" +"%l:%M%p" 2>/dev/null | sed 's/^ //; s/\.//g' | tr '[:upper:]' '[:lower:]' || \
+        date -d "@$epoch" +"%l:%M%P" 2>/dev/null | sed 's/^ //; s/\.//g'
+    else
+        date -j -r "$epoch" +"%b %-d" 2>/dev/null | tr '[:upper:]' '[:lower:]' || \
+        date -d "@$epoch" +"%b %-d" 2>/dev/null
+    fi
+}
+
+needs_refresh=true
+usage_data=""
+if [[ -f "$usage_cache" ]]; then
+    cache_mtime=$(stat -f %m "$usage_cache" 2>/dev/null || stat -c %Y "$usage_cache" 2>/dev/null || echo 0)
+    cache_age=$(( $(date +%s) - cache_mtime ))
+    [[ "$cache_age" -lt "$cache_max_age" ]] && needs_refresh=false && usage_data=$(cat "$usage_cache" 2>/dev/null)
+fi
+
+if [[ "$needs_refresh" == true ]]; then
+    token=$(get_oauth_token)
+    if [[ -n "$token" ]]; then
+        response=$(curl -s --max-time 5 \
+            -H "Accept: application/json" \
+            -H "Authorization: Bearer $token" \
+            -H "anthropic-beta: oauth-2025-04-20" \
+            -H "User-Agent: claude-code/2.1.34" \
+            "https://api.anthropic.com/api/oauth/usage" 2>/dev/null || true)
+        if echo "$response" | jq -e '.five_hour' >/dev/null 2>&1; then
+            usage_data="$response"
+            echo "$response" > "$usage_cache"
+        fi
+    fi
+    [[ -z "$usage_data" && -f "$usage_cache" ]] && usage_data=$(cat "$usage_cache" 2>/dev/null)
+fi
+
+if [[ -n "$usage_data" ]] && echo "$usage_data" | jq -e . >/dev/null 2>&1; then
+    fh_pct=$(echo "$usage_data" | jq -r '.five_hour.utilization // 0' | awk '{printf "%.0f", $1}')
+    fh_reset=$(format_reset_time "$(echo "$usage_data" | jq -r '.five_hour.resets_at // empty')" "time")
+    fh_bar=$(build_usage_bar "$fh_pct")
+    fh_col=$(usage_color_for_pct "$fh_pct")
+
+    sd_pct=$(echo "$usage_data" | jq -r '.seven_day.utilization // 0' | awk '{printf "%.0f", $1}')
+    sd_reset=$(format_reset_time "$(echo "$usage_data" | jq -r '.seven_day.resets_at // empty')" "date")
+    sd_bar=$(build_usage_bar "$sd_pct")
+    sd_col=$(usage_color_for_pct "$sd_pct")
+
+    fh_reset_fmt="${fh_reset:+ ${C_GRAY}⟳  ${fh_reset}}"
+    sd_reset_fmt="${sd_reset:+ ${C_GRAY}⟳  ${sd_reset}}"
+
+    usage_line="⏱️ ${C_GRAY}5h ${fh_bar}  ${fh_col}${fh_pct}%${C_RESET}${fh_reset_fmt}${C_RESET}"
+    usage_line+=" / 🗓️ ${C_GRAY}7d ${sd_bar}  ${sd_col}${sd_pct}%${C_RESET}${sd_reset_fmt}${C_RESET}"
+fi
+
+# Build output: Model | Dir | Branch | Context
 output="🧿 ${C_ACCENT}${model}${C_GRAY} / 📦 ${dir}"
 if [[ -n "$branch" ]]; then
     output+=" / 🌿 ${branch} ${git_status}"
@@ -239,3 +334,6 @@ fi
 output+=" / ${ctx}${C_RESET}"
 
 printf '%b\n' "$output"
+if [[ -n "$usage_line" ]]; then
+    printf '%b\n' "$usage_line"
+fi
