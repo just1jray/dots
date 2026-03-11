@@ -250,5 +250,5 @@ elif [[ "$is_git" == false ]]; then
 fi
 line2+="${C_RESET}"
 
-printf '%b\n' "$line1"
 printf '%b\n' "$line2"
+printf '%b\n' "$line1"
