@@ -247,7 +247,7 @@ if [[ $pct -ge 3 ]]; then
 else
     ctx_col="$C_GRAY"
 fi
-ctx="${bar} ${C_GRAY} ${pct_prefix}${ctx_col}${pct}%${C_RESET} ⚡️ ${max_k}k 🪙"
+ctx="🪙 ${bar} ${C_GRAY} ${pct_prefix}${ctx_col}${pct}%${C_RESET} ⚡️ ${max_k}k"
 
 # ── Usage stats (5hr / 7day) via Anthropic OAuth API ────────────────────────
 get_oauth_token() {
