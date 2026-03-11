@@ -143,22 +143,31 @@ if [[ -n "$cwd" ]]; then
                 # shellcheck disable=SC1083  # @{upstream} is valid git syntax
                 upstream=$(git -C "$cwd" rev-parse --abbrev-ref @{upstream} 2>/dev/null || true)
                 if [[ -n "$upstream" ]]; then
-                    fetch_head="$cwd/.git/FETCH_HEAD"
+                    # Find most recent remote sync time (fetch or push)
+                    # FETCH_HEAD is updated by fetch/pull; remote ref is updated by push
                     fetch_ago=""
+                    latest_sync=0
+                    fetch_head="$cwd/.git/FETCH_HEAD"
                     if [[ -f "$fetch_head" ]]; then
-                        fetch_mtime=$(stat -f %m "$fetch_head" 2>/dev/null || stat -c %Y "$fetch_head" 2>/dev/null)
-                        if [[ -n "$fetch_mtime" ]]; then
-                            now=$(date +%s)
-                            diff_t=$((now - fetch_mtime))
-                            if [[ $diff_t -lt 60 ]]; then
-                                fetch_ago="<1m ago"
-                            elif [[ $diff_t -lt 3600 ]]; then
-                                fetch_ago="$((diff_t / 60))m ago"
-                            elif [[ $diff_t -lt 86400 ]]; then
-                                fetch_ago="$((diff_t / 3600))h ago"
-                            else
-                                fetch_ago="$((diff_t / 86400))d ago"
-                            fi
+                        fmt=$(stat -f %m "$fetch_head" 2>/dev/null || stat -c %Y "$fetch_head" 2>/dev/null || echo 0)
+                        [[ "$fmt" -gt "$latest_sync" ]] && latest_sync="$fmt"
+                    fi
+                    remote_ref="$cwd/.git/refs/remotes/origin/${branch_val}"
+                    if [[ -f "$remote_ref" ]]; then
+                        rmt=$(stat -f %m "$remote_ref" 2>/dev/null || stat -c %Y "$remote_ref" 2>/dev/null || echo 0)
+                        [[ "$rmt" -gt "$latest_sync" ]] && latest_sync="$rmt"
+                    fi
+                    if [[ "$latest_sync" -gt 0 ]]; then
+                        now=$(date +%s)
+                        diff_t=$((now - latest_sync))
+                        if [[ $diff_t -lt 60 ]]; then
+                            fetch_ago="<1m ago"
+                        elif [[ $diff_t -lt 3600 ]]; then
+                            fetch_ago="$((diff_t / 60))m ago"
+                        elif [[ $diff_t -lt 86400 ]]; then
+                            fetch_ago="$((diff_t / 3600))h ago"
+                        else
+                            fetch_ago="$((diff_t / 86400))d ago"
                         fi
                     fi
 
