@@ -47,24 +47,31 @@ fi
 
 # Color codes
 C_RESET='\033[0m'
-C_GRAY='\033[38;5;245m'  # explicit gray for default text
+C_GRAY='\033[38;5;245m'      # explicit gray for default text
 C_BAR_EMPTY='\033[38;5;238m'
 BAR_FULL='▰'
 BAR_HALF='▰'
 BAR_EMPTY='▱'
 
+# Catppuccin Mocha true colors (shared by bar gradient, accent selector, and usage stats)
+C_GREEN='\033[38;2;166;227;161m'
+C_YELLOW='\033[38;2;249;226;175m'
+C_PEACH='\033[38;2;250;179;135m'
+C_RED='\033[38;2;243;139;168m'
+C_MAUVE='\033[38;2;203;166;247m'
+
 # Context bar gradient: green → yellow → peach → red → mauve (Catppuccin Mocha)
 C_BAR=(
-    '\033[38;2;166;227;161m'  # green
+    "$C_GREEN"
     '\033[38;2;207;226;168m'  # green-yellow
-    '\033[38;2;249;226;175m'  # yellow
+    "$C_YELLOW"
     '\033[38;2;249;202;155m'  # yellow-peach
-    '\033[38;2;250;179;135m'  # peach
+    "$C_PEACH"
     '\033[38;2;247;166;146m'  # peach-red
     '\033[38;2;245;152;157m'  # light red
-    '\033[38;2;243;139;168m'  # red
+    "$C_RED"
     '\033[38;2;223;152;207m'  # red-mauve
-    '\033[38;2;203;166;247m'  # mauve
+    "$C_MAUVE"
 )
 case "$COLOR" in
     orange)    C_ACCENT='\033[38;5;173m' ;;
@@ -80,15 +87,25 @@ case "$COLOR" in
     rosewater) C_ACCENT='\033[38;2;245;224;220m' ;;
     flamingo)  C_ACCENT='\033[38;2;242;205;205m' ;;
     pink)      C_ACCENT='\033[38;2;245;194;231m' ;;
-    mauve)     C_ACCENT='\033[38;2;203;166;247m' ;;
-    red)       C_ACCENT='\033[38;2;243;139;168m' ;;
+    mauve)     C_ACCENT="$C_MAUVE" ;;
+    red)       C_ACCENT="$C_RED" ;;
     maroon)    C_ACCENT='\033[38;2;235;160;172m' ;;
-    peach)     C_ACCENT='\033[38;2;250;179;135m' ;;
-    yellow)    C_ACCENT='\033[38;2;249;226;175m' ;;
+    peach)     C_ACCENT="$C_PEACH" ;;
+    yellow)    C_ACCENT="$C_YELLOW" ;;
     sky)       C_ACCENT='\033[38;2;137;220;235m' ;;
     sapphire)  C_ACCENT='\033[38;2;116;199;236m' ;;
     *)         C_ACCENT="$C_GRAY" ;;  # gray: all same color
 esac
+
+# Returns a Catppuccin color based on usage percentage threshold
+usage_color_for_pct() {
+    local pct=$1
+    if [[ "$pct" -ge 90 ]]; then echo "$C_RED"
+    elif [[ "$pct" -ge 70 ]]; then echo "$C_PEACH"
+    elif [[ "$pct" -ge 50 ]]; then echo "$C_YELLOW"
+    else echo "$C_GREEN"
+    fi
+}
 
 # Extract model and cwd
 model=$(echo "$input" | jq -r '.model.display_name // .model.id // "?"')
@@ -97,7 +114,7 @@ dir=$(basename "$cwd" 2>/dev/null || echo "?")
 
 # Git info with caching (5s TTL per working directory)
 # Uses a fixed per-cwd cache filename so results persist across invocations.
-CACHE_MAX_AGE=5
+GIT_CACHE_MAX_AGE=5
 branch=""
 sync_status=""
 remote_url=""
@@ -105,17 +122,17 @@ is_git=false
 
 if [[ -n "$cwd" ]]; then
     cwd_hash=$(cksum <<< "$cwd" | cut -d' ' -f1)
-    CACHE_FILE="/tmp/statusline-git-${cwd_hash}"
+    GIT_CACHE_FILE="/tmp/statusline-git-${cwd_hash}"
 
-    cache_is_stale=true
-    if [[ -f "$CACHE_FILE" ]]; then
-        cache_mtime=$(stat -f %m "$CACHE_FILE" 2>/dev/null || stat -c %Y "$CACHE_FILE" 2>/dev/null || echo 0)
-        if [[ $(( $(date +%s) - cache_mtime )) -le $CACHE_MAX_AGE ]]; then
-            cache_is_stale=false
+    git_cache_is_stale=true
+    if [[ -f "$GIT_CACHE_FILE" ]]; then
+        git_cache_mtime=$(stat -f %m "$GIT_CACHE_FILE" 2>/dev/null || stat -c %Y "$GIT_CACHE_FILE" 2>/dev/null || echo 0)
+        if [[ $(( $(date +%s) - git_cache_mtime )) -le $GIT_CACHE_MAX_AGE ]]; then
+            git_cache_is_stale=false
         fi
     fi
 
-    if [[ "$cache_is_stale" == true ]]; then
+    if [[ "$git_cache_is_stale" == true ]]; then
         if [[ -d "$cwd" ]] && git -C "$cwd" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
             branch_val=$(git -C "$cwd" branch --show-current 2>/dev/null)
             sync_val=""
@@ -175,16 +192,16 @@ if [[ -n "$cwd" ]]; then
                 fi
             fi
 
-            printf '%s\n' "1|${branch_val}|${sync_val}|${remote_val}" > "$CACHE_FILE"
+            printf '%s\n' "1|${branch_val}|${sync_val}|${remote_val}" > "$GIT_CACHE_FILE"
         else
-            printf '%s\n' "0|||" > "$CACHE_FILE"
+            printf '%s\n' "0|||" > "$GIT_CACHE_FILE"
         fi
     fi
 
     # Read cached values (pipe-delimited; last field captures remainder including empty remote_url)
     is_git_cached=""
-    if [[ -f "$CACHE_FILE" ]]; then
-        IFS='|' read -r is_git_cached branch sync_status remote_url < "$CACHE_FILE" || true
+    if [[ -f "$GIT_CACHE_FILE" ]]; then
+        IFS='|' read -r is_git_cached branch sync_status remote_url < "$GIT_CACHE_FILE" || true
         [[ "$is_git_cached" == "1" ]] && is_git=true
     fi
 fi
@@ -222,7 +239,105 @@ for ((i=0; i<bar_width; i++)); do
     fi
 done
 
-ctx="${bar} ${C_GRAY} ${pct_prefix}${pct}% ⚡️ ${max_k}k 🪙"
+ctx_col=$(usage_color_for_pct "$pct")
+ctx="${bar} ${C_GRAY} ${pct_prefix}${ctx_col}${pct}%${C_RESET} ⚡️ ${max_k}k 🪙"
+
+# ── Usage stats (5hr / 7day) via Anthropic OAuth API ────────────────────────
+get_oauth_token() {
+    local blob token creds_file="$HOME/.claude/.credentials.json"
+    if command -v security >/dev/null 2>&1; then
+        blob=$(security find-generic-password -s "Claude Code-credentials" -w 2>/dev/null || true)
+        if [[ -n "$blob" ]]; then
+            token=$(echo "$blob" | jq -r '.claudeAiOauth.accessToken // empty' 2>/dev/null || true)
+            if [[ -n "$token" && "$token" != "null" ]]; then
+                echo "$token"; return 0
+            fi
+        fi
+    fi
+    if [[ -f "$creds_file" ]]; then
+        token=$(jq -r '.claudeAiOauth.accessToken // empty' "$creds_file" 2>/dev/null || true)
+        if [[ -n "$token" && "$token" != "null" ]]; then
+            echo "$token"; return 0
+        fi
+    fi
+    echo ""
+}
+
+build_usage_bar() {
+    local pct=$1 width=10 filled bar_col bar=""
+    [[ "$pct" -lt 0 ]] && pct=0
+    [[ "$pct" -gt 100 ]] && pct=100
+    filled=$(( pct * width / 100 ))
+    bar_col=$(usage_color_for_pct "$pct")
+    for ((i=0; i<filled; i++)); do bar+="${bar_col}${BAR_FULL}${C_RESET}"; done
+    for ((i=filled; i<width; i++)); do bar+="${C_BAR_EMPTY}${BAR_EMPTY}${C_RESET}"; done
+    echo "$bar"
+}
+
+format_reset_time() {
+    local iso="$1" style="$2" stripped epoch
+    [[ -z "$iso" || "$iso" == "null" ]] && return
+    stripped="${iso%%.*}"; stripped="${stripped%%Z}"
+    epoch=$(date -j -f "%Y-%m-%dT%H:%M:%S" "$stripped" +%s 2>/dev/null || date -d "$iso" +%s 2>/dev/null || true)
+    [[ -z "$epoch" ]] && return
+    if [[ "$style" == "time" ]]; then
+        date -j -r "$epoch" +"%l:%M%p" 2>/dev/null | sed 's/^ //; s/\.//g' | tr '[:upper:]' '[:lower:]' || \
+        date -d "@$epoch" +"%l:%M%P" 2>/dev/null | sed 's/^ //; s/\.//g'
+    else
+        date -j -r "$epoch" +"%b %-d" 2>/dev/null | tr '[:upper:]' '[:lower:]' || \
+        date -d "@$epoch" +"%b %-d" 2>/dev/null
+    fi
+}
+
+usage_line=""
+usage_cache_file="/tmp/claude-statusline-usage.json"
+usage_cache_max_age=150
+usage_needs_refresh=true
+usage_data=""
+
+if [[ -f "$usage_cache_file" ]]; then
+    usage_cache_mtime=$(stat -f %m "$usage_cache_file" 2>/dev/null || stat -c %Y "$usage_cache_file" 2>/dev/null || echo 0)
+    usage_cache_age=$(( $(date +%s) - usage_cache_mtime ))
+    if [[ "$usage_cache_age" -lt "$usage_cache_max_age" ]]; then
+        usage_needs_refresh=false
+        usage_data=$(cat "$usage_cache_file" 2>/dev/null)
+    fi
+fi
+
+if [[ "$usage_needs_refresh" == true ]]; then
+    token=$(get_oauth_token)
+    if [[ -n "$token" ]]; then
+        response=$(curl -s --max-time 5 \
+            -H "Accept: application/json" \
+            -H "Authorization: Bearer $token" \
+            -H "anthropic-beta: oauth-2025-04-20" \
+            -H "User-Agent: claude-code/2.1.34" \
+            "https://api.anthropic.com/api/oauth/usage" 2>/dev/null || true)
+        if echo "$response" | jq -e '.five_hour' >/dev/null 2>&1; then
+            usage_data="$response"
+            echo "$response" > "$usage_cache_file"
+        fi
+    fi
+    [[ -z "$usage_data" && -f "$usage_cache_file" ]] && usage_data=$(cat "$usage_cache_file" 2>/dev/null)
+fi
+
+if [[ -n "$usage_data" ]] && echo "$usage_data" | jq -e . >/dev/null 2>&1; then
+    fh_pct=$(echo "$usage_data" | jq -r '.five_hour.utilization // 0' | awk '{printf "%.0f", $1}')
+    fh_reset=$(format_reset_time "$(echo "$usage_data" | jq -r '.five_hour.resets_at // empty')" "time")
+    fh_bar=$(build_usage_bar "$fh_pct")
+    fh_col=$(usage_color_for_pct "$fh_pct")
+
+    sd_pct=$(echo "$usage_data" | jq -r '.seven_day.utilization // 0' | awk '{printf "%.0f", $1}')
+    sd_reset=$(format_reset_time "$(echo "$usage_data" | jq -r '.seven_day.resets_at // empty')" "date")
+    sd_bar=$(build_usage_bar "$sd_pct")
+    sd_col=$(usage_color_for_pct "$sd_pct")
+
+    fh_reset_fmt="${fh_reset:+ ${C_GRAY}⟳  ${fh_reset}}"
+    sd_reset_fmt="${sd_reset:+ ${C_GRAY}⟳  ${sd_reset}}"
+
+    usage_line="⏱️ ${C_GRAY}5h ${fh_bar}  ${fh_col}${fh_pct}%${C_RESET}${fh_reset_fmt}${C_RESET}"
+    usage_line+=" / 🗓️ ${C_GRAY}7d ${sd_bar}  ${sd_col}${sd_pct}%${C_RESET}${sd_reset_fmt}${C_RESET}"
+fi
 
 # Clickable links via OSC 8: \033]8;;URL\aTEXT\033]8;;\a
 # Cmd+click (macOS) or Ctrl+click (Linux) to open. Requires iTerm2/Kitty/WezTerm.
@@ -236,19 +351,20 @@ if [[ -n "$branch" && -n "$remote_url" ]]; then
     branch_display="\033]8;;${remote_url}/tree/${branch}\a${branch}\033]8;;\a"
 fi
 
-# Line 1: Model and context usage
-line1="🧿 ${C_ACCENT}${model}${C_GRAY} / ${ctx}${C_RESET}"
-
-# Line 2: Directory and git info
-line2="${C_GRAY}📦 ${dir_display}"
+# Line 1: Directory and git info
+line1="${C_GRAY}📦 ${dir_display}"
 if [[ -n "$branch" ]]; then
     git_status_str=""
     [[ -n "$sync_status" ]] && git_status_str=" (${sync_status})"
-    line2+=" / 🌿 ${branch_display}${git_status_str}"
+    line1+=" / 🌿 ${branch_display}${git_status_str}"
 elif [[ "$is_git" == false ]]; then
-    line2+=" / ⛔️"
+    line1+=" / ⛔️"
 fi
-line2+="${C_RESET}"
+line1+="${C_RESET}"
 
-printf '%b\n' "$line2"
+# Line 2: Model and context usage
+line2="🧿 ${C_ACCENT}${model}${C_GRAY} / ${ctx}${C_RESET}"
+
 printf '%b\n' "$line1"
+printf '%b\n' "$line2"
+[[ -n "$usage_line" ]] && printf '%b\n' "$usage_line"
