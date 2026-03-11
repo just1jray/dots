@@ -301,7 +301,7 @@ format_reset_time() {
     local iso="$1" style="$2" stripped epoch
     [[ -z "$iso" || "$iso" == "null" ]] && return
     stripped="${iso%%.*}"; stripped="${stripped%%Z}"
-    epoch=$(date -j -f "%Y-%m-%dT%H:%M:%S" "$stripped" +%s 2>/dev/null || date -d "$iso" +%s 2>/dev/null || true)
+    epoch=$(TZ=UTC date -j -f "%Y-%m-%dT%H:%M:%S" "$stripped" +%s 2>/dev/null || date -d "$iso" +%s 2>/dev/null || true)
     [[ -z "$epoch" ]] && return
     if [[ "$style" == "time" ]]; then
         date -j -r "$epoch" +"%l%p" 2>/dev/null | sed 's/^ //; s/\.//g' | tr '[:upper:]' '[:lower:]' || \
