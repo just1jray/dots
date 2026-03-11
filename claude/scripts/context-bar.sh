@@ -239,7 +239,14 @@ for ((i=0; i<bar_width; i++)); do
     fi
 done
 
-ctx_col=$(usage_color_for_pct "$pct")
+# Match % color to the tip of the bar (last colored segment in C_BAR gradient)
+if [[ $pct -ge 3 ]]; then
+    bar_tip_idx=$(( (pct - 3) / 10 ))
+    [[ $bar_tip_idx -gt 9 ]] && bar_tip_idx=9
+    ctx_col="${C_BAR[$bar_tip_idx]}"
+else
+    ctx_col="$C_GRAY"
+fi
 ctx="${bar} ${C_GRAY} ${pct_prefix}${ctx_col}${pct}%${C_RESET} ⚡️ ${max_k}k 🪙"
 
 # ── Usage stats (5hr / 7day) via Anthropic OAuth API ────────────────────────
@@ -264,13 +271,20 @@ get_oauth_token() {
 }
 
 build_usage_bar() {
-    local pct=$1 width=10 filled bar_col bar=""
+    local pct=$1 width=10 bar="" bar_start progress
     [[ "$pct" -lt 0 ]] && pct=0
     [[ "$pct" -gt 100 ]] && pct=100
-    filled=$(( pct * width / 100 ))
-    bar_col=$(usage_color_for_pct "$pct")
-    for ((i=0; i<filled; i++)); do bar+="${bar_col}${BAR_FULL}${C_RESET}"; done
-    for ((i=filled; i<width; i++)); do bar+="${C_BAR_EMPTY}${BAR_EMPTY}${C_RESET}"; done
+    for ((i=0; i<width; i++)); do
+        bar_start=$(( i * 10 ))
+        progress=$(( pct - bar_start ))
+        if [[ $progress -ge 8 ]]; then
+            bar+="${C_BAR[$i]}${BAR_FULL}${C_RESET}"
+        elif [[ $progress -ge 3 ]]; then
+            bar+="${C_BAR[$i]}${BAR_HALF}${C_RESET}"
+        else
+            bar+="${C_BAR_EMPTY}${BAR_EMPTY}${C_RESET}"
+        fi
+    done
     echo "$bar"
 }
 
@@ -281,11 +295,11 @@ format_reset_time() {
     epoch=$(date -j -f "%Y-%m-%dT%H:%M:%S" "$stripped" +%s 2>/dev/null || date -d "$iso" +%s 2>/dev/null || true)
     [[ -z "$epoch" ]] && return
     if [[ "$style" == "time" ]]; then
-        date -j -r "$epoch" +"%l:%M%p" 2>/dev/null | sed 's/^ //; s/\.//g' | tr '[:upper:]' '[:lower:]' || \
-        date -d "@$epoch" +"%l:%M%P" 2>/dev/null | sed 's/^ //; s/\.//g'
+        date -j -r "$epoch" +"%l%p" 2>/dev/null | sed 's/^ //; s/\.//g' | tr '[:upper:]' '[:lower:]' || \
+        date -d "@$epoch" +"%l%P" 2>/dev/null | sed 's/^ //'
     else
-        date -j -r "$epoch" +"%b %-d" 2>/dev/null | tr '[:upper:]' '[:lower:]' || \
-        date -d "@$epoch" +"%b %-d" 2>/dev/null
+        date -j -r "$epoch" +"%m-%e" 2>/dev/null | sed 's/^0//; s/ //' || \
+        date -d "@$epoch" +"%m-%-d" 2>/dev/null | sed 's/^0//'
     fi
 }
 
@@ -325,18 +339,20 @@ if [[ -n "$usage_data" ]] && echo "$usage_data" | jq -e . >/dev/null 2>&1; then
     fh_pct=$(echo "$usage_data" | jq -r '.five_hour.utilization // 0' | awk '{printf "%.0f", $1}')
     fh_reset=$(format_reset_time "$(echo "$usage_data" | jq -r '.five_hour.resets_at // empty')" "time")
     fh_bar=$(build_usage_bar "$fh_pct")
-    fh_col=$(usage_color_for_pct "$fh_pct")
+    fh_tip=$(( fh_pct >= 3 ? (fh_pct - 3) / 10 : 0 )); [[ $fh_tip -gt 9 ]] && fh_tip=9
+    fh_col="${C_BAR[$fh_tip]}"
 
     sd_pct=$(echo "$usage_data" | jq -r '.seven_day.utilization // 0' | awk '{printf "%.0f", $1}')
     sd_reset=$(format_reset_time "$(echo "$usage_data" | jq -r '.seven_day.resets_at // empty')" "date")
     sd_bar=$(build_usage_bar "$sd_pct")
-    sd_col=$(usage_color_for_pct "$sd_pct")
+    sd_tip=$(( sd_pct >= 3 ? (sd_pct - 3) / 10 : 0 )); [[ $sd_tip -gt 9 ]] && sd_tip=9
+    sd_col="${C_BAR[$sd_tip]}"
 
-    fh_reset_fmt="${fh_reset:+ ${C_GRAY}⟳  ${fh_reset}}"
-    sd_reset_fmt="${sd_reset:+ ${C_GRAY}⟳  ${sd_reset}}"
+    fh_reset_fmt="${fh_reset:+ ${C_GRAY}🔄 ${fh_reset}}"
+    sd_reset_fmt="${sd_reset:+ ${C_GRAY}🔄 ${sd_reset}}"
 
-    usage_line="⏱️ ${C_GRAY}5h ${fh_bar}  ${fh_col}${fh_pct}%${C_RESET}${fh_reset_fmt}${C_RESET}"
-    usage_line+=" / 🗓️ ${C_GRAY}7d ${sd_bar}  ${sd_col}${sd_pct}%${C_RESET}${sd_reset_fmt}${C_RESET}"
+    usage_line="⏱️ ${fh_bar}  ${fh_col}${fh_pct}%${C_RESET}${fh_reset_fmt}${C_RESET}"
+    usage_line+=" / 🗓️ ${sd_bar}  ${sd_col}${sd_pct}%${C_RESET}${sd_reset_fmt}${C_RESET}"
 fi
 
 # Clickable links via OSC 8: \033]8;;URL\aTEXT\033]8;;\a
