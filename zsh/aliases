@@ -38,6 +38,7 @@ alias cls="clear"
 alias grep="grep --color=auto"
 alias egrep="egrep --color=auto"
 alias c="claude"
+alias cskip="claude --dangerously-skip-permissions"
 
 # Safety Aliases (verbose output without interactive prompts)
 alias rm="rm -v"
