@@ -13,7 +13,7 @@ file_path=$(echo "$input" | jq -r '.tool_input.file_path // empty')
 [[ "$file_path" == *.sh ]] || exit 0
 [[ -f "$file_path" ]] || exit 0
 
-# shellcheck picks up .shellcheckrc from the file's directory tree automatically
+# ShellCheck picks up .shellcheckrc from the file's directory tree automatically
 output=$(/opt/homebrew/bin/shellcheck "$file_path" 2>&1) || {
     echo "shellcheck found issues:"
     echo "$output"
