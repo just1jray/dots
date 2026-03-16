@@ -25,15 +25,21 @@ print_usage() {
     echo -e "${BOLD}Usage:${NC} $0 [options]"
     echo
     echo "Options:"
-    echo "  -h, --help          Show this help message"
-    echo "  -f, --force         Force overwrite of existing config files without backup"
-    echo "  -n, --dry-run       Show what would be done without making changes"
-    echo "  -s, --skip-plugins  Skip plugin installation"
-    echo "  -c, --check-nvchad  Check NVChad installation status and exit"
-    echo "  -i, --install-font  Install MesloLGS NF font (recommended for prompt symbols)"
+    echo "  -h, --help              Show this help message"
+    echo "  -f, --force             Force overwrite of existing config files without backup"
+    echo "  -n, --dry-run           Show what would be done without making changes"
+    echo "  -s, --skip-plugins      Skip plugin installation"
+    echo "  -c, --check-nvchad      Check NVChad installation status and exit"
+    echo "  -i, --install-font      Install JetBrains Mono Nerd Font (recommended for prompt symbols)"
+    echo "  -p, --profile <name>    Install a specific profile (repeatable, stackable)"
     echo
-    echo "This script sets up dotfiles for zsh, vim, nvim, and tmux."
-    echo "It creates necessary directories, installs plugins, and symlinks config files."
+    echo "Profiles:"
+    echo "  minimal   Shell essentials: zsh, starship, git, ghostty"
+    echo "  claude    AI tools: claude code config, llm skills/commands"
+    echo "  full      Everything (default if no --profile given)"
+    echo
+    echo "Profiles are composable. Combine them with multiple --profile flags:"
+    echo "  $0 --profile minimal --profile claude"
 }
 
 # Parse command line arguments
@@ -42,6 +48,7 @@ DRY_RUN=false
 SKIP_PLUGINS=false
 CHECK_NVCHAD_ONLY=false
 INSTALL_FONT=false
+PROFILES=()
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -69,6 +76,24 @@ while [[ $# -gt 0 ]]; do
             INSTALL_FONT=true
             shift
             ;;
+        -p|--profile)
+            if [[ -z "${2:-}" ]]; then
+                echo -e "${RED}Error:${NC} --profile requires a value (minimal, claude, full)"
+                print_usage
+                exit 1
+            fi
+            case $2 in
+                minimal|claude|full)
+                    PROFILES+=("$2")
+                    ;;
+                *)
+                    echo -e "${RED}Error:${NC} Unknown profile: $2 (valid: minimal, claude, full)"
+                    print_usage
+                    exit 1
+                    ;;
+            esac
+            shift 2
+            ;;
         *)
             echo -e "${RED}Error:${NC} Unknown option: $1"
             print_usage
@@ -76,6 +101,22 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+# Default to full profile if none specified
+if [ ${#PROFILES[@]} -eq 0 ]; then
+    PROFILES=("full")
+fi
+
+# Check if a profile is active
+profile_active() {
+    local target="$1"
+    for p in "${PROFILES[@]}"; do
+        if [[ "$p" == "full" || "$p" == "$target" ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
 
 # Log functions
 log_info() {
@@ -102,14 +143,27 @@ command_exists() {
 # Check for required commands
 check_requirements() {
     log_info "Checking requirements..."
-    
+
     local missing_commands=()
-    
-    for cmd in git zsh vim nvim tmux; do
-        if ! command_exists "$cmd"; then
-            missing_commands+=("$cmd")
-        fi
-    done
+
+    # Always need git (used to clone this repo)
+    if ! command_exists git; then
+        missing_commands+=("git")
+    fi
+
+    # zsh only needed for minimal profile
+    if profile_active "minimal" && ! command_exists zsh; then
+        missing_commands+=("zsh")
+    fi
+
+    # Only check for vim, nvim, tmux when full profile is active
+    if profile_active "full"; then
+        for cmd in vim nvim tmux; do
+            if ! command_exists "$cmd"; then
+                missing_commands+=("$cmd")
+            fi
+        done
+    fi
     
     if [ ${#missing_commands[@]} -gt 0 ]; then
         log_warning "The following required commands are missing:"
@@ -134,13 +188,20 @@ check_requirements() {
 create_directories() {
     log_info "Creating necessary directories..."
 
-    local directories=(
-        "$ZSH_PLUGINS_DIR"
-        "$DEV_DIR"
-        "$TMUX_PLUGINS_DIR"
-        "$TMUX_PLUGIN_RESURRECT_DIR"
-        "$HOME/.config/opencode"
-    )
+    local directories=()
+
+    # Always create dev directory
+    directories+=("$DEV_DIR")
+
+    if profile_active "minimal"; then
+        directories+=("$ZSH_PLUGINS_DIR")
+    fi
+
+    if profile_active "full"; then
+        directories+=("$TMUX_PLUGINS_DIR")
+        directories+=("$TMUX_PLUGIN_RESURRECT_DIR")
+        directories+=("$HOME/.config/opencode")
+    fi
 
     for dir in "${directories[@]}"; do
         if [ ! -d "$dir" ]; then
@@ -165,14 +226,15 @@ install_plugins() {
 
     log_info "Installing plugins..."
 
-    # Note: ZSH plugins are now managed by zinit and will be installed automatically
-    # Note: Neovim is now managed by NVChad and will be configured on first launch
+    if profile_active "minimal"; then
+        log_info "ZSH plugins will be automatically installed by zinit on first shell launch"
+    fi
 
-    log_info "ZSH plugins will be automatically installed by zinit on first shell launch"
-    log_info "NVChad will be installed and configured for Neovim on first nvim launch"
-
-    # Install Tmux Plugin Manager and plugins
-    install_tmux_plugins
+    if profile_active "full"; then
+        log_info "NVChad will be installed and configured for Neovim on first nvim launch"
+        # Install Tmux Plugin Manager and plugins
+        install_tmux_plugins
+    fi
 }
 
 # Install Tmux Plugin Manager and plugins
@@ -329,38 +391,43 @@ backup_config_file() {
 link_config_files() {
     log_info "Linking configuration files..."
 
-    local config_files=(
-        "zsh/zshrc|$HOME/.zshrc"
-        "zsh/zshenv|$HOME/.zshenv"
-        "vim/vimrc|$HOME/.vimrc"
-        "tmux/tmux.conf|$HOME/.tmux.conf"
-        "starship/starship.toml|$HOME/.config/starship.toml"
-        "git/gitconfig|$HOME/.gitconfig"
-        "git/gitignore_global|$HOME/.gitignore_global"
-        "opencode/opencode.json|$HOME/.config/opencode/opencode.json"
-    )
+    local config_files=()
 
-    # Add aliases file if it exists
-    if [ -f "$(pwd)/zsh/aliases" ]; then
-        config_files+=("zsh/aliases|$HOME/.config/zsh/aliases")
+    # minimal profile: zsh, starship, git
+    if profile_active "minimal"; then
+        config_files+=(
+            "zsh/zshrc|$HOME/.zshrc"
+            "zsh/zshenv|$HOME/.zshenv"
+            "starship/starship.toml|$HOME/.config/starship.toml"
+            "git/gitconfig|$HOME/.gitconfig"
+            "git/gitignore_global|$HOME/.gitignore_global"
+        )
+
+        # Add optional zsh files if they exist
+        if [ -f "$(pwd)/zsh/aliases" ]; then
+            config_files+=("zsh/aliases|$HOME/.config/zsh/aliases")
+        fi
+        if [ -f "$(pwd)/zsh/hosts" ]; then
+            config_files+=("zsh/hosts|$HOME/.config/zsh/hosts")
+        fi
+        if [ -f "$(pwd)/zsh/profile-macos" ]; then
+            config_files+=("zsh/profile-macos|$HOME/.config/zsh/profile-macos")
+        fi
+        if [ -f "$(pwd)/zsh/profile-linux" ]; then
+            config_files+=("zsh/profile-linux|$HOME/.config/zsh/profile-linux")
+        fi
+        if [ -f "$(pwd)/zsh/profile-work" ]; then
+            config_files+=("zsh/profile-work|$HOME/.config/zsh/profile-work")
+        fi
     fi
 
-    # Add hosts file if it exists
-    if [ -f "$(pwd)/zsh/hosts" ]; then
-        config_files+=("zsh/hosts|$HOME/.config/zsh/hosts")
-    fi
-
-    # Add platform and work specific profile files if they exist
-    if [ -f "$(pwd)/zsh/profile-macos" ]; then
-        config_files+=("zsh/profile-macos|$HOME/.config/zsh/profile-macos")
-    fi
-
-    if [ -f "$(pwd)/zsh/profile-linux" ]; then
-        config_files+=("zsh/profile-linux|$HOME/.config/zsh/profile-linux")
-    fi
-    
-    if [ -f "$(pwd)/zsh/profile-work" ]; then
-        config_files+=("zsh/profile-work|$HOME/.config/zsh/profile-work")
+    # full profile: vim, tmux, opencode
+    if profile_active "full"; then
+        config_files+=(
+            "vim/vimrc|$HOME/.vimrc"
+            "tmux/tmux.conf|$HOME/.tmux.conf"
+            "opencode/opencode.json|$HOME/.config/opencode/opencode.json"
+        )
     fi
 
     for config in "${config_files[@]}"; do
@@ -395,70 +462,74 @@ link_config_files() {
         fi
     done
 
-    # Link NVChad config directory
+    # Link NVChad config directory (full profile only)
     local nvim_source
     nvim_source="$(pwd)/nvim"
     local nvim_target="$HOME/.config/nvim"
 
-    if [ -d "$nvim_source" ]; then
-        if ! backup_config_file "$nvim_target"; then
-            log_error "Backup failed for $nvim_target, skipping to prevent data loss"
-            return 1
-        fi
-
-        if [ "$DRY_RUN" = true ]; then
-            log_info "Would link directory: $nvim_source → $nvim_target"
-        else
-            if ln -sf "$nvim_source" "$nvim_target"; then
-                # Verify symlink was created and target exists
-                if [ -L "$nvim_target" ] && [ -e "$nvim_target" ]; then
-                    log_success "Linked NVChad config: $nvim_source → $nvim_target"
-                else
-                    log_error "Symlink created but target is broken: $nvim_target"
-                    log_error "Source may not exist: $nvim_source"
-                    rm -f "$nvim_target"  # Remove broken symlink
-                fi
-            else
-                log_error "Failed to create symlink: $nvim_source → $nvim_target"
+    if profile_active "full"; then
+        if [ -d "$nvim_source" ]; then
+            if ! backup_config_file "$nvim_target"; then
+                log_error "Backup failed for $nvim_target, skipping to prevent data loss"
+                return 1
             fi
+
+            if [ "$DRY_RUN" = true ]; then
+                log_info "Would link directory: $nvim_source → $nvim_target"
+            else
+                if ln -sf "$nvim_source" "$nvim_target"; then
+                    if [ -L "$nvim_target" ] && [ -e "$nvim_target" ]; then
+                        log_success "Linked NVChad config: $nvim_source → $nvim_target"
+                    else
+                        log_error "Symlink created but target is broken: $nvim_target"
+                        log_error "Source may not exist: $nvim_source"
+                        rm -f "$nvim_target"
+                    fi
+                else
+                    log_error "Failed to create symlink: $nvim_source → $nvim_target"
+                fi
+            fi
+        else
+            log_warning "NVChad config directory does not exist: $nvim_source"
         fi
-    else
-        log_warning "NVChad config directory does not exist: $nvim_source"
     fi
 
-    # Link Ghostty config directory
+    # Link Ghostty config directory (minimal profile)
     local ghostty_source
     ghostty_source="$(pwd)/ghostty"
     local ghostty_target="$HOME/.config/ghostty"
 
-    if [ -d "$ghostty_source" ]; then
-        if ! backup_config_file "$ghostty_target"; then
-            log_error "Backup failed for $ghostty_target, skipping"
-        else
-            if [ "$DRY_RUN" = true ]; then
-                log_info "Would link directory: $ghostty_source → $ghostty_target"
+    if profile_active "minimal"; then
+        if [ -d "$ghostty_source" ]; then
+            if ! backup_config_file "$ghostty_target"; then
+                log_error "Backup failed for $ghostty_target, skipping"
             else
-                if ln -sf "$ghostty_source" "$ghostty_target"; then
-                    if [ -L "$ghostty_target" ] && [ -e "$ghostty_target" ]; then
-                        log_success "Linked Ghostty config: $ghostty_source → $ghostty_target"
-                    else
-                        log_error "Symlink created but target is broken: $ghostty_target"
-                        rm -f "$ghostty_target"
-                    fi
+                if [ "$DRY_RUN" = true ]; then
+                    log_info "Would link directory: $ghostty_source → $ghostty_target"
                 else
-                    log_error "Failed to create symlink: $ghostty_source → $ghostty_target"
+                    if ln -sf "$ghostty_source" "$ghostty_target"; then
+                        if [ -L "$ghostty_target" ] && [ -e "$ghostty_target" ]; then
+                            log_success "Linked Ghostty config: $ghostty_source → $ghostty_target"
+                        else
+                            log_error "Symlink created but target is broken: $ghostty_target"
+                            rm -f "$ghostty_target"
+                        fi
+                    else
+                        log_error "Failed to create symlink: $ghostty_source → $ghostty_target"
+                    fi
                 fi
             fi
+        else
+            log_warning "Ghostty config directory does not exist: $ghostty_source"
         fi
-    else
-        log_warning "Ghostty config directory does not exist: $ghostty_source"
     fi
 
-    # Link Claude Code config files (only portable settings, not ephemeral data)
+    # Link Claude Code config files (claude profile)
     local claude_source
     claude_source="$(pwd)/claude"
     local claude_target="$HOME/.claude"
 
+    if profile_active "claude"; then
     if [ -d "$claude_source" ]; then
         # Create ~/.claude directory if it doesn't exist (Claude Code manages ephemeral data here)
         if [ "$DRY_RUN" = true ]; then
@@ -598,6 +669,7 @@ link_config_files() {
         fi
     else
         log_warning "Claude Code config directory does not exist: $claude_source"
+    fi
     fi
 }
 
@@ -801,19 +873,29 @@ main() {
         echo
     fi
 
+    log_info "Active profiles: ${PROFILES[*]}"
+    echo
+
     check_requirements
     create_directories
     install_plugins
     install_font
     link_config_files
-    install_nvchad
-    check_nvchad
+
+    if profile_active "full"; then
+        install_nvchad
+        check_nvchad
+    fi
 
     echo
     log_success "Setup completed successfully!"
-    log_info "You may need to restart your shell or run 'source ~/.zshrc' to apply changes."
-    log_info "Zinit will automatically install ZSH plugins on first shell launch."
-    log_info "To activate tmux plugins, start tmux and press prefix + I (capital I)."
+    if profile_active "minimal"; then
+        log_info "You may need to restart your shell or run 'source ~/.zshrc' to apply changes."
+        log_info "Zinit will automatically install ZSH plugins on first shell launch."
+    fi
+    if profile_active "full"; then
+        log_info "To activate tmux plugins, start tmux and press prefix + I (capital I)."
+    fi
 }
 
 # Run the main function
