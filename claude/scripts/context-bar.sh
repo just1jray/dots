@@ -258,25 +258,38 @@ else
 fi
 ctx="🪙 ${bar} ${C_GRAY} ${pct_prefix}${ctx_col}${pct}%${C_RESET} ⚡️ ${max_k}k"
 
-# ── Usage stats (5hr / 7day) via Anthropic OAuth API ────────────────────────
-get_oauth_token() {
-    local blob token creds_file="$HOME/.claude/.credentials.json"
+# ── Usage stats via Anthropic OAuth API ──────────────────────────────────────
+get_oauth_creds() {
+    local blob creds_file="$HOME/.claude/.credentials.json"
     if command -v security >/dev/null 2>&1; then
         blob=$(security find-generic-password -s "Claude Code-credentials" -w 2>/dev/null || true)
         if [[ -n "$blob" ]]; then
-            token=$(echo "$blob" | jq -r '.claudeAiOauth.accessToken // empty' 2>/dev/null || true)
-            if [[ -n "$token" && "$token" != "null" ]]; then
-                echo "$token"; return 0
-            fi
+            echo "$blob"; return 0
         fi
     fi
     if [[ -f "$creds_file" ]]; then
-        token=$(jq -r '.claudeAiOauth.accessToken // empty' "$creds_file" 2>/dev/null || true)
-        if [[ -n "$token" && "$token" != "null" ]]; then
-            echo "$token"; return 0
-        fi
+        cat "$creds_file"; return 0
     fi
     echo ""
+}
+
+get_oauth_token() {
+    local creds token
+    creds=$(get_oauth_creds)
+    [[ -z "$creds" ]] && { echo ""; return; }
+    token=$(echo "$creds" | jq -r '.claudeAiOauth.accessToken // empty' 2>/dev/null || true)
+    if [[ -n "$token" && "$token" != "null" ]]; then
+        echo "$token"; return 0
+    fi
+    echo ""
+}
+
+get_subscription_type() {
+    local creds sub_type
+    creds=$(get_oauth_creds)
+    [[ -z "$creds" ]] && { echo ""; return; }
+    sub_type=$(echo "$creds" | jq -r '.claudeAiOauth.subscriptionType // empty' 2>/dev/null || true)
+    echo "$sub_type"
 }
 
 build_usage_bar() {
@@ -327,6 +340,8 @@ if [[ -f "$usage_cache_file" ]]; then
     fi
 fi
 
+subscription_type=$(get_subscription_type)
+
 if [[ "$usage_needs_refresh" == true ]]; then
     token=$(get_oauth_token)
     if [[ -n "$token" ]]; then
@@ -336,7 +351,8 @@ if [[ "$usage_needs_refresh" == true ]]; then
             -H "anthropic-beta: oauth-2025-04-20" \
             -H "User-Agent: claude-code/2.1.34" \
             "https://api.anthropic.com/api/oauth/usage" 2>/dev/null || true)
-        if echo "$response" | jq -e '.five_hour' >/dev/null 2>&1; then
+        # Cache if response is valid JSON (works for both pro and enterprise)
+        if echo "$response" | jq -e . >/dev/null 2>&1; then
             usage_data="$response"
             echo "$response" > "$usage_cache_file"
         fi
@@ -345,23 +361,41 @@ if [[ "$usage_needs_refresh" == true ]]; then
 fi
 
 if [[ -n "$usage_data" ]] && echo "$usage_data" | jq -e . >/dev/null 2>&1; then
-    fh_pct=$(echo "$usage_data" | jq -r '.five_hour.utilization // 0' | awk '{printf "%.0f", $1}')
-    fh_reset=$(format_reset_time "$(echo "$usage_data" | jq -r '.five_hour.resets_at // empty')" "time")
-    fh_bar=$(build_usage_bar "$fh_pct")
-    fh_tip=$(( fh_pct >= 3 ? (fh_pct - 3) / 10 : 0 )); [[ $fh_tip -gt 9 ]] && fh_tip=9
-    fh_col="${C_BAR[$fh_tip]}"
+    if [[ "$subscription_type" == "enterprise" ]]; then
+        # Enterprise: show extra_usage (monthly credits) if available
+        if echo "$usage_data" | jq -e '.extra_usage' >/dev/null 2>&1; then
+            eu_pct=$(echo "$usage_data" | jq -r '.extra_usage.utilization // 0' | awk '{printf "%.0f", $1}')
+            eu_used=$(echo "$usage_data" | jq -r '.extra_usage.used_credits // 0' | awk '{printf "%.0f", $1}')
+            eu_limit=$(echo "$usage_data" | jq -r '.extra_usage.monthly_limit // 0' | awk '{printf "%.0f", $1}')
+            eu_bar=$(build_usage_bar "$eu_pct")
+            eu_tip=$(( eu_pct >= 3 ? (eu_pct - 3) / 10 : 0 )); [[ $eu_tip -gt 9 ]] && eu_tip=9
+            eu_col="${C_BAR[$eu_tip]}"
 
-    sd_pct=$(echo "$usage_data" | jq -r '.seven_day.utilization // 0' | awk '{printf "%.0f", $1}')
-    sd_reset=$(format_reset_time "$(echo "$usage_data" | jq -r '.seven_day.resets_at // empty')" "date")
-    sd_bar=$(build_usage_bar "$sd_pct")
-    sd_tip=$(( sd_pct >= 3 ? (sd_pct - 3) / 10 : 0 )); [[ $sd_tip -gt 9 ]] && sd_tip=9
-    sd_col="${C_BAR[$sd_tip]}"
+            eu_limit_k=$(awk "BEGIN {printf \"%.0f\", $eu_limit / 1000}")
+            usage_line="🏢 ${eu_bar}  ${eu_col}${eu_pct}%${C_RESET} ${C_GRAY}(${eu_used}/${eu_limit_k}k credits)${C_RESET}"
+        fi
+    else
+        # Pro/individual: show 5hr and 7day usage
+        if echo "$usage_data" | jq -e '.five_hour' >/dev/null 2>&1; then
+            fh_pct=$(echo "$usage_data" | jq -r '.five_hour.utilization // 0' | awk '{printf "%.0f", $1}')
+            fh_reset=$(format_reset_time "$(echo "$usage_data" | jq -r '.five_hour.resets_at // empty')" "time")
+            fh_bar=$(build_usage_bar "$fh_pct")
+            fh_tip=$(( fh_pct >= 3 ? (fh_pct - 3) / 10 : 0 )); [[ $fh_tip -gt 9 ]] && fh_tip=9
+            fh_col="${C_BAR[$fh_tip]}"
 
-    fh_reset_fmt="${fh_reset:+ ${C_GRAY}🔄 ${fh_reset}}"
-    sd_reset_fmt="${sd_reset:+ ${C_GRAY}🔄 ${sd_reset}}"
+            sd_pct=$(echo "$usage_data" | jq -r '.seven_day.utilization // 0' | awk '{printf "%.0f", $1}')
+            sd_reset=$(format_reset_time "$(echo "$usage_data" | jq -r '.seven_day.resets_at // empty')" "date")
+            sd_bar=$(build_usage_bar "$sd_pct")
+            sd_tip=$(( sd_pct >= 3 ? (sd_pct - 3) / 10 : 0 )); [[ $sd_tip -gt 9 ]] && sd_tip=9
+            sd_col="${C_BAR[$sd_tip]}"
 
-    usage_line="⏱️ ${fh_bar}  ${fh_col}${fh_pct}%${C_RESET}${fh_reset_fmt}${C_RESET}"
-    usage_line+=" / 🗓️ ${sd_bar}  ${sd_col}${sd_pct}%${C_RESET}${sd_reset_fmt}${C_RESET}"
+            fh_reset_fmt="${fh_reset:+ ${C_GRAY}🔄 ${fh_reset}}"
+            sd_reset_fmt="${sd_reset:+ ${C_GRAY}🔄 ${sd_reset}}"
+
+            usage_line="⏱️ ${fh_bar}  ${fh_col}${fh_pct}%${C_RESET}${fh_reset_fmt}${C_RESET}"
+            usage_line+=" / 🗓️ ${sd_bar}  ${sd_col}${sd_pct}%${C_RESET}${sd_reset_fmt}${C_RESET}"
+        fi
+    fi
 fi
 
 # Clickable links via OSC 8: \033]8;;URL\aTEXT\033]8;;\a
