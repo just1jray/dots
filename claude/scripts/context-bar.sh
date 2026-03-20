@@ -384,7 +384,15 @@ if [[ -n "$usage_data" ]] && echo "$usage_data" | jq -e . >/dev/null 2>&1; then
             fh_col="${C_BAR[$fh_tip]}"
 
             sd_pct=$(echo "$usage_data" | jq -r '.seven_day.utilization // 0' | awk '{printf "%.0f", $1}')
-            sd_reset=$(format_reset_time "$(echo "$usage_data" | jq -r '.seven_day.resets_at // empty')" "date")
+            sd_resets_at=$(echo "$usage_data" | jq -r '.seven_day.resets_at // empty')
+            sd_reset_date=$(format_reset_time "$sd_resets_at" "date")
+            today_date=$(date +"%m-%e" | sed 's/^0//; s/ //')
+            if [[ -n "$sd_reset_date" && "$sd_reset_date" == "$today_date" ]]; then
+                sd_reset_time=$(format_reset_time "$sd_resets_at" "time")
+                sd_reset="${sd_reset_time} today"
+            else
+                sd_reset="$sd_reset_date"
+            fi
             sd_bar=$(build_usage_bar "$sd_pct")
             sd_tip=$(( sd_pct >= 3 ? (sd_pct - 3) / 10 : 0 )); [[ $sd_tip -gt 9 ]] && sd_tip=9
             sd_col="${C_BAR[$sd_tip]}"
