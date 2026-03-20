@@ -217,7 +217,11 @@ fi
 
 # Context window size and pre-calculated percentage (v2.1.50+: includes system prompt/tools/memory)
 max_context=$(echo "$input" | jq -r '.context_window.context_window_size // 200000')
-max_k=$((max_context / 1000))
+if [[ "$max_context" -ge 1000000 && $((max_context % 1000000)) -eq 0 ]]; then
+    max_display="$((max_context / 1000000))M"
+else
+    max_display="$((max_context / 1000))k"
+fi
 used_pct=$(echo "$input" | jq -r '.context_window.used_percentage // empty')
 
 bar_width=10
@@ -256,7 +260,7 @@ if [[ $pct -ge 3 ]]; then
 else
     ctx_col="$C_GRAY"
 fi
-ctx="🪙 ${bar} ${C_GRAY} ${pct_prefix}${ctx_col}${pct}%${C_RESET} ⚡️ ${max_k}k"
+ctx="🪙 ${bar} ${C_GRAY} ${pct_prefix}${ctx_col}${pct}%${C_RESET} ⚡️ ${max_display}"
 
 # ── Usage stats via Anthropic OAuth API ──────────────────────────────────────
 get_oauth_creds() {
