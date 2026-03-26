@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+# No set -euo pipefail: status line must never crash — graceful degradation only.
 
 if ! command -v jq >/dev/null 2>&1; then
     # Status line should fail gracefully if jq isn't installed.
@@ -20,6 +20,11 @@ RANDOM_COLOR="catppuccin"
 
 # Read stdin early so transcript_path is available for stable color seeding
 input=$(cat)
+# Validate input is JSON; if not, show minimal fallback
+if ! echo "$input" | jq -e . >/dev/null 2>&1; then
+    printf '%s\n' "📦 ? / 🧿 ? | invalid input"
+    exit 0
+fi
 
 if [[ -n "$RANDOM_COLOR" ]]; then
     case "$RANDOM_COLOR" in
@@ -36,7 +41,7 @@ if [[ -n "$RANDOM_COLOR" ]]; then
     # shellcheck disable=SC2206
     colors=($palette)
     # Seed from transcript path for stable per-session color
-    tp=$(echo "$input" | jq -r '.transcript_path // empty')
+    tp=$(echo "$input" | jq -r '.transcript_path // empty' 2>/dev/null || true)
     if [[ -n "$tp" ]]; then
         hash=$(cksum <<< "$tp" | cut -d' ' -f1)
     else
@@ -107,10 +112,10 @@ usage_color_for_pct() {
     fi
 }
 
-# Extract model and cwd
-model=$(echo "$input" | jq -r '.model.display_name // .model.id // "?"')
-cwd=$(echo "$input" | jq -r '.cwd // empty')
-dir=$(basename "$cwd" 2>/dev/null || echo "?")
+# Extract model and cwd (safe: always produce a value)
+model=$(echo "$input" | jq -r '.model.display_name // .model.id // "?"' 2>/dev/null || echo "?")
+cwd=$(echo "$input" | jq -r '.cwd // empty' 2>/dev/null || true)
+dir=$(basename "${cwd:-/}" 2>/dev/null || echo "?")
 
 # Git info with caching (5s TTL per working directory)
 # Uses a fixed per-cwd cache filename so results persist across invocations.
@@ -216,13 +221,15 @@ if [[ -n "$cwd" ]]; then
 fi
 
 # Context window size and pre-calculated percentage (v2.1.50+: includes system prompt/tools/memory)
-max_context=$(echo "$input" | jq -r '.context_window.context_window_size // 200000')
+max_context=$(echo "$input" | jq -r '.context_window.context_window_size // 200000' 2>/dev/null || echo "200000")
+# Ensure max_context is numeric
+[[ "$max_context" =~ ^[0-9]+$ ]] || max_context=200000
 if [[ "$max_context" -ge 1000000 && $((max_context % 1000000)) -eq 0 ]]; then
     max_display="$((max_context / 1000000))M"
 else
     max_display="$((max_context / 1000))k"
 fi
-used_pct=$(echo "$input" | jq -r '.context_window.used_percentage // empty')
+used_pct=$(echo "$input" | jq -r '.context_window.used_percentage // empty' 2>/dev/null || true)
 
 bar_width=10
 
@@ -329,86 +336,92 @@ format_reset_time() {
     fi
 }
 
-usage_line=""
-usage_cache_file="/tmp/claude-statusline-usage.json"
-usage_cache_max_age=150
-usage_needs_refresh=true
-usage_data=""
+# ── Usage stats (wrapped: failures here must not prevent core output) ─────────
+# Runs in a subshell so any unexpected error is contained.
+usage_line=$(
+    set +e  # no errexit inside usage block
 
-if [[ -f "$usage_cache_file" ]]; then
-    usage_cache_mtime=$(stat -f %m "$usage_cache_file" 2>/dev/null || stat -c %Y "$usage_cache_file" 2>/dev/null || echo 0)
-    usage_cache_age=$(( $(date +%s) - usage_cache_mtime ))
-    if [[ "$usage_cache_age" -lt "$usage_cache_max_age" ]]; then
-        usage_needs_refresh=false
-        usage_data=$(cat "$usage_cache_file" 2>/dev/null)
-    fi
-fi
+    usage_cache_file="/tmp/claude-statusline-usage.json"
+    usage_cache_max_age=150
+    usage_needs_refresh=true
+    usage_data=""
 
-subscription_type=$(get_subscription_type)
-
-if [[ "$usage_needs_refresh" == true ]]; then
-    token=$(get_oauth_token)
-    if [[ -n "$token" ]]; then
-        response=$(curl -s --max-time 5 \
-            -H "Accept: application/json" \
-            -H "Authorization: Bearer $token" \
-            -H "anthropic-beta: oauth-2025-04-20" \
-            -H "User-Agent: claude-code/2.1.34" \
-            "https://api.anthropic.com/api/oauth/usage" 2>/dev/null || true)
-        # Cache if response is valid JSON (works for both pro and enterprise)
-        if echo "$response" | jq -e . >/dev/null 2>&1; then
-            usage_data="$response"
-            echo "$response" > "$usage_cache_file"
+    if [[ -f "$usage_cache_file" ]]; then
+        usage_cache_mtime=$(stat -f %m "$usage_cache_file" 2>/dev/null || stat -c %Y "$usage_cache_file" 2>/dev/null || echo 0)
+        usage_cache_age=$(( $(date +%s) - usage_cache_mtime ))
+        if [[ "$usage_cache_age" -lt "$usage_cache_max_age" ]]; then
+            usage_needs_refresh=false
+            usage_data=$(cat "$usage_cache_file" 2>/dev/null || true)
         fi
     fi
-    [[ -z "$usage_data" && -f "$usage_cache_file" ]] && usage_data=$(cat "$usage_cache_file" 2>/dev/null)
-fi
 
-if [[ -n "$usage_data" ]] && echo "$usage_data" | jq -e . >/dev/null 2>&1; then
-    if [[ "$subscription_type" == "enterprise" ]]; then
-        # Enterprise: show extra_usage (monthly credits) if available
-        if echo "$usage_data" | jq -e '.extra_usage' >/dev/null 2>&1; then
-            eu_pct=$(echo "$usage_data" | jq -r '.extra_usage.utilization // 0' | awk '{printf "%.0f", $1}')
-            eu_used=$(echo "$usage_data" | jq -r '.extra_usage.used_credits // 0' | awk '{printf "%.0f", $1}')
-            eu_limit=$(echo "$usage_data" | jq -r '.extra_usage.monthly_limit // 0' | awk '{printf "%.0f", $1}')
-            eu_bar=$(build_usage_bar "$eu_pct")
-            eu_tip=$(( eu_pct >= 3 ? (eu_pct - 3) / 10 : 0 )); [[ $eu_tip -gt 9 ]] && eu_tip=9
-            eu_col="${C_BAR[$eu_tip]}"
+    subscription_type=$(get_subscription_type)
 
-            eu_limit_k=$(awk "BEGIN {printf \"%.0f\", $eu_limit / 1000}")
-            usage_line="🏢 ${eu_bar}  ${eu_col}${eu_pct}%${C_RESET} ${C_GRAY}(${eu_used}/${eu_limit_k}k credits)${C_RESET}"
-        fi
-    else
-        # Pro/individual: show 5hr and 7day usage
-        if echo "$usage_data" | jq -e '.five_hour' >/dev/null 2>&1; then
-            fh_pct=$(echo "$usage_data" | jq -r '.five_hour.utilization // 0' | awk '{printf "%.0f", $1}')
-            fh_reset=$(format_reset_time "$(echo "$usage_data" | jq -r '.five_hour.resets_at // empty')" "time")
-            fh_bar=$(build_usage_bar "$fh_pct")
-            fh_tip=$(( fh_pct >= 3 ? (fh_pct - 3) / 10 : 0 )); [[ $fh_tip -gt 9 ]] && fh_tip=9
-            fh_col="${C_BAR[$fh_tip]}"
-
-            sd_pct=$(echo "$usage_data" | jq -r '.seven_day.utilization // 0' | awk '{printf "%.0f", $1}')
-            sd_resets_at=$(echo "$usage_data" | jq -r '.seven_day.resets_at // empty')
-            sd_reset_date=$(format_reset_time "$sd_resets_at" "date")
-            today_date=$(date +"%m-%e" | sed 's/^0//; s/ //')
-            if [[ -n "$sd_reset_date" && "$sd_reset_date" == "$today_date" ]]; then
-                sd_reset_time=$(format_reset_time "$sd_resets_at" "time")
-                sd_reset="${sd_reset_time} today"
-            else
-                sd_reset="$sd_reset_date"
+    if [[ "$usage_needs_refresh" == true ]]; then
+        token=$(get_oauth_token)
+        if [[ -n "$token" ]]; then
+            response=$(curl -s --max-time 5 \
+                -H "Accept: application/json" \
+                -H "Authorization: Bearer $token" \
+                -H "anthropic-beta: oauth-2025-04-20" \
+                -H "User-Agent: claude-code/2.1.34" \
+                "https://api.anthropic.com/api/oauth/usage" 2>/dev/null || true)
+            # Cache if response is valid JSON (works for both pro and enterprise)
+            if echo "$response" | jq -e . >/dev/null 2>&1; then
+                usage_data="$response"
+                echo "$response" > "$usage_cache_file"
             fi
-            sd_bar=$(build_usage_bar "$sd_pct")
-            sd_tip=$(( sd_pct >= 3 ? (sd_pct - 3) / 10 : 0 )); [[ $sd_tip -gt 9 ]] && sd_tip=9
-            sd_col="${C_BAR[$sd_tip]}"
+        fi
+        [[ -z "$usage_data" && -f "$usage_cache_file" ]] && usage_data=$(cat "$usage_cache_file" 2>/dev/null || true)
+    fi
 
-            fh_reset_fmt="${fh_reset:+ ${C_GRAY}🔄 ${fh_reset}}"
-            sd_reset_fmt="${sd_reset:+ ${C_GRAY}🔄 ${sd_reset}}"
+    if [[ -n "$usage_data" ]] && echo "$usage_data" | jq -e . >/dev/null 2>&1; then
+        if [[ "$subscription_type" == "enterprise" ]]; then
+            # Enterprise: show extra_usage (monthly credits) if available
+            if echo "$usage_data" | jq -e '.extra_usage' >/dev/null 2>&1; then
+                eu_pct=$(echo "$usage_data" | jq -r '.extra_usage.utilization // 0' | awk '{printf "%.0f", $1}')
+                eu_used=$(echo "$usage_data" | jq -r '.extra_usage.used_credits // 0' | awk '{printf "%.0f", $1}')
+                eu_limit=$(echo "$usage_data" | jq -r '.extra_usage.monthly_limit // 0' | awk '{printf "%.0f", $1}')
+                eu_bar=$(build_usage_bar "$eu_pct")
+                eu_tip=$(( eu_pct >= 3 ? (eu_pct - 3) / 10 : 0 )); [[ $eu_tip -gt 9 ]] && eu_tip=9
+                eu_col="${C_BAR[$eu_tip]}"
 
-            usage_line="⏱️ ${fh_bar}  ${fh_col}${fh_pct}%${C_RESET}${fh_reset_fmt}${C_RESET}"
-            usage_line+=" / 🗓️ ${sd_bar}  ${sd_col}${sd_pct}%${C_RESET}${sd_reset_fmt}${C_RESET}"
+                eu_limit_k=$(awk "BEGIN {printf \"%.0f\", $eu_limit / 1000}")
+                echo "🏢 ${eu_bar}  ${eu_col}${eu_pct}%${C_RESET} ${C_GRAY}(${eu_used}/${eu_limit_k}k credits)${C_RESET}"
+            fi
+        else
+            # Pro/individual: show 5hr and 7day usage
+            if echo "$usage_data" | jq -e '.five_hour' >/dev/null 2>&1; then
+                fh_pct=$(echo "$usage_data" | jq -r '.five_hour.utilization // 0' | awk '{printf "%.0f", $1}')
+                fh_reset=$(format_reset_time "$(echo "$usage_data" | jq -r '.five_hour.resets_at // empty')" "time")
+                fh_bar=$(build_usage_bar "$fh_pct")
+                fh_tip=$(( fh_pct >= 3 ? (fh_pct - 3) / 10 : 0 )); [[ $fh_tip -gt 9 ]] && fh_tip=9
+                fh_col="${C_BAR[$fh_tip]}"
+
+                sd_pct=$(echo "$usage_data" | jq -r '.seven_day.utilization // 0' | awk '{printf "%.0f", $1}')
+                sd_resets_at=$(echo "$usage_data" | jq -r '.seven_day.resets_at // empty')
+                sd_reset_date=$(format_reset_time "$sd_resets_at" "date")
+                today_date=$(date +"%m-%e" | sed 's/^0//; s/ //')
+                if [[ -n "$sd_reset_date" && "$sd_reset_date" == "$today_date" ]]; then
+                    sd_reset_time=$(format_reset_time "$sd_resets_at" "time")
+                    sd_reset="${sd_reset_time} today"
+                else
+                    sd_reset="$sd_reset_date"
+                fi
+                sd_bar=$(build_usage_bar "$sd_pct")
+                sd_tip=$(( sd_pct >= 3 ? (sd_pct - 3) / 10 : 0 )); [[ $sd_tip -gt 9 ]] && sd_tip=9
+                sd_col="${C_BAR[$sd_tip]}"
+
+                fh_reset_fmt="${fh_reset:+ ${C_GRAY}🔄 ${fh_reset}}"
+                sd_reset_fmt="${sd_reset:+ ${C_GRAY}🔄 ${sd_reset}}"
+
+                line="⏱️ ${fh_bar}  ${fh_col}${fh_pct}%${C_RESET}${fh_reset_fmt}${C_RESET}"
+                line+=" / 🗓️ ${sd_bar}  ${sd_col}${sd_pct}%${C_RESET}${sd_reset_fmt}${C_RESET}"
+                echo "$line"
+            fi
         fi
     fi
-fi
+) || true  # subshell failure produces empty usage_line, not a crash
 
 # Clickable links via OSC 8: \033]8;;URL\aTEXT\033]8;;\a
 # Cmd+click (macOS) or Ctrl+click (Linux) to open. Requires iTerm2/Kitty/WezTerm.
