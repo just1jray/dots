@@ -679,7 +679,8 @@ install_gitconfig_local() {
         return
     fi
 
-    local template_file="$(pwd)/git/gitconfig.local.template"
+    local template_file
+    template_file="$(pwd)/git/gitconfig.local.template"
     local target_file="$HOME/.gitconfig.local"
 
     if [ ! -f "$template_file" ]; then
