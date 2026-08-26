@@ -81,11 +81,18 @@ cd ~/Developer/src/dots
 ./setup.sh [options]
 
 Options:
-  -h, --help          Show help message
-  -f, --force         Force overwrite without backup
-  -n, --dry-run       Preview changes without applying
-  -s, --skip-plugins  Skip plugin installation
-  -c, --check-nvchad  Check NVChad installation status
+  -h, --help              Show help message
+  -f, --force             Force overwrite without backup
+  -n, --dry-run           Preview changes without applying
+  -s, --skip-plugins      Skip plugin installation
+  -c, --check-nvchad      Check NVChad installation status
+  -i, --install-font      Install JetBrains Mono Nerd Font
+  -p, --profile <name>    Install a specific profile (repeatable, stackable)
+
+Profiles:
+  minimal   Shell essentials: zsh, starship, git, ghostty
+  claude    AI tools: Claude Code config, llm skills/commands
+  full      Everything (default if no --profile given)
 ```
 
 ### 📋 What the Setup Script Does
@@ -98,7 +105,11 @@ Options:
    - `~/.config/nvim/` → `nvim/`
    - `~/.tmux.conf` → `tmux/tmux.conf`
    - `~/.vimrc` → `vim/vimrc`
-   - `~/.claude/` → `claude/` (if Claude Code is installed)
+   - `~/.claude/hooks` → `claude/hooks`
+   - `~/.claude/scripts` → `claude/scripts`
+   - `~/.claude/CLAUDE.md` → `claude/CLAUDE.md`
+   - `~/.claude/skills/*` → `llm/skills/*` (individual skill symlinks)
+   - `~/.claude/commands/*` → `llm/commands/*` (individual command symlinks)
 4. 🔌 **Installs Zinit** plugin manager for zsh
 5. 📝 **Installs NVChad** for Neovim (if nvim is installed)
 6. 🪟 **Installs Tmux Plugin Manager** (TPM) and plugins
@@ -138,19 +149,20 @@ Customize Neovim by editing files in `nvim/lua/`:
 
 ### 🤖 Claude Code
 
-The dotfiles include Claude Code configuration in the `claude/` directory:
+The dotfiles include Claude Code configuration split between `claude/` (portable config) and `llm/` (skills/commands):
 
-- 🪝 **hooks/** - Custom hook scripts
+- 🪝 **claude/hooks/** - Custom hook scripts
   - `stop-hook-git-check.sh` - Git safety hook that prevents closing sessions with uncommitted/unpushed changes
-- 💬 **commands/** - Custom slash commands
+- 📜 **claude/scripts/** - Helper scripts (e.g., `context-bar.sh`)
+- 💬 **llm/commands/** - Custom slash commands
   - `/review-edu` - Educational code review command
-- 🧠 **skills/** - Custom Claude Code skills
+- 🧠 **llm/skills/** - Custom Claude Code skills
   - `session-start-hook/` - Skill for creating startup hooks in repositories
   - `code-review-edu/` - Thorough code review skill (triggers on "review this code", "find bugs", etc.)
 
-The setup script automatically symlinks `~/.claude/` to the `claude/` directory in this repository.
+The setup script creates `~/.claude/` as a directory and symlinks individual items into it. This allows Claude's ephemeral runtime data to coexist with your dotfiles config, and enables externally installed skills/commands to live alongside repo-managed ones.
 
-**Note:** Claude Code will create additional directories in `~/.claude/` for session data, plans, and other runtime files. These are managed by Claude and not tracked in this dotfiles repository.
+**Note:** Claude Code will create additional files in `~/.claude/` for session data, plans, and other runtime state. These are managed by Claude and not tracked in this dotfiles repository.
 
 ---
 
