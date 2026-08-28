@@ -211,3 +211,6 @@ if command -v starship &> /dev/null && ! typeset -f starship_zle-keymap-select >
         echo "Warning: Failed to initialize Starship prompt" >&2
     fi
 fi
+
+# 1Password CLI shell plugins
+[[ -f "$HOME/.config/op/plugins.sh" ]] && source "$HOME/.config/op/plugins.sh"
