@@ -37,7 +37,8 @@ Quick reference for this dotfiles setup. Emphasis on Vim/Neovim, tmux, git, and 
 | `-` | `cd -` | Back to previous directory. |
 | `ll` | `ls -lah` | List. |
 | `la` | `ls -la` | List. |
-| `c` | `clear` | Clear screen. |
+| `c` | `claude` | Claude Code CLI. |
+| `cls` | `clear` | Clear screen. |
 | `path` | show `$PATH` entries | One per line. |
 | `myip` | `curl -s ifconfig.me` | External IP. |
 | `activate` | `source ./venv/bin/activate` | Python venv. |
@@ -339,7 +340,6 @@ Use as `git <alias>`.
 | Item | Notes |
 | --- | --- |
 | Config | `ghostty/config` |
-| Shaders | `ghostty/shaders/*.glsl` |
 | Quick terminal | Toggle with `ctrl+\`` (requires Ghostty 1.1+) |
 | Splits | `cmd+shift+enter` (horizontal), `cmd+opt+enter` (vertical) |
 | Close split | `cmd+d` |
@@ -350,10 +350,10 @@ Use as `git <alias>`.
 
 | Item | Location |
 | --- | --- |
-| Settings | `claude/settings.json` |
 | Hooks | `claude/hooks/` |
-| Skills | `claude/skills/` |
-| Status line | `claude/scripts/context-bar.sh` |
+| Scripts | `claude/scripts/` |
+| Skills | `llm/skills/` |
+| Commands | `llm/commands/` |
 
 ---
 
@@ -361,8 +361,12 @@ Use as `git <alias>`.
 
 | Task | Command |
 | --- | --- |
-| Install | `./setup.sh` |
+| Install (full) | `./setup.sh` |
+| Install minimal | `./setup.sh --profile minimal` |
+| Install AI tools | `./setup.sh --profile claude` |
+| Combine profiles | `./setup.sh --profile minimal --profile claude` |
 | Dry run | `./setup.sh --dry-run` |
+| Install font | `./setup.sh --install-font` |
 | Check NVChad | `./setup.sh --check-nvchad` |
 | Reload zsh | `zfresh` or `efresh` |
 | Reload tmux | `tfresh` |
