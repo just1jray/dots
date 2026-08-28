@@ -121,10 +121,8 @@ if command -v fzf &> /dev/null; then
     fi
 fi
 
-# zoxide
-if command -v zoxide &> /dev/null; then
-    export _ZO_DOCTOR=0  # Suppress non-interactive shell warnings (e.g. Claude Code)
-    # Initialize zoxide with error handling
+# zoxide (skip if already initialized in .zshenv for non-interactive shells)
+if command -v zoxide &> /dev/null && ! typeset -f __zoxide_z &> /dev/null; then
     if ! eval "$(zoxide init --cmd cd zsh 2>/dev/null)"; then
         echo "Warning: Failed to initialize zoxide" >&2
     else

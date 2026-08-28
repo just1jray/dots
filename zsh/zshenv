@@ -60,7 +60,8 @@ if [[ -d "$HOME/.bun/bin" ]]; then
     add_to_path "$BUN_INSTALL/bin"
 fi
 
-# Zoxide (must be in .zshenv so it's available in non-interactive shells like Claude Code)
-if command -v zoxide &>/dev/null; then
+# Zoxide for non-interactive shells (Claude Code, mosh, zsh -c)
+# Interactive shells get zoxide with --cmd cd from .zshrc instead
+if command -v zoxide &>/dev/null && [[ ! -o interactive ]]; then
     eval "$(zoxide init zsh)"
 fi
