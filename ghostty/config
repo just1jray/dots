@@ -1,5 +1,5 @@
 # Font
-font-family = "JetBrains Mono"
+font-family = "JetBrainsMono Nerd Font Mono"
 font-size = 14
 font-thicken = true
 adjust-cell-height = 2
@@ -29,7 +29,7 @@ link-url = true
 
 # Background
 background-opacity = 0.9
-background-blur-radius = 20
+background-blur = 20
 
 # Clipboard & Selection
 copy-on-select = clipboard
@@ -45,7 +45,7 @@ cursor-click-to-move = true
 unfocused-split-opacity = 0.25
 
 # Scrollback
-scrollback-limit = 25000000
+scrollback-limit-bytes = 25000000
 
 # Quick Terminal
 quick-terminal-position = top
