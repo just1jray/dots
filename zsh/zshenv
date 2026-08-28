@@ -59,3 +59,9 @@ if [[ -d "$HOME/.bun/bin" ]]; then
     export BUN_INSTALL="$HOME/.bun"
     add_to_path "$BUN_INSTALL/bin"
 fi
+
+# Zoxide for non-interactive shells (Claude Code, mosh, zsh -c)
+# Interactive shells get zoxide with --cmd cd from .zshrc instead
+if command -v zoxide &>/dev/null && [[ ! -o interactive ]]; then
+    eval "$(zoxide init zsh)"
+fi
