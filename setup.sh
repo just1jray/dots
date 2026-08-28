@@ -673,6 +673,38 @@ link_config_files() {
     fi
 }
 
+# Install gitconfig.local template if not present
+install_gitconfig_local() {
+    if ! profile_active "minimal"; then
+        return
+    fi
+
+    local template_file
+    template_file="$(pwd)/git/gitconfig.local.template"
+    local target_file="$HOME/.gitconfig.local"
+
+    if [ ! -f "$template_file" ]; then
+        log_warning "gitconfig.local.template not found: $template_file"
+        return
+    fi
+
+    if [ -f "$target_file" ]; then
+        log_info "Local git config already exists: $target_file"
+        return
+    fi
+
+    if [ "$DRY_RUN" = true ]; then
+        log_info "Would copy template: $template_file → $target_file"
+    else
+        if cp "$template_file" "$target_file"; then
+            log_success "Copied gitconfig.local template: $target_file"
+            log_info "Edit $target_file to set your git identity (name and email)"
+        else
+            log_error "Failed to copy gitconfig.local template"
+        fi
+    fi
+}
+
 # Check NVChad installation
 check_nvchad() {
     echo
@@ -881,6 +913,7 @@ main() {
     install_plugins
     install_font
     link_config_files
+    install_gitconfig_local
 
     if profile_active "full"; then
         install_nvchad
