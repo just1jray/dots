@@ -1,5 +1,8 @@
 # Global Claude Code Settings
 
+## Git Workflow
+
+- Never commit directly to the default branch. Create a feature branch first, then open a PR with `gh pr create`.
 - For GitHub URLs, use gh CLI instead of web scraping
 
 ## Development Tool Standards
