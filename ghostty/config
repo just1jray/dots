@@ -45,7 +45,7 @@ cursor-click-to-move = true
 unfocused-split-opacity = 0.25
 
 # Scrollback
-scrollback-limit-bytes = 25000000
+scrollback-limit = 25000000
 
 # Quick Terminal
 quick-terminal-position = top
