@@ -174,31 +174,7 @@ fi
 [[ -s "$HOME/.bun/_bun" ]] && source "$HOME/.bun/_bun"
 
 # TMUX Session Management
-if command -v tmux &> /dev/null; then
-    # Auto-start TMUX only on remote hosts (SSH sessions)
-    # Locally, use `t` or `sesh` alias to start manually
-    _start_tmux_after_init() {
-        # Only run this function once
-        add-zsh-hook -d precmd _start_tmux_after_init
-
-        # Only try to start tmux if we're not already in a tmux session
-        # Auto-start only on SSH sessions where window management is limited
-        # shellcheck disable=SC2154  # TERM_PROGRAM is set by terminal emulators
-        if [[ -z "$TMUX" && -n "$PS1" && \
-              -n "$SSH_CONNECTION" && \
-              ! "$TERM" = *screen* && \
-              ! "$TERM" = *tmux* && \
-              "$TERM_PROGRAM" != "vscode" && \
-              "$TERM_PROGRAM" != "cursor" ]]; then
-            # Start tmux without producing output
-            tmux new-session -A -s sesh >/dev/null 2>&1 || true
-        fi
-    }
-    
-    # Register the function to run after zsh initialization
-    autoload -Uz add-zsh-hook
-    add-zsh-hook precmd _start_tmux_after_init
-fi
+# No auto-start: launch tmux explicitly with `t` or `sesh` (see zsh/aliases).
 
 # Disable paste highlighting for cleaner pasting
 # shellcheck disable=SC2034  # zle_highlight is used by zsh
