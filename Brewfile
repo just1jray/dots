@@ -20,6 +20,7 @@ cask "raycast"
 # Everyday tools
 brew "lazygit"
 brew "eza"
+brew "vivid"
 brew "btop"
 brew "glow"
 brew "yt-dlp"
