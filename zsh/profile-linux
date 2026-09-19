@@ -1,7 +1,7 @@
-# Linux-specific configurations
-
-# Add any Linux-specific settings here
-
-# Use default Starship prompt on Linux (works best over SSH/mosh)
-# Unset STARSHIP_CONFIG to use built-in default instead of custom theme
-unset STARSHIP_CONFIG
+# Linux-specific configuration.
+#
+# Starship uses the same Catppuccin Mocha theme as every other OS
+# (~/.config/starship.toml, set in zshrc). Do not unset STARSHIP_CONFIG.
+#
+# Linuxbrew is not initialized here. zshenv loads it only after ./setup.sh --brew
+# writes ~/.config/zsh/use-brew, or when DOTS_USE_BREW=1.

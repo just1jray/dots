@@ -12,7 +12,7 @@ Used across various platforms for various things.
 
 ## ✨ Features
 
-- 🎨 **Catppuccin Mocha theme** across Ghostty, fzf, and Neovim
+- 🎨 **Catppuccin Mocha theme** across Ghostty, Starship, fzf, and Neovim on every OS
 - ⚙️ **Automated setup** with intelligent backup and symlink management
 - 💻 **Platform-specific profiles** for macOS and Linux
 - 🚀 **Modern tooling** with Starship prompt, Zinit plugin manager, and NVChad
@@ -28,7 +28,7 @@ Used across various platforms for various things.
 - 📥 **curl** or **wget** - For downloading plugins
 
 **🍎 macOS:**
-- 🍺 **[Homebrew](https://brew.sh/)** - Package manager. The curated `Brewfile` installs core tools and daily-driver apps via `./setup.sh --brew` or `brew bundle`
+- 🍺 **[Homebrew](https://brew.sh/)** - Package manager for Apple Silicon (`/opt/homebrew`) and Intel (`/usr/local`). The curated `Brewfile` installs daily-driver apps via `./setup.sh --brew` or `brew bundle`. Profile setup itself only installs zsh, git, and Starship (plus Neovim, tmux, and a font for `full`).
 
 **Recommended:**
 - 👻 **[Ghostty](https://ghostty.org/)** - Fast, feature-rich terminal emulator
@@ -47,13 +47,14 @@ Used across various platforms for various things.
 - 🥟 **[Bun](https://bun.sh/)** - Fast JavaScript runtime and package manager
 - 🤖 **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)** - AI-powered coding assistant CLI
 
-*The setup script automatically installs [Zinit](https://github.com/zdharma-continuum/zinit) plugin manager, NVChad, and Tmux Plugin Manager.*
+*The setup script installs [Zinit](https://github.com/zdharma-continuum/zinit) (shallow clone) for the `minimal` profile. NVChad and Tmux Plugin Manager run only for `full`. `nvim/lazy-lock.json` is gitignored on purpose: Neovim plugin versions drift per machine.*
 
 ## 🖥️ Platforms
 
-- 🍎 macOS
-- 🐧 Linux
-- 📱 iPadOS (via [Blink](https://blink.sh/))
+- 🍎 macOS (Apple Silicon and Intel)
+- 🐧 Linux, including Raspberry Pi and Linux VMs or containers
+
+`./setup.sh` uses Homebrew on macOS and apt on Linux when `apt-get` is present. If apt is not the manager, setup says so and does not guess. Linuxbrew is used only with `--brew`. There is no Windows or WSL-specific path, and no iPadOS/Blink profile.
 
 ---
 
@@ -90,13 +91,15 @@ Options:
   -c, --check-nvchad      Check NVChad installation status
   -i, --install-font      Install JetBrains Mono Nerd Font
   -y, --yes               Continue when commands are missing (no prompt)
-  -b, --brew              Install Homebrew packages from Brewfile (macOS)
+  -b, --brew              Install the Brewfile with Homebrew. On Linux this chooses Linuxbrew
   -p, --profile <name>    Install a specific profile (repeatable, stackable)
 
 Profiles:
   minimal   Shell essentials: zsh, starship, git, ghostty (default)
   claude    AI tools: Claude Code config, llm skills/commands
-  full      Everything: minimal plus vim, tmux, Neovim, opencode
+  full      Everything: minimal plus vim, tmux, Neovim, opencode, and a Nerd Font
+
+`minimal` installs zsh, git, and Starship. `full` also installs Neovim, tmux, and JetBrains Mono Nerd Font. pyenv, nvm, Bun, Claude, and Ghostty stay optional. macOS uses Homebrew (Apple Silicon or Intel). Linux uses apt, or Linuxbrew only when `--brew` is passed.
 ```
 
 ### 🔄 Update
@@ -144,10 +147,11 @@ The `dots` shortcut jumps to the linked clone. It uses `~/Developer/src/dots` on
 
 ### 📋 What the Setup Script Does
 
-0. 🍺 **Installs Homebrew packages** from `Brewfile` (only with `--brew`)
-1. 📁 **Creates necessary directories** for configs and plugins
-2. 💾 **Backs up existing configs** (unless `--force` is used)
-3. 🔗 **Symlinks config files** to proper locations:
+0. 📦 **Installs profile packages**. `minimal`: zsh, git, Starship. `full`: also Neovim, tmux, and a Nerd Font. macOS uses Homebrew. Linux uses apt, or Linuxbrew only with `--brew`.
+1. 🍺 **Installs Homebrew packages** from `Brewfile` (only with `--brew`)
+2. 📁 **Creates necessary directories** for configs and plugins
+3. 💾 **Backs up existing configs** (unless `--force` is used)
+4. 🔗 **Symlinks config files** to proper locations:
    - `~/.zshrc` → `zsh/zshrc`
    - `~/.config/starship.toml` → `starship/starship.toml`
    - `~/.config/nvim/` → `nvim/`
@@ -158,38 +162,42 @@ The `dots` shortcut jumps to the linked clone. It uses `~/Developer/src/dots` on
    - `~/.claude/CLAUDE.md` → `claude/CLAUDE.md`
    - `~/.claude/skills/*` → `llm/skills/*` (individual skill symlinks)
    - `~/.claude/commands/*` → `llm/commands/*` (individual command symlinks)
-4. 🔌 **Installs Zinit** plugin manager for zsh
-5. 📝 **Installs NVChad** for Neovim (if nvim is installed)
-6. 🪟 **Installs Tmux Plugin Manager** (TPM) and plugins
-7. 💻 **Loads platform-specific profiles** based on OS
+5. 🔌 **Installs Zinit** plugin manager for zsh (shallow clone, on first shell launch)
+6. 📝 **Installs NVChad** for Neovim only when the `full` profile is active
+7. 🪟 **Installs Tmux Plugin Manager** (TPM) and plugins only for `full` (not the unused tmux-battery clone)
+8. 💻 **Loads platform-specific profiles** based on OS
 
 ## 🛠️ Customization
 
 ### 💻 Platform-Specific Settings
 
 The zshrc automatically loads platform-specific profiles:
-- 🍎 **macOS**: Sources `~/.config/zsh/profile-macos`
-- 🐧 **Linux**: Sources `~/.config/zsh/profile-linux`
+- 🍎 **macOS**: Sources `~/.config/zsh/profile-macos` and initializes Homebrew (`brew shellenv`) for Apple Silicon or Intel
+- 🐧 **Linux**: Sources `~/.config/zsh/profile-linux`. Starship stays on Catppuccin Mocha. Linuxbrew is loaded only after `./setup.sh --brew`
 
-Add platform-specific environment variables, paths, or aliases to these files.
+Work tools in `zsh/profile-work` (GAM, Tailscale Jamf) are not sourced on every machine. Opt in from the gitignored host file `~/.config/zsh/hosts`:
+
+```bash
+export DOTS_LOAD_WORK=1
+```
 
 ### 🌟 Starship Prompt
 
-Edit `starship/starship.toml` to customize your prompt appearance and modules.
+Edit `starship/starship.toml` to customize your prompt. The palette is Catppuccin Mocha on macOS and Linux. `STARSHIP_CONFIG` points at `~/.config/starship.toml` and is not unset on Linux.
 
 ### 👻 Ghostty
 
-The `ghostty/config` includes several customizations:
+The `ghostty/config` theme is Catppuccin Mocha on every OS. macOS-only keys (`macos-titlebar-style`, blur, and `cmd` chords) live in `ghostty/macos` and are linked only on Darwin, so a Linux Ghostty still starts with the Mocha theme.
 
-- ⚡ **Quick terminal** - Toggle terminal with `ctrl+`` ` (requires Ghostty 1.1+)
-- ✂️ **Split keybindings**:
+- ⚡ **Quick terminal** - Toggle terminal with `ctrl+`` ` (requires Ghostty 1.1+, macOS global bind)
+- ✂️ **macOS split keybindings** (`ghostty/macos`):
   - `cmd+shift+enter` - Horizontal split
   - `cmd+opt+enter` - Vertical split
   - `cmd+d` - Close split
 
 ### 📝 NVChad
 
-Customize Neovim by editing files in `nvim/lua/`:
+Customize Neovim by editing files in `nvim/lua/`. Plugin versions are per machine: `nvim/lazy-lock.json` is gitignored so updates are not pinned to one lockfile.
 - `chadrc.lua` - NVChad theme and UI settings
 - `options.lua` - Vim options
 - `mappings.lua` - Custom keybindings

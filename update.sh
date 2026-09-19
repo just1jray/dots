@@ -269,6 +269,9 @@ collect_links() {
         add_link "zsh/profile-work" "$HOME/.config/zsh/profile-work"
         add_link "lib/dots-root.sh" "$HOME/.config/zsh/dots-root.sh"
         add_link "ghostty" "$HOME/.config/ghostty"
+        if [ "$(uname)" = "Darwin" ]; then
+            add_link "ghostty/macos" "$HOME/Library/Application Support/com.mitchellh.ghostty/config"
+        fi
     fi
 
     if profile_active "full"; then

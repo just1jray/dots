@@ -10,15 +10,40 @@ add_to_path() {
 }
 
 # Homebrew (required early for non-interactive shells like mosh-server)
-# macOS (Apple Silicon)
-if [[ -d "/opt/homebrew/bin" ]]; then
-    add_to_path "/opt/homebrew/bin"
-    add_to_path "/opt/homebrew/sbin"
-fi
-
-# Homebrew (Intel Mac or Linux)
-if [[ -d "/usr/local/bin" ]]; then
-    add_to_path "/usr/local/bin"
+# Darwin: Apple Silicon, then Intel, via brew shellenv (PATH, MANPATH, HOMEBREW_*).
+# Linuxbrew is not initialized unless this machine opted in with ./setup.sh --brew
+# (marker ~/.config/zsh/use-brew, or DOTS_USE_BREW=1).
+if [[ "$(uname)" == "Darwin" ]]; then
+    if [[ -x /opt/homebrew/bin/brew ]]; then
+        if ! eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null)"; then
+            echo "Warning: Failed to initialize Homebrew" >&2
+        fi
+    elif [[ -x /usr/local/bin/brew ]]; then
+        if ! eval "$(/usr/local/bin/brew shellenv 2>/dev/null)"; then
+            echo "Warning: Failed to initialize Homebrew (Intel)" >&2
+        fi
+    else
+        add_to_path "/opt/homebrew/bin"
+        add_to_path "/opt/homebrew/sbin"
+        add_to_path "/usr/local/bin"
+    fi
+else
+    if [[ -d "/usr/local/bin" ]]; then
+        add_to_path "/usr/local/bin"
+    fi
+    if [[ "$(uname)" == "Linux" ]]; then
+        if [[ "${DOTS_USE_BREW:-0}" == "1" || -f "${HOME}/.config/zsh/use-brew" ]]; then
+            if [[ -x "${HOME}/.linuxbrew/bin/brew" ]]; then
+                if ! eval "$("${HOME}/.linuxbrew/bin/brew" shellenv 2>/dev/null)"; then
+                    echo "Warning: Failed to initialize Linuxbrew" >&2
+                fi
+            elif [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+                if ! eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv 2>/dev/null)"; then
+                    echo "Warning: Failed to initialize Linuxbrew" >&2
+                fi
+            fi
+        fi
+    fi
 fi
 
 # Local bin directories

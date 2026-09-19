@@ -34,16 +34,24 @@ print_usage() {
     echo "  -c, --check-nvchad      Check NVChad installation status and exit"
     echo "  -i, --install-font      Install JetBrains Mono Nerd Font (recommended for prompt symbols)"
     echo "  -y, --yes               Continue when commands are missing (no prompt)"
-    echo "  -b, --brew              Install Homebrew packages from Brewfile (macOS)"
+    echo "  -b, --brew              Install the Brewfile with Homebrew. On Linux this chooses Linuxbrew"
     echo "  -p, --profile <name>    Install a specific profile (repeatable, stackable)"
     echo
     echo "Profiles:"
     echo "  minimal   Shell essentials: zsh, starship, git, ghostty (default)"
     echo "  claude    AI tools: claude code config, llm skills/commands"
-    echo "  full      Everything: minimal plus vim, tmux, Neovim, opencode"
+    echo "  full      Everything: minimal plus vim, tmux, Neovim, opencode, and a Nerd Font"
     echo
     echo "Profiles are composable. Combine them with multiple --profile flags:"
     echo "  $0 --profile minimal --profile claude"
+    echo
+    echo "Profile packages (separate from the Brewfile):"
+    echo "  minimal   zsh, git, and starship"
+    echo "  full      also neovim, tmux, and JetBrains Mono Nerd Font"
+    echo "  macOS     Homebrew at /opt/homebrew (Apple Silicon) or /usr/local (Intel)"
+    echo "  Linux     apt when apt-get exists; otherwise this script says so and skips"
+    echo "  --brew    On Linux, install those packages with Linuxbrew instead of apt"
+    echo "pyenv, nvm, Bun, Claude, and Ghostty are never installed as requirements."
     echo
     echo "Update an existing install with ./update.sh (same directory as this script):"
     echo "  ./update.sh --help"
@@ -303,7 +311,6 @@ install_tmux_plugins() {
     # Define Tmux plugins to install directly
     local tmux_plugins=(
         "https://github.com/tmux-plugins/tmux-sensible|$TMUX_PLUGINS_DIR/tmux-sensible"
-        "https://github.com/tmux-plugins/tmux-battery|$TMUX_PLUGINS_DIR/tmux-battery"
         "https://github.com/tmux-plugins/tmux-resurrect|$TMUX_PLUGINS_DIR/tmux-resurrect"
         "https://github.com/tmux-plugins/tmux-continuum|$TMUX_PLUGINS_DIR/tmux-continuum"
     )
@@ -563,6 +570,11 @@ link_config_files() {
             fi
         else
             log_warning "Ghostty config directory does not exist: $ghostty_source"
+        fi
+
+        # cmd chords and macos-* keys live in a file Ghostty loads only on Darwin.
+        if [ "$(uname)" = "Darwin" ]; then
+            link_ghostty_macos
         fi
     fi
 
@@ -928,34 +940,213 @@ install_font() {
     fi
 }
 
+# Homebrew binary for this OS. Does not run brew.
+# Darwin: Apple Silicon, then Intel. Linux: Linuxbrew prefixes, then PATH.
+find_brew() {
+    local candidate
+    local os
+    os=$(uname)
+
+    if [ "$os" = "Darwin" ]; then
+        for candidate in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+            if [ -x "$candidate" ]; then
+                printf '%s\n' "$candidate"
+                return 0
+            fi
+        done
+    else
+        for candidate in "${HOME}/.linuxbrew/bin/brew" /home/linuxbrew/.linuxbrew/bin/brew; do
+            if [ -x "$candidate" ]; then
+                printf '%s\n' "$candidate"
+                return 0
+            fi
+        done
+    fi
+
+    if command -v brew >/dev/null 2>&1; then
+        command -v brew
+        return 0
+    fi
+    return 1
+}
+
+# Linux shells source Linuxbrew only after this marker exists, or DOTS_USE_BREW=1.
+mark_linuxbrew_chosen() {
+    local marker="${HOME}/.config/zsh/use-brew"
+    if [ "$DRY_RUN" = true ]; then
+        log_info "Would write Linuxbrew opt-in: $marker"
+        return 0
+    fi
+    mkdir -p "${HOME}/.config/zsh"
+    printf '%s\n' "DOTS_USE_BREW=1" > "$marker"
+    log_success "Linuxbrew opt-in written: $marker"
+}
+
+install_with_brew() {
+    local brew_bin
+    local os
+    os=$(uname)
+
+    if ! brew_bin=$(find_brew); then
+        if [ "$os" = "Darwin" ]; then
+            log_warning "Homebrew not found at /opt/homebrew/bin/brew (Apple Silicon) or /usr/local/bin/brew (Intel)."
+        else
+            log_warning "Linuxbrew not found at ~/.linuxbrew or /home/linuxbrew/.linuxbrew."
+        fi
+        log_warning "Install it from https://brew.sh/ and re-run. Not installing: $*"
+        return 0
+    fi
+
+    if [ "$DRY_RUN" = true ]; then
+        log_info "Would run: $brew_bin install $*"
+        return 0
+    fi
+
+    log_info "Installing with Homebrew: $*"
+    if "$brew_bin" install "$@"; then
+        log_success "Homebrew packages installed: $*"
+    else
+        log_warning "brew install failed for: $*. Setup will continue."
+    fi
+}
+
+install_with_apt() {
+    if [ "$DRY_RUN" = true ]; then
+        log_info "Would run: sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y $*"
+        return 0
+    fi
+
+    if [ ! -t 0 ] && ! sudo -n true >/dev/null 2>&1; then
+        log_warning "apt needs a sudo password and stdin is not a terminal. Not installing: $*"
+        return 0
+    fi
+
+    log_info "Installing with apt: $*"
+    if [ ! -t 0 ]; then
+        if sudo -n apt-get update && sudo -n env DEBIAN_FRONTEND=noninteractive apt-get install -y "$@"; then
+            log_success "apt packages installed: $*"
+        else
+            log_warning "apt-get failed for: $*. starship is not in every Debian/Ubuntu repo. Setup will continue."
+        fi
+        return 0
+    fi
+
+    if sudo apt-get update && sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y "$@"; then
+        log_success "apt packages installed: $*"
+    else
+        log_warning "apt-get failed for: $*. starship is not in every Debian/Ubuntu repo. Setup will continue."
+    fi
+}
+
+# minimal: zsh, git, starship. full also: neovim, tmux.
+# Font for full is install_font, not a package-manager formula.
+# pyenv, nvm, Bun, Claude, and Ghostty are not in this list.
+install_profile_packages() {
+    local packages=()
+    local os
+
+    if profile_active "minimal"; then
+        packages+=(zsh git starship)
+    fi
+    if profile_active "full"; then
+        packages+=(neovim tmux)
+    fi
+
+    if [ ${#packages[@]} -eq 0 ]; then
+        log_info "Active profile does not install packages. pyenv, nvm, Bun, Claude, and Ghostty stay optional."
+        return 0
+    fi
+
+    os=$(uname)
+    log_info "Profile packages (${os}): ${packages[*]}"
+
+    if [ "$os" = "Darwin" ]; then
+        install_with_brew "${packages[@]}"
+        return 0
+    fi
+
+    if [ "$os" = "Linux" ]; then
+        if [ "$INSTALL_BREW" = true ]; then
+            log_info "Using Linuxbrew because --brew was given."
+            install_with_brew "${packages[@]}"
+            return 0
+        fi
+        if command_exists apt-get; then
+            install_with_apt "${packages[@]}"
+            return 0
+        fi
+        log_warning "This Linux system does not use apt (apt-get not found)."
+        log_warning "Not installing packages. Pass --brew to use Linuxbrew, or install manually: ${packages[*]}"
+        return 0
+    fi
+
+    log_warning "No package install path for ${os}. Not installing: ${packages[*]}"
+}
+
+link_ghostty_macos() {
+    local source_path
+    local target_dir
+    local target_path
+    source_path="$(pwd)/ghostty/macos"
+    target_dir="${HOME}/Library/Application Support/com.mitchellh.ghostty"
+    target_path="${target_dir}/config"
+
+    if [ ! -f "$source_path" ]; then
+        log_warning "macOS Ghostty config does not exist: $source_path"
+        return 0
+    fi
+
+    if [ "$DRY_RUN" = true ]; then
+        log_info "Would link macOS Ghostty keys: $source_path → $target_path"
+        return 0
+    fi
+
+    mkdir -p "$target_dir"
+    if ! backup_config_file "$target_path"; then
+        log_error "Backup failed for $target_path, skipping macOS Ghostty keys"
+        return 0
+    fi
+    if ln -sf "$source_path" "$target_path"; then
+        log_success "Linked macOS Ghostty keys: $source_path → $target_path"
+    else
+        log_error "Failed to link macOS Ghostty keys"
+    fi
+}
+
 install_brew_packages() {
     if [ "$INSTALL_BREW" = false ]; then
-        return
+        return 0
     fi
 
-    if [[ "$(uname)" != "Darwin" ]]; then
-        log_warning "Brewfile install is only supported on macOS. Skipping."
-        return
-    fi
-
-    if ! command_exists brew; then
-        log_warning "Homebrew not found. Install it from https://brew.sh/ first. Skipping."
-        return
-    fi
-
+    local os
+    local brew_bin
     local brewfile
+    os=$(uname)
+
+    if [ "$os" = "Linux" ]; then
+        mark_linuxbrew_chosen
+    elif [ "$os" != "Darwin" ]; then
+        log_warning "Brewfile install is not supported on ${os}. Skipping."
+        return 0
+    fi
+
+    if ! brew_bin=$(find_brew); then
+        log_warning "Homebrew not found. Install it from https://brew.sh/ first. Skipping Brewfile."
+        return 0
+    fi
+
     brewfile="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/Brewfile"
 
     if [ "$DRY_RUN" = true ]; then
-        log_info "Would install Homebrew packages from $brewfile"
-        return
+        log_info "Would install Homebrew packages from $brewfile ($brew_bin bundle install)"
+        return 0
     fi
 
     log_info "Installing Homebrew packages from Brewfile..."
-    if brew bundle install --file="$brewfile"; then
+    if "$brew_bin" bundle install --file="$brewfile"; then
         log_success "Homebrew packages installed."
     else
-        log_error "brew bundle failed. Re-run 'brew bundle --file=$brewfile' to retry."
+        log_error "brew bundle failed. Re-run '$brew_bin bundle --file=$brewfile' to retry."
     fi
 }
 
@@ -982,6 +1173,10 @@ main() {
     echo
 
     install_brew_packages
+    install_profile_packages
+    if profile_active "full"; then
+        INSTALL_FONT=true
+    fi
     check_requirements
     create_directories
     install_plugins
