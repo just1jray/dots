@@ -479,7 +479,9 @@ link_config_files() {
         )
     fi
 
-    for config in "${config_files[@]}"; do
+    # bash 3.2 (macOS) treats "${arr[@]}" on an empty array as unbound under
+    # `set -u`, and --profile claude alone leaves this list empty.
+    for config in ${config_files[@]+"${config_files[@]}"}; do
         IFS='|' read -r source_file target_file <<< "$config"
         source_path="$REPO_DIR/$source_file"
 
@@ -1010,31 +1012,78 @@ install_with_brew() {
     fi
 }
 
+# Report how to get a package apt cannot provide.
+apt_alternative_hint() {
+    case "$1" in
+        starship)
+            log_info "  starship: curl -sS https://starship.rs/install.sh | sh"
+            ;;
+        *)
+            log_info "  $1: install it manually, or re-run with --brew to use Linuxbrew"
+            ;;
+    esac
+}
+
+# apt-get install aborts the whole transaction when one name is unknown, so a
+# single missing package (starship is in no Debian or Ubuntu repo) used to drop
+# zsh and git too. Probe each name with apt-cache first and install only what
+# this apt actually has; report the rest instead of installing nothing.
 install_with_apt() {
+    local requested=("$@")
+    local sudo_cmd=(sudo)
+    local available=()
+    local unavailable=()
+    local pkg
+
+    if [ ${#requested[@]} -eq 0 ]; then
+        return 0
+    fi
+
     if [ "$DRY_RUN" = true ]; then
-        log_info "Would run: sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y $*"
+        log_info "Would run: sudo apt-get update"
+        log_info "Would probe each package with: apt-cache show <pkg> (${requested[*]})"
+        log_info "Would run: sudo DEBIAN_FRONTEND=noninteractive apt-get install -y <packages apt has>"
+        log_info "Would report any package apt cannot provide, with how to install it instead."
         return 0
     fi
 
-    if [ ! -t 0 ] && ! sudo -n true >/dev/null 2>&1; then
-        log_warning "apt needs a sudo password and stdin is not a terminal. Not installing: $*"
-        return 0
-    fi
-
-    log_info "Installing with apt: $*"
     if [ ! -t 0 ]; then
-        if sudo -n apt-get update && sudo -n env DEBIAN_FRONTEND=noninteractive apt-get install -y "$@"; then
-            log_success "apt packages installed: $*"
-        else
-            log_warning "apt-get failed for: $*. starship is not in every Debian/Ubuntu repo. Setup will continue."
+        if ! sudo -n true >/dev/null 2>&1; then
+            log_warning "apt needs a sudo password and stdin is not a terminal. Not installing: ${requested[*]}"
+            return 0
         fi
-        return 0
+        sudo_cmd=(sudo -n)
     fi
 
-    if sudo apt-get update && sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y "$@"; then
-        log_success "apt packages installed: $*"
+    log_info "Installing with apt: ${requested[*]}"
+
+    if ! "${sudo_cmd[@]}" apt-get update; then
+        log_warning "apt-get update failed. Continuing with the package lists already on disk."
+    fi
+
+    for pkg in "${requested[@]}"; do
+        if apt-cache show "$pkg" >/dev/null 2>&1; then
+            available+=("$pkg")
+        else
+            unavailable+=("$pkg")
+        fi
+    done
+
+    if [ ${#available[@]} -gt 0 ]; then
+        if "${sudo_cmd[@]}" env DEBIAN_FRONTEND=noninteractive apt-get install -y "${available[@]}"; then
+            log_success "apt packages installed: ${available[*]}"
+        else
+            log_warning "apt-get install failed for: ${available[*]}. Setup will continue."
+        fi
     else
-        log_warning "apt-get failed for: $*. starship is not in every Debian/Ubuntu repo. Setup will continue."
+        log_warning "apt has none of the requested packages: ${requested[*]}"
+    fi
+
+    if [ ${#unavailable[@]} -gt 0 ]; then
+        log_warning "apt cannot provide: ${unavailable[*]}"
+        for pkg in "${unavailable[@]}"; do
+            apt_alternative_hint "$pkg"
+        done
     fi
 }
 
@@ -1123,9 +1172,7 @@ install_brew_packages() {
     local brewfile
     os=$(uname)
 
-    if [ "$os" = "Linux" ]; then
-        mark_linuxbrew_chosen
-    elif [ "$os" != "Darwin" ]; then
+    if [ "$os" != "Linux" ] && [ "$os" != "Darwin" ]; then
         log_warning "Brewfile install is not supported on ${os}. Skipping."
         return 0
     fi
@@ -1133,6 +1180,12 @@ install_brew_packages() {
     if ! brew_bin=$(find_brew); then
         log_warning "Homebrew not found. Install it from https://brew.sh/ first. Skipping Brewfile."
         return 0
+    fi
+
+    # Only opt the shell into Linuxbrew once find_brew has actually located it,
+    # so a --brew run without brew never leaves a marker pointing at nothing.
+    if [ "$os" = "Linux" ]; then
+        mark_linuxbrew_chosen
     fi
 
     brewfile="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/Brewfile"
@@ -1156,8 +1209,11 @@ main() {
     if [ "$CHECK_NVCHAD_ONLY" = true ]; then
         echo -e "${BOLD}NVChad Status Check${NC}"
         echo "===================="
-        check_nvchad
-        exit 0
+        # A deliberate status query, so keep a meaningful exit code — but set it
+        # explicitly instead of letting `set -e` kill the script mid-function.
+        local nvchad_status=0
+        check_nvchad || nvchad_status=$?
+        exit "$nvchad_status"
     fi
 
     echo -e "${BOLD}Dotfiles Setup${NC}"
@@ -1186,7 +1242,9 @@ main() {
 
     if profile_active "full"; then
         install_nvchad
-        check_nvchad
+        # Informational only: a machine that has not linked nvim yet is not a
+        # setup failure, so never let this abort the run under `set -e`.
+        check_nvchad || true
     fi
 
     echo
