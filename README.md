@@ -75,6 +75,8 @@ cd ~/Developer/src/dots
 ./setup.sh
 ```
 
+`~/Developer/src/dots` is only the default location. Any clone path works: `./setup.sh` links the directory you are in, and `./update.sh` uses the clone that contains the script.
+
 ### 🎛️ Setup Script Options
 
 ```bash
@@ -96,6 +98,35 @@ Profiles:
   claude    AI tools: Claude Code config, llm skills/commands
   full      Everything: minimal plus vim, tmux, Neovim, opencode
 ```
+
+### 🔄 Update
+
+From the clone, in any directory:
+
+```bash
+./update.sh
+```
+
+`./update.sh`:
+
+1. `git pull --ff-only` in the clone that contains the script
+2. Recreates symlinks that are missing, broken, or point somewhere else. Existing regular files are left alone.
+3. Refreshes only the plugin managers the active profile uses
+
+| Profile | Plugin managers |
+| --- | --- |
+| `minimal` | Zinit |
+| `full` | Zinit, TPM, and Neovim (Lazy) |
+| `claude` | none |
+
+`minimal` does not refresh TPM or Neovim. The script never reads from the terminal, so a non-TTY run cannot hang on a prompt. If no profile is linked yet, update assumes `minimal` (the setup default).
+
+```bash
+./update.sh --dry-run
+./update.sh --profile full
+```
+
+The `dots` shortcut jumps to the linked clone. It uses `~/Developer/src/dots` only when that clone cannot be detected. Override it with `DOTS_DIR`.
 
 ### 📋 What the Setup Script Does
 

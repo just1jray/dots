@@ -42,6 +42,9 @@ print_usage() {
     echo
     echo "Profiles are composable. Combine them with multiple --profile flags:"
     echo "  $0 --profile minimal --profile claude"
+    echo
+    echo "Update an existing install with ./update.sh (same directory as this script):"
+    echo "  ./update.sh --help"
 }
 
 # Parse command line arguments
