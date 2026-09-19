@@ -31,6 +31,7 @@ print_usage() {
     echo "  -s, --skip-plugins      Skip plugin installation"
     echo "  -c, --check-nvchad      Check NVChad installation status and exit"
     echo "  -i, --install-font      Install JetBrains Mono Nerd Font (recommended for prompt symbols)"
+    echo "  -b, --brew              Install Homebrew packages from Brewfile (macOS)"
     echo "  -p, --profile <name>    Install a specific profile (repeatable, stackable)"
     echo
     echo "Profiles:"
@@ -48,6 +49,7 @@ DRY_RUN=false
 SKIP_PLUGINS=false
 CHECK_NVCHAD_ONLY=false
 INSTALL_FONT=false
+INSTALL_BREW=false
 PROFILES=()
 
 while [[ $# -gt 0 ]]; do
@@ -74,6 +76,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         -i|--install-font)
             INSTALL_FONT=true
+            shift
+            ;;
+        -b|--brew)
+            INSTALL_BREW=true
             shift
             ;;
         -p|--profile)
@@ -886,6 +892,37 @@ install_font() {
     fi
 }
 
+install_brew_packages() {
+    if [ "$INSTALL_BREW" = false ]; then
+        return
+    fi
+
+    if [[ "$(uname)" != "Darwin" ]]; then
+        log_warning "Brewfile install is only supported on macOS. Skipping."
+        return
+    fi
+
+    if ! command_exists brew; then
+        log_warning "Homebrew not found. Install it from https://brew.sh/ first. Skipping."
+        return
+    fi
+
+    local brewfile
+    brewfile="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/Brewfile"
+
+    if [ "$DRY_RUN" = true ]; then
+        log_info "Would install Homebrew packages from $brewfile"
+        return
+    fi
+
+    log_info "Installing Homebrew packages from Brewfile..."
+    if brew bundle install --file="$brewfile"; then
+        log_success "Homebrew packages installed."
+    else
+        log_error "brew bundle failed. Re-run 'brew bundle --file=$brewfile' to retry."
+    fi
+}
+
 # Main function
 main() {
     # If check-nvchad flag is set, only run the check
@@ -908,6 +945,7 @@ main() {
     log_info "Active profiles: ${PROFILES[*]}"
     echo
 
+    install_brew_packages
     check_requirements
     create_directories
     install_plugins
