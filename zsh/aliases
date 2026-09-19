@@ -32,8 +32,15 @@ alias -- -="cd -"
 
 # Common Command Aliases
 alias ls="ls --color=auto"
-alias ll="ls -lah --color=auto"
-alias la="ls -la --color=auto"
+if command -v eza &> /dev/null; then
+    # Plain ls stays as-is: eza's flags differ (e.g. -t takes an argument)
+    alias ll="eza -la --git --icons=auto --group-directories-first"
+    alias la="eza -la --icons=auto --group-directories-first"
+    alias lt="eza --tree --level=2 --icons=auto --git-ignore"
+else
+    alias ll="ls -lah --color=auto"
+    alias la="ls -la --color=auto"
+fi
 alias cls="clear"
 alias grep="grep --color=auto"
 alias egrep="egrep --color=auto"
