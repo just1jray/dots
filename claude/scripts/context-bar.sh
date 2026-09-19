@@ -328,8 +328,8 @@ format_reset_time() {
     epoch=$(TZ=UTC date -j -f "%Y-%m-%dT%H:%M:%S" "$stripped" +%s 2>/dev/null || date -d "$iso" +%s 2>/dev/null || true)
     [[ -z "$epoch" ]] && return
     if [[ "$style" == "time" ]]; then
-        date -j -r "$epoch" +"%l%p" 2>/dev/null | sed 's/^ //; s/\.//g' | tr '[:upper:]' '[:lower:]' || \
-        date -d "@$epoch" +"%l%P" 2>/dev/null | sed 's/^ //'
+        date -j -r "$epoch" +"%l:%M%p" 2>/dev/null | sed 's/^ //; s/\.//g' | tr '[:upper:]' '[:lower:]' || \
+        date -d "@$epoch" +"%l:%M%P" 2>/dev/null | sed 's/^ //'
     else
         date -j -r "$epoch" +"%m-%e" 2>/dev/null | sed 's/^0//; s/ //' || \
         date -d "@$epoch" +"%m-%-d" 2>/dev/null | sed 's/^0//'
