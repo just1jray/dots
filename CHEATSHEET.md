@@ -35,8 +35,9 @@ Quick reference for this dotfiles setup. Emphasis on Vim/Neovim, tmux, git, and 
 | `dt` | `cd ~/Desktop` | Jump. |
 | `..` / `...` / `....` | `cd ..` etc | Quick up navigation. |
 | `-` | `cd -` | Back to previous directory. |
-| `ll` | `ls -lah` | List. |
-| `la` | `ls -la` | List. |
+| `ll` | `eza -la --git` | Long list with git status (falls back to `ls -lah`). |
+| `la` | `eza -la` | Long list (falls back to `ls -la`). |
+| `lt` | `eza --tree --level=2` | Tree view, 2 levels, respects `.gitignore` (eza only). |
 | `c` | `claude` | Claude Code CLI. |
 | `cls` | `clear` | Clear screen. |
 | `path` | show `$PATH` entries | One per line. |

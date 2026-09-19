@@ -28,7 +28,7 @@ Used across various platforms for various things.
 - 📥 **curl** or **wget** - For downloading plugins
 
 **🍎 macOS:**
-- 🍺 **[Homebrew](https://brew.sh/)** - Package manager
+- 🍺 **[Homebrew](https://brew.sh/)** - Package manager. The curated `Brewfile` installs core tools and daily-driver apps via `./setup.sh --brew` or `brew bundle`
 
 **Recommended:**
 - 👻 **[Ghostty](https://ghostty.org/)** - Fast, feature-rich terminal emulator
@@ -88,6 +88,7 @@ Options:
   -c, --check-nvchad      Check NVChad installation status
   -i, --install-font      Install JetBrains Mono Nerd Font
   -y, --yes               Continue when commands are missing (no prompt)
+  -b, --brew              Install Homebrew packages from Brewfile (macOS)
   -p, --profile <name>    Install a specific profile (repeatable, stackable)
 
 Profiles:
@@ -98,6 +99,7 @@ Profiles:
 
 ### 📋 What the Setup Script Does
 
+0. 🍺 **Installs Homebrew packages** from `Brewfile` (only with `--brew`)
 1. 📁 **Creates necessary directories** for configs and plugins
 2. 💾 **Backs up existing configs** (unless `--force` is used)
 3. 🔗 **Symlinks config files** to proper locations:

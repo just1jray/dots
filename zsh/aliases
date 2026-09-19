@@ -48,14 +48,21 @@ alias .....="cd ../../../.."
 alias -- -="cd -"
 
 # Common Command Aliases
-# Color flag is applied once. ll/la chain through this alias.
+# Color flag is applied once. ll/la fall back through this alias.
 if [[ -n "$LS_COLOR_FLAG" ]]; then
     alias ls="ls ${LS_COLOR_FLAG}"
 else
     alias ls="ls"
 fi
-alias ll="ls -lah"
-alias la="ls -la"
+if command -v eza >/dev/null 2>&1; then
+    # Plain ls stays as-is: eza's flags differ (e.g. -t takes an argument)
+    alias ll="eza -la --git --icons=auto --group-directories-first"
+    alias la="eza -la --icons=auto --group-directories-first"
+    alias lt="eza --tree --level=2 --icons=auto --git-ignore"
+else
+    alias ll="ls -lah"
+    alias la="ls -la"
+fi
 alias cls="clear"
 alias grep="grep --color=auto"
 alias egrep="egrep --color=auto"
