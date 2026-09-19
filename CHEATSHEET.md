@@ -361,8 +361,9 @@ Use as `git <alias>`.
 
 | Task | Command |
 | --- | --- |
-| Install (full) | `./setup.sh` |
-| Install minimal | `./setup.sh --profile minimal` |
+| Install (minimal, default) | `./setup.sh` |
+| Install full | `./setup.sh --profile full` |
+| Assume yes (no prompt) | `./setup.sh --yes` |
 | Install AI tools | `./setup.sh --profile claude` |
 | Combine profiles | `./setup.sh --profile minimal --profile claude` |
 | Dry run | `./setup.sh --dry-run` |

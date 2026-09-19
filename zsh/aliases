@@ -17,10 +17,27 @@ efresh() {
     echo "✨ All configs refreshed!"
 }
 
+# Portable ls color. Probe the ls on PATH (instant: -d on one path).
+# GNU ls accepts --color; stock macOS ls rejects it and uses -G.
+# GNU coreutils is not required. LS_PREVIEW is read by zshrc fzf-tab setup.
+# shellcheck disable=SC2034
+if command ls --color=auto -d . >/dev/null 2>&1; then
+    LS_COLOR_FLAG="--color=auto"
+    # Previews are not a TTY, so GNU ls needs --color rather than --color=auto.
+    LS_PREVIEW="ls --color"
+elif command ls -G -d . >/dev/null 2>&1; then
+    LS_COLOR_FLAG="-G"
+    LS_PREVIEW="CLICOLOR_FORCE=1 ls -G"
+else
+    LS_COLOR_FLAG=""
+    LS_PREVIEW="ls"
+fi
+
 # Navigation Aliases
-alias dev="cd ~/Developer && ls -lah --color=auto"
-alias src="cd ~/Developer/src && ls -lah --color=auto"
-alias dots="cd ~/Developer/src/dots && ls -lah --color=auto"
+# `ls` is aliased below; do not hard-code GNU flags here or they survive alias expansion.
+alias dev="cd ~/Developer && ls -lah"
+alias src="cd ~/Developer/src && ls -lah"
+alias dots="cd ~/Developer/src/dots && ls -lah"
 alias docs="cd ~/Documents"
 alias dl="cd ~/Downloads"
 alias dt="cd ~/Desktop"
@@ -31,9 +48,14 @@ alias .....="cd ../../../.."
 alias -- -="cd -"
 
 # Common Command Aliases
-alias ls="ls --color=auto"
-alias ll="ls -lah --color=auto"
-alias la="ls -la --color=auto"
+# Color flag is applied once. ll/la chain through this alias.
+if [[ -n "$LS_COLOR_FLAG" ]]; then
+    alias ls="ls ${LS_COLOR_FLAG}"
+else
+    alias ls="ls"
+fi
+alias ll="ls -lah"
+alias la="ls -la"
 alias cls="clear"
 alias grep="grep --color=auto"
 alias egrep="egrep --color=auto"
@@ -48,7 +70,15 @@ alias mv="mv -v"
 alias mkdir="mkdir -pv"
 
 # System Information
-alias du1="du -h -d 1"
+# GNU du accepts --max-depth. Stock macOS du does not; it accepts -d, or neither.
+# Probe /dev/null so startup does not walk the current directory.
+if command du --max-depth=0 -s /dev/null >/dev/null 2>&1; then
+    alias du1="du -h --max-depth=1"
+elif command du -d 0 -s /dev/null >/dev/null 2>&1; then
+    alias du1="du -h -d 1"
+else
+    alias du1="du -h"
+fi
 alias df="df -h"
 alias path='echo -e ${PATH//:/\\n}'
 psg() { ps aux | grep -v grep | grep -i -e VSZ -e "$@"; }

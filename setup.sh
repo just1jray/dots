@@ -31,12 +31,13 @@ print_usage() {
     echo "  -s, --skip-plugins      Skip plugin installation"
     echo "  -c, --check-nvchad      Check NVChad installation status and exit"
     echo "  -i, --install-font      Install JetBrains Mono Nerd Font (recommended for prompt symbols)"
+    echo "  -y, --yes               Continue when commands are missing (no prompt)"
     echo "  -p, --profile <name>    Install a specific profile (repeatable, stackable)"
     echo
     echo "Profiles:"
-    echo "  minimal   Shell essentials: zsh, starship, git, ghostty"
+    echo "  minimal   Shell essentials: zsh, starship, git, ghostty (default)"
     echo "  claude    AI tools: claude code config, llm skills/commands"
-    echo "  full      Everything (default if no --profile given)"
+    echo "  full      Everything: minimal plus vim, tmux, Neovim, opencode"
     echo
     echo "Profiles are composable. Combine them with multiple --profile flags:"
     echo "  $0 --profile minimal --profile claude"
@@ -48,6 +49,7 @@ DRY_RUN=false
 SKIP_PLUGINS=false
 CHECK_NVCHAD_ONLY=false
 INSTALL_FONT=false
+ASSUME_YES=false
 PROFILES=()
 
 while [[ $# -gt 0 ]]; do
@@ -76,6 +78,10 @@ while [[ $# -gt 0 ]]; do
             INSTALL_FONT=true
             shift
             ;;
+        -y|--yes)
+            ASSUME_YES=true
+            shift
+            ;;
         -p|--profile)
             if [[ -z "${2:-}" ]]; then
                 echo -e "${RED}Error:${NC} --profile requires a value (minimal, claude, full)"
@@ -102,9 +108,9 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Default to full profile if none specified
+# Default to minimal so a first run does not require vim, nvim, or tmux.
 if [ ${#PROFILES[@]} -eq 0 ]; then
-    PROFILES=("full")
+    PROFILES=("minimal")
 fi
 
 # Check if a profile is active
@@ -140,6 +146,33 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+# Missing commands used to prompt with `read`. A non-TTY run has nothing to
+# read from, and `set -e` then aborts. --yes is the explicit assume-yes path.
+# Without a terminal, continue instead of hanging or dying on `read`.
+confirm_continue_missing() {
+    if [ "$ASSUME_YES" = true ]; then
+        log_info "Continuing because --yes was given."
+        return 0
+    fi
+
+    if [ ! -t 0 ]; then
+        log_warning "No terminal attached; not prompting. Continuing. Pass --yes to acknowledge missing commands."
+        return 0
+    fi
+
+    local reply
+    if ! read -r -n 1 -p "Continue anyway? (y/N) " reply; then
+        echo
+        log_warning "Could not read a response; continuing."
+        return 0
+    fi
+    echo
+    if [[ ! "$reply" =~ ^[Yy]$ ]]; then
+        log_error "Setup aborted."
+        exit 1
+    fi
+}
+
 # Check for required commands
 check_requirements() {
     log_info "Checking requirements..."
@@ -172,13 +205,7 @@ check_requirements() {
         done
         echo
         log_info "You may want to install them before continuing."
-        
-        read -p "Continue anyway? (y/N) " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            log_error "Setup aborted."
-            exit 1
-        fi
+        confirm_continue_missing
     else
         log_success "All required commands are available."
     fi
