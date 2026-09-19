@@ -20,12 +20,15 @@ efresh() {
 # Portable ls color. Probe the ls on PATH (instant: -d on one path).
 # GNU ls accepts --color; stock macOS ls rejects it and uses -G.
 # GNU coreutils is not required. LS_PREVIEW is read by zshrc fzf-tab setup.
+# Probe / rather than . so the probe still works when the shell starts in a
+# deleted or unreadable directory (e.g. a restored tmux-resurrect session),
+# which would otherwise fail both probes and silently disable color.
 # shellcheck disable=SC2034
-if command ls --color=auto -d . >/dev/null 2>&1; then
+if command ls --color=auto -d / >/dev/null 2>&1; then
     LS_COLOR_FLAG="--color=auto"
     # Previews are not a TTY, so GNU ls needs --color rather than --color=auto.
     LS_PREVIEW="ls --color"
-elif command ls -G -d . >/dev/null 2>&1; then
+elif command ls -G -d / >/dev/null 2>&1; then
     LS_COLOR_FLAG="-G"
     LS_PREVIEW="CLICOLOR_FORCE=1 ls -G"
 else
@@ -79,9 +82,11 @@ alias mkdir="mkdir -pv"
 # System Information
 # GNU du accepts --max-depth. Stock macOS du does not; it accepts -d, or neither.
 # Probe /dev/null so startup does not walk the current directory.
-if command du --max-depth=0 -s /dev/null >/dev/null 2>&1; then
+# No -s in the probes: BSD du treats -s and a depth flag as mutually exclusive
+# and exits 64 for both, which would wrongly fall through to plain `du -h`.
+if command du --max-depth=0 /dev/null >/dev/null 2>&1; then
     alias du1="du -h --max-depth=1"
-elif command du -d 0 -s /dev/null >/dev/null 2>&1; then
+elif command du -d 0 /dev/null >/dev/null 2>&1; then
     alias du1="du -h -d 1"
 else
     alias du1="du -h"
