@@ -27,6 +27,7 @@ PROFILES=()
 PROFILE_FROM_FLAG=false
 LINK_CHANGES=0
 REFRESH_FAILURES=0
+PULL_FAILED=false
 
 log_info() {
     printf '%b[INFO]%b %s\n' "$BLUE" "$NC" "$1"
@@ -201,12 +202,14 @@ pull_clone() {
 
     if ! git -C "$ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
         log_error "Not a git repository: $ROOT"
+        log_warning "Skipping the pull; relinking and plugin refresh still run."
         return 1
     fi
 
     log_info "Pulling $ROOT"
     if ! git -C "$ROOT" pull --ff-only; then
         log_error "git pull --ff-only failed in $ROOT"
+        log_warning "Continuing without the pull; relinking does not need the network."
         return 1
     fi
     log_success "Clone is up to date."
@@ -277,6 +280,20 @@ prepare_real_dir() {
     fi
 }
 
+# ~/.claude itself may be a user-managed symlink (cloud storage, for example).
+# setup.sh only does `mkdir -p` there, so never convert it to a real directory.
+prepare_claude_home() {
+    local dir="$1"
+    if [ -L "$dir" ]; then
+        log_warning "Leaving user-managed symlink in place: $dir"
+        if [ ! -d "$dir" ]; then
+            log_warning "Symlink does not resolve to a directory: $dir"
+        fi
+        return 0
+    fi
+    prepare_real_dir "$dir"
+}
+
 ensure_link() {
     local source_path="$1"
     local target_path="$2"
@@ -339,7 +356,7 @@ relink_configs() {
     collect_links
 
     if profile_active "claude"; then
-        prepare_real_dir "$HOME/.claude"
+        prepare_claude_home "$HOME/.claude"
         prepare_real_dir "$HOME/.claude/skills"
         prepare_real_dir "$HOME/.claude/commands"
         skills_src="$ROOT/llm/skills"
@@ -529,7 +546,10 @@ main() {
     log_info "Active profiles: ${PROFILES[*]}"
     echo
 
-    pull_clone
+    # A failed pull is not fatal: relinking and refreshing need no network.
+    if ! pull_clone; then
+        PULL_FAILED=true
+    fi
     echo
     relink_configs
     echo
@@ -538,12 +558,25 @@ main() {
     echo
     if [ "$DRY_RUN" = true ]; then
         log_success "Dry run finished. No changes were made."
-    elif [ "$REFRESH_FAILURES" -gt 0 ]; then
-        log_error "Update finished with $REFRESH_FAILURES plugin refresh failure(s)."
-        return 1
-    else
-        log_success "Update finished."
+        return 0
     fi
+
+    local failures=""
+    if [ "$PULL_FAILED" = true ]; then
+        failures="git pull"
+    fi
+    if [ "$REFRESH_FAILURES" -gt 0 ]; then
+        if [ -n "$failures" ]; then
+            failures="$failures, "
+        fi
+        failures="${failures}${REFRESH_FAILURES} plugin refresh failure(s)"
+    fi
+
+    if [ -n "$failures" ]; then
+        log_error "Update finished with failures: $failures"
+        return 1
+    fi
+    log_success "Update finished."
 }
 
 ROOT=$(resolve_script_dir) || exit 1
