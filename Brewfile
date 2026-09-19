@@ -1,5 +1,6 @@
 # Homebrew packages — install with `brew bundle` or `./setup.sh --brew`
 # Curated: must-haves and daily drivers only, not one-off installs.
+# Claude Code is not listed: it uses Anthropic's self-updating native installer.
 
 # Core
 brew "neovim"
@@ -10,13 +11,11 @@ brew "gh"
 brew "pyenv"
 brew "docker"
 brew "mosh"
-brew "opencode"
 
 cask "ghostty"
 cask "tailscale-app"
 cask "docker-desktop"
 cask "raycast"
-cask "claude"
 
 # Everyday tools
 brew "lazygit"
@@ -26,12 +25,17 @@ brew "glow"
 brew "yt-dlp"
 brew "ffmpeg"
 brew "herdr"
-brew "agent-browser"
 brew "mole"
 
-cask "cursor"
-cask "codex"
-cask "chatgpt"
-cask "ollama-app"
 cask "vlc"
+
+# AI tools
+brew "opencode"
+brew "agent-browser"
+
+cask "claude"
+cask "chatgpt"
+cask "codex"
+cask "cursor"
+cask "ollama-app"
 cask "grok-bot"
