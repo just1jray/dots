@@ -207,6 +207,7 @@ create_directories() {
         directories+=("$TMUX_PLUGINS_DIR")
         directories+=("$TMUX_PLUGIN_RESURRECT_DIR")
         directories+=("$HOME/.config/opencode")
+        directories+=("$HOME/.config/btop/themes")
     fi
 
     for dir in "${directories[@]}"; do
@@ -427,12 +428,14 @@ link_config_files() {
         fi
     fi
 
-    # full profile: vim, tmux, opencode
+    # full profile: vim, tmux, opencode, btop
     if profile_active "full"; then
         config_files+=(
             "vim/vimrc|$HOME/.vimrc"
             "tmux/tmux.conf|$HOME/.tmux.conf"
             "opencode/opencode.json|$HOME/.config/opencode/opencode.json"
+            "btop/btop.conf|$HOME/.config/btop/btop.conf"
+            "btop/themes/catppuccin_mocha.theme|$HOME/.config/btop/themes/catppuccin_mocha.theme"
         )
     fi
 
