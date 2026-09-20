@@ -365,8 +365,8 @@ Use as `git <alias>`.
 | Install (minimal, default) | `./setup.sh` |
 | Install full | `./setup.sh --profile full` |
 | Assume yes (no prompt) | `./setup.sh --yes` |
-| Install AI tools | `./setup.sh --profile claude` |
-| Combine profiles | `./setup.sh --profile minimal --profile claude` |
+| Install AI tools | `./setup.sh --profile ai` |
+| Combine profiles | `./setup.sh --profile minimal --profile ai` |
 | Dry run | `./setup.sh --dry-run` |
 | Install font | `./setup.sh --install-font` |
 | Check NVChad | `./setup.sh --check-nvchad` |

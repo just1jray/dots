@@ -96,7 +96,7 @@ Options:
 
 Profiles:
   minimal   Shell essentials: zsh, starship, git, ghostty (default)
-  claude    AI tools: Claude Code config, llm skills/commands, Cursor CLI
+  ai        AI tools: Claude Code config, llm skills/commands, Cursor CLI
   full      Everything: minimal plus vim, tmux, Neovim, opencode
 ```
 
@@ -159,7 +159,7 @@ The `dots` shortcut jumps to the linked clone. It uses `~/Developer/src/dots` on
    - `~/.claude/CLAUDE.md` → `claude/CLAUDE.md`
    - `~/.claude/skills/*` → `llm/skills/*` (individual skill symlinks)
    - `~/.claude/commands/*` → `llm/commands/*` (individual command symlinks)
-4. 🔀 **Merges Cursor CLI preferences** from `cursor/cli-config.json` into `~/.cursor/cli-config.json` (`claude` and `full` profiles). Tracked keys win; auth, cache, and other machine state already in the live file are kept. Not a symlink, because Cursor rewrites that file. Requires `jq`.
+4. 🔀 **Merges Cursor CLI preferences** from `cursor/cli-config.json` into `~/.cursor/cli-config.json` (`ai` and `full` profiles). Tracked keys win; auth, cache, and other machine state already in the live file are kept. Not a symlink, because Cursor rewrites that file. Requires `jq`.
 5. 🔌 **Installs Zinit** plugin manager for zsh
 6. 📝 **Installs NVChad** for Neovim (if nvim is installed)
 7. 🪟 **Installs Tmux Plugin Manager** (TPM) and plugins
