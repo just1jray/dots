@@ -18,7 +18,9 @@ efresh() {
 }
 
 # Portable ls color. Probe the ls on PATH (instant: -d on one path).
-# GNU ls accepts --color; stock macOS ls rejects it and uses -G.
+# GNU ls accepts --color, and so does BSD ls on current macOS (verified on
+# 26: its own usage string lists --color=when), so the first branch wins
+# there too. The -G branch is the fallback for older macOS that rejects it.
 # GNU coreutils is not required. LS_PREVIEW is read by zshrc fzf-tab setup.
 # Probe / rather than . so the probe still works when the shell starts in a
 # deleted or unreadable directory (e.g. a restored tmux-resurrect session),
