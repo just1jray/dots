@@ -1,0 +1,29 @@
+{
+  "_comment": "Portable Claude Code hook wiring. setup.sh merges these stanzas into ~/.claude/settings.json, which stays machine-local. {{CLAUDE_HOOKS}} is replaced with the installed hooks directory. Merging is idempotent and keyed on the command string, so re-running setup.sh never duplicates an entry.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash {{CLAUDE_HOOKS}}/block-force-push.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash {{CLAUDE_HOOKS}}/shellcheck.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
