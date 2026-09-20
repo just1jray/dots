@@ -1,12 +1,12 @@
 {
   "editor": {
-    "vimMode": false
+    "vimMode": true
   },
   "display": {
-    "showLineNumbers": false,
-    "showThinkingBlocks": false,
-    "showStatusIndicators": false,
-    "showStatusLineRunningTime": false,
+    "showLineNumbers": true,
+    "showThinkingBlocks": true,
+    "showStatusIndicators": true,
+    "showStatusLineRunningTime": true,
     "mode": "zen"
   },
   "notifications": true,
