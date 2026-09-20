@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
+# Fake tools are written as single-quoted bash lines on purpose.
+# shellcheck disable=SC2016
 
 set -euo pipefail
 
-REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 ORIGINAL_PATH=$PATH
 TEST_ROOT=$(mktemp -d)
 trap 'rm -rf "$TEST_ROOT"' EXIT
@@ -73,7 +75,7 @@ new_case() {
         'touch "$1/JetBrainsMonoNerdFontMono-Bold.ttf"'
 
     local command_name
-    for command_name in git zsh vim tmux fc-cache; do
+    for command_name in git zsh vim tmux fc-cache brew; do
         write_fake "$command_name" 'exit 0'
     done
     write_fake nvim \
@@ -137,10 +139,44 @@ test_partial_apt_failure_returns_nonzero() {
         "setup must not print unconditional success"
 }
 
+test_starship_missing_from_apt_uses_official_installer() {
+    new_case starship-fallback
+    write_fake apt-cache \
+        'printf "apt-cache %s\n" "$*" >>"$TOOL_LOG"' \
+        'case " $* " in *" starship "*) exit 100 ;; esac' \
+        'exit 0'
+    write_fake curl 'printf "curl %s\n" "$*" >>"$TOOL_LOG"' ': >"$2"'
+
+    run_setup --profile minimal --skip-plugins
+
+    assert_eq "0" "$SETUP_STATUS" "a package apt lacks must not fail setup when its installer succeeds"
+    assert_not_contains "apt-get install -y starship" "$TOOL_LOG" \
+        "apt must not be asked for a package it lacks"
+    assert_contains "curl -fsSLo" "$TOOL_LOG" "the official installer should be downloaded"
+    assert_contains "Installed starship into $HOME/.local/bin" "$OUTPUT" \
+        "fallback success should be reported"
+    assert_contains "Setup completed successfully!" "$OUTPUT" "setup should end in success"
+}
+
+test_starship_installer_failure_is_reported() {
+    new_case starship-fallback-fails
+    write_fake apt-cache 'case " $* " in *" starship "*) exit 100 ;; esac' 'exit 0'
+    write_fake curl 'printf "exit 1\n" >"$2"'
+
+    run_setup --profile minimal --skip-plugins
+
+    assert_eq "1" "$SETUP_STATUS" "a failed fallback installer is a required-package failure"
+    assert_contains "The starship installer failed." "$OUTPUT" "installer failure should be reported"
+    assert_contains "Required package installation failed" "$OUTPUT" \
+        "final summary should be explicit"
+}
+
 tests=(
     test_font_counter_survives_set_e
     test_root_apt_does_not_use_sudo
     test_partial_apt_failure_returns_nonzero
+    test_starship_missing_from_apt_uses_official_installer
+    test_starship_installer_failure_is_reported
 )
 
 for test_name in "${tests[@]}"; do

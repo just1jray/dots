@@ -99,7 +99,7 @@ Profiles:
   claude    AI tools: Claude Code config, llm skills/commands
   full      Everything: minimal plus vim, tmux, Neovim, opencode, and a Nerd Font
 
-`minimal` installs zsh, git, and Starship. `full` also installs Neovim, tmux, and JetBrains Mono Nerd Font. pyenv, nvm, Bun, Claude, and Ghostty stay optional. macOS uses Homebrew (Apple Silicon or Intel). Linux uses apt, or Linuxbrew only when `--brew` is passed.
+`minimal` installs zsh, git, and Starship. `full` also installs Neovim, tmux, and JetBrains Mono Nerd Font. pyenv, nvm, Bun, Claude, and Ghostty stay optional. macOS uses Homebrew (Apple Silicon or Intel). Linux uses apt (as root, or through `sudo`; a non-terminal run needs passwordless `sudo`), or Linuxbrew only when `--brew` is passed. Starship is not in Debian or Ubuntu repositories, so setup installs it with the official installer into `~/.local/bin`.
 ```
 
 ### 🔄 Update

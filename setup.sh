@@ -49,7 +49,8 @@ print_usage() {
     echo "  minimal   zsh, git, and starship"
     echo "  full      also neovim, tmux, and JetBrains Mono Nerd Font"
     echo "  macOS     Homebrew at /opt/homebrew (Apple Silicon) or /usr/local (Intel)"
-    echo "  Linux     apt when apt-get exists; otherwise this script says so and skips"
+    echo "  Linux     apt when apt-get exists (root or sudo; non-TTY needs passwordless sudo)."
+    echo "            starship comes from its official installer into ~/.local/bin."
     echo "  --brew    On Linux, install those packages with Linuxbrew instead of apt"
     echo "pyenv, nvm, Bun, Claude, and Ghostty are never installed as requirements."
     echo
@@ -974,15 +975,47 @@ install_with_brew() {
     fi
 }
 
-# Report how to get a package apt cannot provide.
+# Report how to get a package neither apt nor a known installer provides.
 apt_alternative_hint() {
+    log_info "  $1: install it manually, or re-run with --brew to use Linuxbrew"
+}
+
+# Official installer, non-interactive: --yes, into ~/.local/bin (on PATH via
+# zshenv). Downloaded to a file first so the run is not a blind curl | sh.
+install_starship_fallback() {
+    local bin_dir="$HOME/.local/bin"
+    local installer
+
+    if [ "$DRY_RUN" = true ]; then
+        log_info "Would install starship with the official installer into $bin_dir"
+        return 0
+    fi
+    if ! command_exists curl; then
+        log_error "curl is required to install starship without apt."
+        return 1
+    fi
+    installer=$(mktemp)
+    if ! curl -fsSLo "$installer" https://starship.rs/install.sh; then
+        log_error "Could not download the starship installer."
+        rm -f "$installer"
+        return 1
+    fi
+    mkdir -p "$bin_dir"
+    if sh "$installer" --yes --bin-dir "$bin_dir"; then
+        rm -f "$installer"
+        log_success "Installed starship into $bin_dir"
+        return 0
+    fi
+    rm -f "$installer"
+    log_error "The starship installer failed."
+    return 1
+}
+
+# Non-apt install path for one package. Returns 2 when none is known.
+install_apt_fallback() {
     case "$1" in
-        starship)
-            log_info "  starship: curl -sS https://starship.rs/install.sh | sh"
-            ;;
-        *)
-            log_info "  $1: install it manually, or re-run with --brew to use Linuxbrew"
-            ;;
+        starship) install_starship_fallback ;;
+        *) return 2 ;;
     esac
 }
 
@@ -997,7 +1030,7 @@ install_with_apt() {
     local unavailable=()
     local installed=()
     local failed=()
-    local pkg
+    local pkg status
 
     if [ ${#requested[@]} -eq 0 ]; then
         return 0
@@ -1012,6 +1045,7 @@ install_with_apt() {
         log_info "Would probe each package with: apt-cache show <pkg> (${requested[*]})"
         log_info "Would install each available package independently so one failure does not block the others."
         log_info "Would report any package apt cannot provide, with how to install it instead."
+        log_info "Would install starship with its official installer if apt cannot provide it."
         return 0
     fi
 
@@ -1048,24 +1082,26 @@ install_with_apt() {
         fi
     done
 
+    for pkg in ${unavailable[@]+"${unavailable[@]}"}; do
+        log_warning "apt cannot provide $pkg; trying its official installer."
+        status=0
+        install_apt_fallback "$pkg" || status=$?
+        case "$status" in
+            0) installed+=("$pkg") ;;
+            2)
+                log_error "apt cannot provide required package: $pkg"
+                apt_alternative_hint "$pkg"
+                failed+=("$pkg")
+                ;;
+            *) failed+=("$pkg") ;;
+        esac
+    done
+
     if [ ${#installed[@]} -gt 0 ]; then
-        log_success "apt packages installed: ${installed[*]}"
-    fi
-    if [ ${#available[@]} -eq 0 ]; then
-        log_warning "apt has none of the requested packages: ${requested[*]}"
+        log_success "Packages installed: ${installed[*]}"
     fi
     if [ ${#failed[@]} -gt 0 ]; then
-        log_error "apt-get install failed for required packages: ${failed[*]}"
-    fi
-
-    if [ ${#unavailable[@]} -gt 0 ]; then
-        log_error "apt cannot provide required packages: ${unavailable[*]}"
-        for pkg in "${unavailable[@]}"; do
-            apt_alternative_hint "$pkg"
-        done
-    fi
-
-    if [ ${#failed[@]} -gt 0 ] || [ ${#unavailable[@]} -gt 0 ]; then
+        log_error "Required packages not installed: ${failed[*]}"
         return 1
     fi
     return 0
