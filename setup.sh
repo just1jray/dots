@@ -1120,7 +1120,7 @@ link_ghostty_macos() {
     local source_path
     local target_dir
     local target_path
-    source_path="$(pwd)/ghostty/macos"
+    source_path="$REPO_DIR/ghostty/macos"
     target_dir="${HOME}/Library/Application Support/com.mitchellh.ghostty"
     target_path="${target_dir}/config"
 
