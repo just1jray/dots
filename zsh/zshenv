@@ -13,7 +13,7 @@ add_to_path() {
 # Darwin: Apple Silicon, then Intel, via brew shellenv (PATH, MANPATH, HOMEBREW_*).
 # Linuxbrew is not initialized unless this machine opted in with ./setup.sh --brew
 # (marker ~/.config/zsh/use-brew, or DOTS_USE_BREW=1).
-if [[ "$(uname)" == "Darwin" ]]; then
+if [[ "$OSTYPE" == darwin* ]]; then
     if [[ -x /opt/homebrew/bin/brew ]]; then
         if ! eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null)"; then
             echo "Warning: Failed to initialize Homebrew" >&2
@@ -31,7 +31,7 @@ else
     if [[ -d "/usr/local/bin" ]]; then
         add_to_path "/usr/local/bin"
     fi
-    if [[ "$(uname)" == "Linux" ]]; then
+    if [[ "$OSTYPE" == linux* ]]; then
         if [[ "${DOTS_USE_BREW:-0}" == "1" || -f "${HOME}/.config/zsh/use-brew" ]]; then
             if [[ -x "${HOME}/.linuxbrew/bin/brew" ]]; then
                 if ! eval "$("${HOME}/.linuxbrew/bin/brew" shellenv 2>/dev/null)"; then
