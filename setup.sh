@@ -65,6 +65,7 @@ CHECK_NVCHAD_ONLY=false
 INSTALL_FONT=false
 ASSUME_YES=false
 INSTALL_BREW=false
+PACKAGE_INSTALL_FAILED=false
 PROFILES=()
 
 while [[ $# -gt 0 ]]; do
@@ -288,8 +289,6 @@ install_plugins() {
 install_tmux_plugins() {
     log_info "Setting up Tmux plugins..."
 
-    local failed_plugins=()
-
     # Install Tmux Plugin Manager (tpm)
     if [ ! -d "$TMUX_PLUGINS_DIR/tpm" ]; then
         if [ "$DRY_RUN" = true ]; then
@@ -307,46 +306,9 @@ install_tmux_plugins() {
     else
         log_info "Tmux Plugin Manager already installed"
     fi
-    
-    # Define Tmux plugins to install directly
-    local tmux_plugins=(
-        "https://github.com/tmux-plugins/tmux-sensible|$TMUX_PLUGINS_DIR/tmux-sensible"
-        "https://github.com/tmux-plugins/tmux-resurrect|$TMUX_PLUGINS_DIR/tmux-resurrect"
-        "https://github.com/tmux-plugins/tmux-continuum|$TMUX_PLUGINS_DIR/tmux-continuum"
-    )
-    
-    # Install each Tmux plugin
-    for plugin in "${tmux_plugins[@]}"; do
-        IFS='|' read -r repo_url install_dir <<< "$plugin"
-        plugin_name=$(basename "$install_dir")
 
-        if [ ! -d "$install_dir" ]; then
-            if [ "$DRY_RUN" = true ]; then
-                log_info "Would install Tmux plugin: $plugin_name"
-            else
-                log_info "Installing Tmux plugin: $plugin_name"
-                if git clone --depth=1 "$repo_url" "$install_dir"; then
-                    log_success "Installed Tmux plugin: $plugin_name"
-                else
-                    log_error "Failed to install Tmux plugin: $plugin_name"
-                    failed_plugins+=("$plugin_name")
-                fi
-            fi
-        else
-            log_info "Tmux plugin already installed: $plugin_name"
-        fi
-    done
-
-    # Report any failures
-    if [ ${#failed_plugins[@]} -gt 0 ]; then
-        log_warning "Some tmux plugins failed to install:"
-        for plugin in "${failed_plugins[@]}"; do
-            echo "  - $plugin"
-        done
-        log_warning "These plugins can be installed later via: ~/.tmux/plugins/tpm/bin/install_plugins"
-    fi
-
-    # Install all plugins defined in tmux.conf via TPM
+    # tmux.conf is the only plugin list. Keeping one source of truth means
+    # navigator, yank, Catppuccin Mocha, and future additions cannot be missed.
     if [ "$DRY_RUN" = false ] && [ -f "$TMUX_PLUGINS_DIR/tpm/bin/install_plugins" ]; then
         log_info "Installing tmux plugins via TPM..."
         if "$TMUX_PLUGINS_DIR/tpm/bin/install_plugins" > /dev/null 2>&1; then
@@ -913,7 +875,7 @@ install_font() {
                     for ttf in "$temp_dir"/JetBrainsMonoNerdFontMono-*.ttf; do
                         if [ -f "$ttf" ]; then
                             cp "$ttf" "$font_dir/"
-                            ((fonts_copied++))
+                            fonts_copied=$((fonts_copied + 1))
                         fi
                     done
                     if [ "$fonts_copied" -gt 0 ]; then
@@ -1030,9 +992,11 @@ apt_alternative_hint() {
 # this apt actually has; report the rest instead of installing nothing.
 install_with_apt() {
     local requested=("$@")
-    local sudo_cmd=(sudo)
+    local sudo_cmd=()
     local available=()
     local unavailable=()
+    local installed=()
+    local failed=()
     local pkg
 
     if [ ${#requested[@]} -eq 0 ]; then
@@ -1040,19 +1004,26 @@ install_with_apt() {
     fi
 
     if [ "$DRY_RUN" = true ]; then
-        log_info "Would run: sudo apt-get update"
+        if [ "$(id -u)" -eq 0 ]; then
+            log_info "Would run: apt-get update"
+        else
+            log_info "Would run: sudo apt-get update"
+        fi
         log_info "Would probe each package with: apt-cache show <pkg> (${requested[*]})"
-        log_info "Would run: sudo DEBIAN_FRONTEND=noninteractive apt-get install -y <packages apt has>"
+        log_info "Would install each available package independently so one failure does not block the others."
         log_info "Would report any package apt cannot provide, with how to install it instead."
         return 0
     fi
 
-    if [ ! -t 0 ]; then
-        if ! sudo -n true >/dev/null 2>&1; then
-            log_warning "apt needs a sudo password and stdin is not a terminal. Not installing: ${requested[*]}"
-            return 0
+    if [ "$(id -u)" -ne 0 ]; then
+        sudo_cmd=(sudo)
+        if [ ! -t 0 ]; then
+            if ! sudo -n true >/dev/null 2>&1; then
+                log_error "apt needs a sudo password and stdin is not a terminal. Not installing: ${requested[*]}"
+                return 1
+            fi
+            sudo_cmd=(sudo -n)
         fi
-        sudo_cmd=(sudo -n)
     fi
 
     log_info "Installing with apt: ${requested[*]}"
@@ -1069,22 +1040,35 @@ install_with_apt() {
         fi
     done
 
-    if [ ${#available[@]} -gt 0 ]; then
-        if "${sudo_cmd[@]}" env DEBIAN_FRONTEND=noninteractive apt-get install -y "${available[@]}"; then
-            log_success "apt packages installed: ${available[*]}"
+    for pkg in "${available[@]}"; do
+        if "${sudo_cmd[@]}" env DEBIAN_FRONTEND=noninteractive apt-get install -y "$pkg"; then
+            installed+=("$pkg")
         else
-            log_warning "apt-get install failed for: ${available[*]}. Setup will continue."
+            failed+=("$pkg")
         fi
-    else
+    done
+
+    if [ ${#installed[@]} -gt 0 ]; then
+        log_success "apt packages installed: ${installed[*]}"
+    fi
+    if [ ${#available[@]} -eq 0 ]; then
         log_warning "apt has none of the requested packages: ${requested[*]}"
+    fi
+    if [ ${#failed[@]} -gt 0 ]; then
+        log_error "apt-get install failed for required packages: ${failed[*]}"
     fi
 
     if [ ${#unavailable[@]} -gt 0 ]; then
-        log_warning "apt cannot provide: ${unavailable[*]}"
+        log_error "apt cannot provide required packages: ${unavailable[*]}"
         for pkg in "${unavailable[@]}"; do
             apt_alternative_hint "$pkg"
         done
     fi
+
+    if [ ${#failed[@]} -gt 0 ] || [ ${#unavailable[@]} -gt 0 ]; then
+        return 1
+    fi
+    return 0
 }
 
 # minimal: zsh, git, starship. full also: neovim, tmux.
@@ -1122,7 +1106,7 @@ install_profile_packages() {
         fi
         if command_exists apt-get; then
             install_with_apt "${packages[@]}"
-            return 0
+            return $?
         fi
         log_warning "This Linux system does not use apt (apt-get not found)."
         log_warning "Not installing packages. Pass --brew to use Linuxbrew, or install manually: ${packages[*]}"
@@ -1229,7 +1213,9 @@ main() {
     echo
 
     install_brew_packages
-    install_profile_packages
+    if ! install_profile_packages; then
+        PACKAGE_INSTALL_FAILED=true
+    fi
     if profile_active "full"; then
         INSTALL_FONT=true
     fi
@@ -1248,13 +1234,20 @@ main() {
     fi
 
     echo
-    log_success "Setup completed successfully!"
+    if [ "$PACKAGE_INSTALL_FAILED" = true ]; then
+        log_error "Required package installation failed. Setup completed the remaining safe steps."
+    else
+        log_success "Setup completed successfully!"
+    fi
     if profile_active "minimal"; then
         log_info "You may need to restart your shell or run 'source ~/.zshrc' to apply changes."
         log_info "Zinit will automatically install ZSH plugins on first shell launch."
     fi
     if profile_active "full"; then
         log_info "To activate tmux plugins, start tmux and press prefix + I (capital I)."
+    fi
+    if [ "$PACKAGE_INSTALL_FAILED" = true ]; then
+        return 1
     fi
 }
 

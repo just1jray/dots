@@ -189,6 +189,12 @@ Edit `starship/starship.toml` to customize your prompt. The palette is Catppucci
 
 The `ghostty/config` theme is Catppuccin Mocha on every OS. macOS-only keys (`macos-titlebar-style`, blur, and `cmd` chords) live in `ghostty/macos` and are linked only on Darwin, so a Linux Ghostty still starts with the Mocha theme.
 
+Setup applies its normal backup rules to both `~/.config/ghostty` and the
+macOS app config before linking: regular files get a timestamped `.old_*`
+copy, directories get a timestamped `.backup_*` copy, and existing symlinks
+are replaced without a backup. `--force` removes regular files or directories
+instead of backing them up.
+
 - ⚡ **Quick terminal** - Toggle terminal with `ctrl+`` ` (requires Ghostty 1.1+, macOS global bind)
 - ✂️ **macOS split keybindings** (`ghostty/macos`):
   - `cmd+shift+enter` - Horizontal split
