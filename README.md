@@ -97,7 +97,7 @@ Options:
 
 Profiles:
   minimal   Shell essentials: zsh, starship, git, ghostty (default)
-  claude    AI tools: Claude Code config, llm skills/commands, Cursor CLI
+  ai        AI tools: Claude Code config, llm skills/commands, Cursor CLI
   full      Everything: minimal plus vim, tmux, Neovim, opencode, and a Nerd Font
 
 `minimal` installs zsh, git, and Starship. `full` also installs Neovim, tmux, and JetBrains Mono Nerd Font. pyenv, nvm, Bun, Claude, and Ghostty stay optional. macOS uses Homebrew (Apple Silicon or Intel). Linux uses apt (as root, or through `sudo`; a non-terminal run needs passwordless `sudo`), or Linuxbrew only when `--brew` is passed. Starship is not in Debian or Ubuntu repositories, so setup installs it with the official installer into `~/.local/bin`.
@@ -165,7 +165,7 @@ The `dots` shortcut jumps to the linked clone. It uses `~/Developer/src/dots` on
    - `~/.claude/CLAUDE.md` → `claude/CLAUDE.md`
    - `~/.claude/skills/*` → `llm/skills/*` (individual skill symlinks)
    - `~/.claude/commands/*` → `llm/commands/*` (individual command symlinks)
-5. 🔀 **Merges Cursor CLI preferences** from `cursor/cli-config.json` into `~/.cursor/cli-config.json` (`claude` and `full` profiles). Tracked keys win; auth, cache, and other machine state already in the live file are kept. Not a symlink, because Cursor rewrites that file. Requires `jq`.
+5. 🔀 **Merges Cursor CLI preferences** from `cursor/cli-config.json` into `~/.cursor/cli-config.json` (`ai` and `full` profiles). Tracked keys win; auth, cache, and other machine state already in the live file are kept. Not a symlink, because Cursor rewrites that file. Requires `jq`.
 6. 🔌 **Installs Zinit** plugin manager for zsh (shallow clone, on first shell launch)
 7. 📝 **Installs NVChad** for Neovim only when the `full` profile is active
 8. 🪟 **Installs Tmux Plugin Manager** (TPM) and plugins only for `full` (not the unused tmux-battery clone)

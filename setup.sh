@@ -39,11 +39,11 @@ print_usage() {
     echo
     echo "Profiles:"
     echo "  minimal   Shell essentials: zsh, starship, git, ghostty (default)"
-    echo "  claude    AI tools: claude code config, llm skills/commands, cursor cli"
+    echo "  ai        AI tools: claude code config, llm skills/commands, cursor cli"
     echo "  full      Everything: minimal plus vim, tmux, Neovim, opencode, and a Nerd Font"
     echo
     echo "Profiles are composable. Combine them with multiple --profile flags:"
-    echo "  $0 --profile minimal --profile claude"
+    echo "  $0 --profile minimal --profile ai"
     echo
     echo "Profile packages (separate from the Brewfile):"
     echo "  minimal   zsh, git, and starship"
@@ -105,16 +105,16 @@ while [[ $# -gt 0 ]]; do
             ;;
         -p|--profile)
             if [[ -z "${2:-}" ]]; then
-                echo -e "${RED}Error:${NC} --profile requires a value (minimal, claude, full)"
+                echo -e "${RED}Error:${NC} --profile requires a value (minimal, ai, full)"
                 print_usage
                 exit 1
             fi
             case $2 in
-                minimal|claude|full)
+                minimal|ai|full)
                     PROFILES+=("$2")
                     ;;
                 *)
-                    echo -e "${RED}Error:${NC} Unknown profile: $2 (valid: minimal, claude, full)"
+                    echo -e "${RED}Error:${NC} Unknown profile: $2 (valid: minimal, ai, full)"
                     print_usage
                     exit 1
                     ;;
@@ -620,12 +620,12 @@ link_config_files() {
         fi
     fi
 
-    # Link Claude Code config files (claude profile)
+    # Link Claude Code config files (ai profile)
     local claude_source
     claude_source="$REPO_DIR/claude"
     local claude_target="$HOME/.claude"
 
-    if profile_active "claude"; then
+    if profile_active "ai"; then
     if [ -d "$claude_source" ]; then
         # Create ~/.claude directory if it doesn't exist (Claude Code manages ephemeral data here)
         if [ "$DRY_RUN" = true ]; then
@@ -779,7 +779,7 @@ link_config_files() {
 # Cursor rewrites that file with auth and cache data, so it is not symlinked.
 # Tracked keys overwrite; keys absent from the repo file are left in place.
 install_cursor_cli_config() {
-    if ! profile_active "claude"; then
+    if ! profile_active "ai"; then
         return
     fi
 
