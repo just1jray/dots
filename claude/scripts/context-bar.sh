@@ -229,22 +229,28 @@ if [[ "$max_context" -ge 1000000 && $((max_context % 1000000)) -eq 0 ]]; then
 else
     max_display="$((max_context / 1000))k"
 fi
-used_pct=$(echo "$input" | jq -r '.context_window.used_percentage // empty' 2>/dev/null || true)
+# total_input_tokens = input + cache creation + cache reads, i.e. what's in the window now
+used_tokens=$(echo "$input" | jq -r '.context_window.total_input_tokens // empty' 2>/dev/null || true)
+[[ "$used_tokens" =~ ^[0-9]+$ ]] || used_tokens=""
 
 bar_width=10
 
-if [[ -n "$used_pct" ]]; then
-    # Round float to integer
-    pct=$(printf "%.0f" "$used_pct")
-    pct_prefix=""
+if [[ -n "$used_tokens" && "$used_tokens" -gt 0 ]]; then
+    tok_prefix=""
 else
-    # At conversation start, used_percentage is null — show baseline estimate
+    # At conversation start, no API call has happened yet — show baseline estimate
     # ~20k: system prompt (~3k), tools (~15k), memory (~300), framing (~2k)
-    pct=$(( 20000 * 100 / max_context ))
-    pct_prefix="~"
+    used_tokens=20000
+    tok_prefix="~"
 fi
 
+[[ "$used_tokens" -gt "$max_context" ]] && used_tokens=$max_context
+pct=$(( used_tokens * 100 / max_context ))
 [[ $pct -gt 100 ]] && pct=100
+
+# Rough token count, rounded to the nearest 1k. The floor of a real session is
+# the system prompt plus tool definitions (~20k), so sub-1k display never happens.
+tok_display="$(( (used_tokens + 500) / 1000 ))k"
 
 bar=""
 for ((i=0; i<bar_width; i++)); do
@@ -267,7 +273,7 @@ if [[ $pct -ge 3 ]]; then
 else
     ctx_col="$C_GRAY"
 fi
-ctx="🪙 ${bar} ${C_GRAY} ${pct_prefix}${ctx_col}${pct}%${C_RESET} ⚡️ ${max_display}"
+ctx="🪙 ${bar} ${C_GRAY} ${tok_prefix}${ctx_col}${tok_display}${C_RESET} ⚡️ ${max_display}"
 
 # ── Usage stats via Anthropic OAuth API ──────────────────────────────────────
 get_oauth_creds() {
