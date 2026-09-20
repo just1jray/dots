@@ -253,6 +253,19 @@ test_resolving_managed_link_is_not_pruned() {
         "$OUTPUT" "skipped prune should be reported"
 }
 
+test_dry_run_reports_relink_failures() {
+    new_case dry-run-failure
+    ln -s "$CASE_ROOT/missing-claude" "$HOME/.claude"
+
+    run_update --dry-run --profile claude
+
+    assert_eq "1" "$UPDATE_STATUS" "dry run should exit nonzero when the real run would fail"
+    assert_contains "Dry run found 1 relink failure(s). No changes were made." "$OUTPUT" \
+        "dry run should summarise relink failures"
+    assert_eq "$CASE_ROOT/missing-claude" "$(readlink "$HOME/.claude")" \
+        "dry run must not modify anything"
+}
+
 tests=(
     test_unrelated_symlink_is_preserved
     test_old_checkout_is_detected_and_relinked
@@ -265,6 +278,7 @@ tests=(
     test_neovim_refresh_failure_is_aggregated
     test_legacy_checkout_without_lib_is_relinked
     test_resolving_managed_link_is_not_pruned
+    test_dry_run_reports_relink_failures
 )
 
 for test_name in "${tests[@]}"; do

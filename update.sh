@@ -677,6 +677,10 @@ main() {
 
     echo
     if [ "$DRY_RUN" = true ]; then
+        if [ "$RELINK_FAILURES" -gt 0 ]; then
+            log_error "Dry run found $RELINK_FAILURES relink failure(s). No changes were made."
+            return 1
+        fi
         log_success "Dry run finished. No changes were made."
         return 0
     fi

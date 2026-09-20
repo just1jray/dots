@@ -135,6 +135,11 @@ clone no longer has the file; it is reported instead.
 ./update.sh --profile full
 ```
 
+Exit status is `0` only when every step succeeded. A failed `git pull`, plugin
+refresh, or relink is reported at the end and exits `1`, but the remaining
+steps still run. `--dry-run` exits `1` when it finds a relink the real run
+could not perform.
+
 The `dots` shortcut jumps to the linked clone. It uses `~/Developer/src/dots` only when that clone cannot be detected. Override it with `DOTS_DIR`.
 
 ### 📋 What the Setup Script Does
