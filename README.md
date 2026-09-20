@@ -232,7 +232,7 @@ The setup script creates `~/.claude/` as a directory and symlinks individual ite
 
 ### 🖱️ Cursor CLI
 
-`cursor/cli-config.json` tracks portable Cursor CLI preferences, including `approvalMode` set to `auto-review`, plus editor, display, notifications, sandbox, and attribution. The setup script merges that file into `~/.cursor/cli-config.json` with `jq` (tracked keys win). Authentication, caches, and timestamps stay only in the live file and are not stored in this repo.
+`cursor/cli-config.json` tracks portable Cursor CLI preferences, including `approvalMode` set to `auto-review`, plus editor, display, notifications, sandbox, attribution, and a `statusLine` that reuses Claude Code's `~/.claude/scripts/context-bar.sh`. The setup script merges that file into `~/.cursor/cli-config.json` with `jq` (tracked keys win). Authentication, caches, and timestamps stay only in the live file and are not stored in this repo.
 
 The command allowlist (`permissions`) is deliberately **not** tracked. It is a shallow merge, so tracking it would wipe any commands allowlisted interactively in Cursor on the next setup run.
 

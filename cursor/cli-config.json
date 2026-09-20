@@ -23,5 +23,10 @@
   "attribution": {
     "attributeCommitsToAgent": true,
     "attributePRsToAgent": true
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "~/.claude/scripts/context-bar.sh",
+    "padding": 2
   }
 }
