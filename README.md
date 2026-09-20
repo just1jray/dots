@@ -117,6 +117,11 @@ From the clone, in any directory:
    links, are left alone and reported.
 3. Refreshes only the plugin managers the active profile uses
 
+Update removes a symlink only when it is dangling *and* points into a `dots`
+checkout at a path this repo used to ship (for example a command deleted from
+`llm/commands`). A link that still resolves is never removed, even if this
+clone no longer has the file; it is reported instead.
+
 | Profile | Plugin managers |
 | --- | --- |
 | `minimal` | Zinit |

@@ -386,6 +386,10 @@ prune_stale_link() {
     if ! checkout_root_for_link "$target_path" "$rel" >/dev/null; then
         return 0
     fi
+    if [ -e "$target_path" ]; then
+        log_warning "Leaving managed symlink whose source is missing from this clone: $target_path"
+        return 0
+    fi
 
     LINK_CHANGES=$((LINK_CHANGES + 1))
     if [ "$DRY_RUN" = true ]; then

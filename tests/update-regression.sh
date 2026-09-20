@@ -192,7 +192,6 @@ test_stale_managed_child_is_pruned() {
     local old_root="$CASE_ROOT/old-dots"
     make_old_checkout "$old_root"
     mkdir -p "$old_root/llm/commands" "$HOME/.claude/commands"
-    : >"$old_root/llm/commands/removed.md"
     ln -s "$old_root/llm/commands/removed.md" "$HOME/.claude/commands/removed.md"
 
     run_update --profile claude
@@ -235,6 +234,25 @@ test_legacy_checkout_without_lib_is_relinked() {
         "legacy vimrc link should point to the current clone"
 }
 
+test_resolving_managed_link_is_not_pruned() {
+    new_case resolving-managed
+    local old_root="$CASE_ROOT/old-dots"
+    make_old_checkout "$old_root"
+    mkdir -p "$old_root/llm/commands" "$HOME/.claude/commands"
+    : >"$old_root/llm/commands/local-only.md"
+    ln -s "$old_root/llm/commands/local-only.md" "$HOME/.claude/commands/local-only.md"
+
+    run_update --profile claude
+
+    assert_eq "0" "$UPDATE_STATUS" "a resolving managed link should not fail the update"
+    assert_eq "$old_root/llm/commands/local-only.md" \
+        "$(readlink "$HOME/.claude/commands/local-only.md")" \
+        "managed link with an intact target must not be pruned"
+    assert_contains \
+        "Leaving managed symlink whose source is missing from this clone: $HOME/.claude/commands/local-only.md" \
+        "$OUTPUT" "skipped prune should be reported"
+}
+
 tests=(
     test_unrelated_symlink_is_preserved
     test_old_checkout_is_detected_and_relinked
@@ -246,6 +264,7 @@ tests=(
     test_stale_managed_child_is_pruned
     test_neovim_refresh_failure_is_aggregated
     test_legacy_checkout_without_lib_is_relinked
+    test_resolving_managed_link_is_not_pruned
 )
 
 for test_name in "${tests[@]}"; do
