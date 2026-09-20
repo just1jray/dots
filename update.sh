@@ -288,12 +288,32 @@ collect_links() {
 }
 
 # ~/.claude/skills and commands are real directories of per-item symlinks.
+# $2 is the repo-relative path a managed directory symlink would point at
+# (llm/skills or llm/commands). Such a link is the pre-real-directory layout
+# and is converted, exactly as setup.sh does. Any other directory symlink is
+# left alone and nothing is linked through it.
+# Returns 0 when the directory is ready, 2 when it must be skipped without
+# counting as a failure, 1 on failure.
 prepare_real_dir() {
     local dir="$1"
+    local rel="${2:-}"
     if [ -L "$dir" ]; then
-        if [ -d "$dir" ]; then
-            log_warning "Using user-managed directory symlink: $dir"
+        if [ -n "$rel" ] && checkout_root_for_link "$dir" "$rel" >/dev/null; then
+            LINK_CHANGES=$((LINK_CHANGES + 1))
+            if [ "$DRY_RUN" = true ]; then
+                log_info "Would replace managed directory symlink with a real directory: $dir"
+                return 0
+            fi
+            if ! rm -f "$dir" || ! mkdir -p "$dir"; then
+                log_error "Failed to replace managed directory symlink: $dir"
+                return 1
+            fi
+            log_success "Replaced managed directory symlink with a real directory: $dir"
             return 0
+        fi
+        if [ -d "$dir" ]; then
+            log_warning "Leaving unrelated directory symlink in place; not linking into it: $dir"
+            return 2
         fi
         log_error "Cannot use dangling directory symlink: $dir"
         return 1
@@ -324,7 +344,7 @@ prepare_claude_home() {
         log_warning "Using user-managed directory symlink: $dir"
         return 0
     fi
-    prepare_real_dir "$dir"
+    prepare_real_dir "$dir" ""
 }
 
 ensure_link() {
@@ -440,7 +460,7 @@ prune_stale_children() {
 }
 
 relink_configs() {
-    local pair source_path target_path rel managed
+    local pair source_path target_path rel managed status
     local skills_src commands_src
     local claude_home_ready=true
     local skills_ready=true
@@ -456,13 +476,17 @@ relink_configs() {
             claude_home_ready=false
         fi
         if [ "$claude_home_ready" = true ]; then
-            if ! prepare_real_dir "$HOME/.claude/skills"; then
-                RELINK_FAILURES=$((RELINK_FAILURES + 1))
+            status=0
+            prepare_real_dir "$HOME/.claude/skills" "llm/skills" || status=$?
+            if [ "$status" -ne 0 ]; then
                 skills_ready=false
+                [ "$status" -eq 2 ] || RELINK_FAILURES=$((RELINK_FAILURES + 1))
             fi
-            if ! prepare_real_dir "$HOME/.claude/commands"; then
-                RELINK_FAILURES=$((RELINK_FAILURES + 1))
+            status=0
+            prepare_real_dir "$HOME/.claude/commands" "llm/commands" || status=$?
+            if [ "$status" -ne 0 ]; then
                 commands_ready=false
+                [ "$status" -eq 2 ] || RELINK_FAILURES=$((RELINK_FAILURES + 1))
             fi
             if [ "$skills_ready" = true ]; then
                 add_child_links "$skills_src" "$HOME/.claude/skills"

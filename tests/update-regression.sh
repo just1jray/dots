@@ -266,6 +266,41 @@ test_dry_run_reports_relink_failures() {
         "dry run must not modify anything"
 }
 
+test_managed_skills_symlink_becomes_real_dir() {
+    new_case managed-skills-link
+    local old_root="$CASE_ROOT/old-dots"
+    make_old_checkout "$old_root"
+    mkdir -p "$old_root/llm/skills" "$HOME/.claude"
+    ln -s "$old_root/llm/skills" "$HOME/.claude/skills"
+
+    run_update --profile claude
+
+    assert_eq "0" "$UPDATE_STATUS" "managed skills symlink should convert cleanly"
+    if [ -L "$HOME/.claude/skills" ] || [ ! -d "$HOME/.claude/skills" ]; then
+        fail "skills should become a real directory"
+    fi
+    [ -n "$(ls -A "$HOME/.claude/skills")" ] || fail "skills should be linked into the new directory"
+    [ -z "$(ls -A "$old_root/llm/skills")" ] || fail "nothing may be written into the old checkout"
+    assert_contains "Replaced managed directory symlink with a real directory: $HOME/.claude/skills" \
+        "$OUTPUT" "conversion should be reported"
+}
+
+test_unrelated_skills_symlink_is_not_written_into() {
+    new_case unrelated-skills-link
+    mkdir -p "$CASE_ROOT/other-tool/skills" "$HOME/.claude"
+    ln -s "$CASE_ROOT/other-tool/skills" "$HOME/.claude/skills"
+
+    run_update --profile claude
+
+    assert_eq "0" "$UPDATE_STATUS" "unrelated skills symlink should be a warning, not a failure"
+    assert_eq "$CASE_ROOT/other-tool/skills" "$(readlink "$HOME/.claude/skills")" \
+        "unrelated skills symlink should remain unchanged"
+    [ -z "$(ls -A "$CASE_ROOT/other-tool/skills")" ] || \
+        fail "nothing may be written through an unrelated directory symlink"
+    assert_contains "Leaving unrelated directory symlink in place; not linking into it: $HOME/.claude/skills" \
+        "$OUTPUT" "skip should be reported"
+}
+
 tests=(
     test_unrelated_symlink_is_preserved
     test_old_checkout_is_detected_and_relinked
@@ -279,6 +314,8 @@ tests=(
     test_legacy_checkout_without_lib_is_relinked
     test_resolving_managed_link_is_not_pruned
     test_dry_run_reports_relink_failures
+    test_managed_skills_symlink_becomes_real_dir
+    test_unrelated_skills_symlink_is_not_written_into
 )
 
 for test_name in "${tests[@]}"; do
