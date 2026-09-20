@@ -33,6 +33,7 @@ assert_contains() {
 
 new_case() {
     local name=$1
+    local tool
     CASE_ROOT="$TEST_ROOT/$name"
     HOME="$CASE_ROOT/home"
     FAKE_BIN="$CASE_ROOT/bin"
@@ -41,11 +42,12 @@ new_case() {
     export HOME
     PATH="$FAKE_BIN:$ORIGINAL_PATH"
     export PATH
-    cat >"$FAKE_BIN/git" <<'EOF'
-#!/usr/bin/env bash
-exit 0
-EOF
-    chmod +x "$FAKE_BIN/git"
+    # The suite must never reach the real plugin managers or the network.
+    unset ZINIT_HOME
+    for tool in git nvim tmux zsh; do
+        printf '#!/bin/bash\nexit 0\n' >"$FAKE_BIN/$tool"
+        chmod +x "$FAKE_BIN/$tool"
+    done
 }
 
 make_old_checkout() {
@@ -193,6 +195,19 @@ test_stale_managed_child_is_pruned() {
         "managed stale-link pruning should be reported"
 }
 
+test_neovim_refresh_failure_is_aggregated() {
+    new_case nvim-failure
+    printf '#!/bin/bash\nexit 1\n' >"$FAKE_BIN/nvim"
+    chmod +x "$FAKE_BIN/nvim"
+
+    run_update --profile full
+
+    assert_eq "1" "$UPDATE_STATUS" "a Neovim refresh failure should produce final nonzero status"
+    assert_contains "Neovim plugin refresh failed." "$OUTPUT" "Neovim failure should be reported"
+    assert_contains "1 plugin refresh failure(s)" "$OUTPUT" \
+        "refresh failure count should reach final summary"
+}
+
 tests=(
     test_unrelated_symlink_is_preserved
     test_old_checkout_is_detected_and_relinked
@@ -202,6 +217,7 @@ tests=(
     test_btop_old_checkout_is_detected_and_relinked
     test_relink_failures_are_aggregated
     test_stale_managed_child_is_pruned
+    test_neovim_refresh_failure_is_aggregated
 )
 
 for test_name in "${tests[@]}"; do
