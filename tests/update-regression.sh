@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 ORIGINAL_PATH=$PATH
 TEST_ROOT=$(mktemp -d)
 trap 'rm -rf "$TEST_ROOT"' EXIT
@@ -327,6 +327,20 @@ test_tpm_refresh_skips_without_tmux() {
     [ ! -e "$CASE_ROOT/updater-ran" ] || fail "TPM updater must not run without tmux"
 }
 
+test_setup_through_symlinked_clone_needs_no_relink() {
+    new_case symlinked-clone
+    ln -s "$REPO_ROOT" "$CASE_ROOT/clone"
+    (cd "$CASE_ROOT/clone" && ./setup.sh --profile minimal --skip-plugins --yes \
+        >"$CASE_ROOT/setup-output" 2>&1) \
+        || fail "setup.sh through a symlinked clone should succeed"
+
+    run_update --dry-run
+
+    assert_eq "0" "$UPDATE_STATUS" "dry run after setup should succeed"
+    assert_contains "Config links already point at this clone." "$OUTPUT" \
+        "setup and update must agree on the clone path"
+}
+
 tests=(
     test_unrelated_symlink_is_preserved
     test_old_checkout_is_detected_and_relinked
@@ -343,6 +357,7 @@ tests=(
     test_managed_skills_symlink_becomes_real_dir
     test_unrelated_skills_symlink_is_not_written_into
     test_tpm_refresh_skips_without_tmux
+    test_setup_through_symlinked_clone_needs_no_relink
 )
 
 for test_name in "${tests[@]}"; do
