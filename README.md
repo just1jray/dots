@@ -110,7 +110,9 @@ From the clone, in any directory:
 `./update.sh`:
 
 1. `git pull --ff-only` in the clone that contains the script
-2. Recreates symlinks that are missing, broken, or point somewhere else. Existing regular files are left alone.
+2. Recreates missing symlinks and relinks links proven to belong to this or
+   another valid `dots` checkout. Existing files and unrelated symlinks,
+   including ambiguous dangling links, are left alone and reported.
 3. Refreshes only the plugin managers the active profile uses
 
 | Profile | Plugin managers |

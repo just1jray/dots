@@ -438,6 +438,7 @@ link_config_files() {
             "starship/starship.toml|$HOME/.config/starship.toml"
             "git/gitconfig|$HOME/.gitconfig"
             "git/gitignore_global|$HOME/.gitignore_global"
+            "lib/dots-root.sh|$HOME/.config/zsh/dots-root.sh"
         )
 
         # Add optional zsh files if they exist

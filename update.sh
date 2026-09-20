@@ -27,6 +27,7 @@ PROFILES=()
 PROFILE_FROM_FLAG=false
 LINK_CHANGES=0
 REFRESH_FAILURES=0
+RELINK_FAILURES=0
 PULL_FAILED=false
 
 log_info() {
@@ -112,28 +113,42 @@ profile_active() {
     return 1
 }
 
-# True when $1 is a symlink to this clone's $2, or a broken link that used
-# to point at that repo-relative path (the clone was moved).
-points_at_rel() {
+# Print the validated checkout root when $1 links to its repo-relative $2.
+# A matching suffix is not enough: unrelated and ambiguous dangling links
+# must never be treated as dotfiles managed by this script.
+checkout_root_for_link() {
     local path="$1"
     local rel="$2"
-    local target
+    local target candidate remainder
     if [ ! -L "$path" ]; then
         return 1
     fi
     target=$(readlink "$path") || return 1
-    if [ "$target" = "$ROOT/$rel" ]; then
+    case "$target" in
+        /*) ;;
+        *) target="$(dirname "$path")/$target" ;;
+    esac
+
+    candidate="$target"
+    remainder="$rel"
+    while [ -n "$remainder" ]; do
+        candidate=$(dirname "$candidate")
+        case "$remainder" in
+            */*) remainder="${remainder#*/}" ;;
+            *) remainder="" ;;
+        esac
+    done
+
+    [ "$target" = "$candidate/$rel" ] || return 1
+    if [ "$candidate" = "$ROOT" ] || _dots_root_is_clone "$candidate"; then
+        printf '%s\n' "$candidate"
         return 0
     fi
-    case "$target" in
-        */"$rel")
-            if [ -e "$path" ]; then
-                return 1
-            fi
-            return 0
-            ;;
-    esac
     return 1
+}
+
+points_at_rel() {
+    checkout_root_for_link "$1" "$2" >/dev/null
 }
 
 detect_profiles() {
@@ -144,7 +159,10 @@ detect_profiles() {
     if points_at_rel "$HOME/.vimrc" "vim/vimrc" \
         || points_at_rel "$HOME/.tmux.conf" "tmux/tmux.conf" \
         || points_at_rel "$HOME/.config/nvim" "nvim" \
-        || points_at_rel "$HOME/.config/opencode/opencode.json" "opencode/opencode.json"; then
+        || points_at_rel "$HOME/.config/opencode/opencode.json" "opencode/opencode.json" \
+        || points_at_rel "$HOME/.config/btop/btop.conf" "btop/btop.conf" \
+        || points_at_rel "$HOME/.config/btop/themes/catppuccin_mocha.theme" \
+            "btop/themes/catppuccin_mocha.theme"; then
         found_full=true
     fi
 
@@ -219,13 +237,15 @@ add_link() {
     local rel="$1"
     local dest="$2"
     local source_path="$ROOT/$rel"
+    MANAGED_LINKS+=("${rel}|${dest}")
     if [ -e "$source_path" ]; then
-        LINK_PAIRS+=("${source_path}|${dest}")
+        LINK_PAIRS+=("${source_path}|${dest}|${rel}")
     fi
 }
 
 collect_links() {
     LINK_PAIRS=()
+    MANAGED_LINKS=()
 
     if profile_active "minimal"; then
         add_link "zsh/zshrc" "$HOME/.zshrc"
@@ -238,6 +258,7 @@ collect_links() {
         add_link "zsh/profile-macos" "$HOME/.config/zsh/profile-macos"
         add_link "zsh/profile-linux" "$HOME/.config/zsh/profile-linux"
         add_link "zsh/profile-work" "$HOME/.config/zsh/profile-work"
+        add_link "lib/dots-root.sh" "$HOME/.config/zsh/dots-root.sh"
         add_link "ghostty" "$HOME/.config/ghostty"
     fi
 
@@ -246,6 +267,9 @@ collect_links() {
         add_link "tmux/tmux.conf" "$HOME/.tmux.conf"
         add_link "opencode/opencode.json" "$HOME/.config/opencode/opencode.json"
         add_link "nvim" "$HOME/.config/nvim"
+        add_link "btop/btop.conf" "$HOME/.config/btop/btop.conf"
+        add_link "btop/themes/catppuccin_mocha.theme" \
+            "$HOME/.config/btop/themes/catppuccin_mocha.theme"
     fi
 
     if profile_active "claude"; then
@@ -259,15 +283,12 @@ collect_links() {
 prepare_real_dir() {
     local dir="$1"
     if [ -L "$dir" ]; then
-        LINK_CHANGES=$((LINK_CHANGES + 1))
-        if [ "$DRY_RUN" = true ]; then
-            log_info "Would replace symlink with directory: $dir"
+        if [ -d "$dir" ]; then
+            log_warning "Using user-managed directory symlink: $dir"
             return 0
         fi
-        rm -f "$dir"
-        mkdir -p "$dir"
-        log_info "Replaced symlink with directory: $dir"
-        return 0
+        log_error "Cannot use dangling directory symlink: $dir"
+        return 1
     fi
     if [ ! -d "$dir" ]; then
         LINK_CHANGES=$((LINK_CHANGES + 1))
@@ -275,7 +296,10 @@ prepare_real_dir() {
             log_info "Would create directory: $dir"
             return 0
         fi
-        mkdir -p "$dir"
+        if ! mkdir -p "$dir"; then
+            log_error "Failed to create directory: $dir"
+            return 1
+        fi
         log_success "Created directory: $dir"
     fi
 }
@@ -285,10 +309,11 @@ prepare_real_dir() {
 prepare_claude_home() {
     local dir="$1"
     if [ -L "$dir" ]; then
-        log_warning "Leaving user-managed symlink in place: $dir"
         if [ ! -d "$dir" ]; then
-            log_warning "Symlink does not resolve to a directory: $dir"
+            log_error "Cannot relink Claude config through dangling symlink: $dir"
+            return 1
         fi
+        log_warning "Using user-managed directory symlink: $dir"
         return 0
     fi
     prepare_real_dir "$dir"
@@ -297,6 +322,7 @@ prepare_claude_home() {
 ensure_link() {
     local source_path="$1"
     local target_path="$2"
+    local rel="$3"
     local current parent
 
     if [ -L "$target_path" ]; then
@@ -304,12 +330,19 @@ ensure_link() {
         if [ "$current" = "$source_path" ] && [ -e "$target_path" ]; then
             return 0
         fi
+        if ! checkout_root_for_link "$target_path" "$rel" >/dev/null; then
+            log_warning "Leaving unrelated symlink in place: $target_path"
+            return 0
+        fi
         LINK_CHANGES=$((LINK_CHANGES + 1))
         if [ "$DRY_RUN" = true ]; then
             log_info "Would relink: $source_path -> $target_path"
             return 0
         fi
-        rm -f "$target_path"
+        if ! rm -f "$target_path"; then
+            log_error "Failed to remove stale link: $target_path"
+            return 1
+        fi
     elif [ -e "$target_path" ]; then
         log_warning "Leaving existing non-symlink in place: $target_path"
         return 0
@@ -323,9 +356,12 @@ ensure_link() {
 
     parent=$(dirname "$target_path")
     if [ ! -d "$parent" ]; then
-        mkdir -p "$parent"
+        if ! mkdir -p "$parent"; then
+            log_error "Failed to create parent directory: $parent"
+            return 1
+        fi
     fi
-    if ln -sf "$source_path" "$target_path"; then
+    if ln -s "$source_path" "$target_path"; then
         log_success "Linked: $source_path -> $target_path"
     else
         log_error "Failed to link: $source_path -> $target_path"
@@ -333,10 +369,33 @@ ensure_link() {
     fi
 }
 
+prune_stale_link() {
+    local rel="$1"
+    local target_path="$2"
+
+    [ -e "$ROOT/$rel" ] && return 0
+    [ -L "$target_path" ] || return 0
+    if ! checkout_root_for_link "$target_path" "$rel" >/dev/null; then
+        return 0
+    fi
+
+    LINK_CHANGES=$((LINK_CHANGES + 1))
+    if [ "$DRY_RUN" = true ]; then
+        log_info "Would prune stale managed symlink: $target_path"
+        return 0
+    fi
+    if rm -f "$target_path"; then
+        log_info "Pruned stale managed symlink: $target_path"
+        return 0
+    fi
+    log_error "Failed to prune stale managed symlink: $target_path"
+    return 1
+}
+
 add_child_links() {
     local source_dir="$1"
     local dest_dir="$2"
-    local child name
+    local child name rel
     if [ ! -d "$source_dir" ]; then
         return 0
     fi
@@ -345,36 +404,85 @@ add_child_links() {
             continue
         fi
         name=$(basename "$child")
-        LINK_PAIRS+=("${child}|${dest_dir}/${name}")
+        rel="${source_dir#"$ROOT/"}"
+        LINK_PAIRS+=("${child}|${dest_dir}/${name}|${rel}/${name}")
+    done
+}
+
+prune_stale_children() {
+    local source_dir="$1"
+    local dest_dir="$2"
+    local rel_prefix="$3"
+    local target_path name
+
+    [ -d "$dest_dir" ] || return 0
+    for target_path in "$dest_dir"/*; do
+        [ -L "$target_path" ] || continue
+        name=$(basename "$target_path")
+        if [ ! -e "$source_dir/$name" ]; then
+            if ! prune_stale_link "$rel_prefix/$name" "$target_path"; then
+                RELINK_FAILURES=$((RELINK_FAILURES + 1))
+            fi
+        fi
     done
 }
 
 relink_configs() {
-    local pair source_path target_path
+    local pair source_path target_path rel managed
     local skills_src commands_src
+    local claude_home_ready=true
+    local skills_ready=true
+    local commands_ready=true
 
     collect_links
 
     if profile_active "claude"; then
-        prepare_claude_home "$HOME/.claude"
-        prepare_real_dir "$HOME/.claude/skills"
-        prepare_real_dir "$HOME/.claude/commands"
         skills_src="$ROOT/llm/skills"
         commands_src="$ROOT/llm/commands"
-        add_child_links "$skills_src" "$HOME/.claude/skills"
-        add_child_links "$commands_src" "$HOME/.claude/commands"
+        if ! prepare_claude_home "$HOME/.claude"; then
+            RELINK_FAILURES=$((RELINK_FAILURES + 1))
+            claude_home_ready=false
+        fi
+        if [ "$claude_home_ready" = true ]; then
+            if ! prepare_real_dir "$HOME/.claude/skills"; then
+                RELINK_FAILURES=$((RELINK_FAILURES + 1))
+                skills_ready=false
+            fi
+            if ! prepare_real_dir "$HOME/.claude/commands"; then
+                RELINK_FAILURES=$((RELINK_FAILURES + 1))
+                commands_ready=false
+            fi
+            if [ "$skills_ready" = true ]; then
+                add_child_links "$skills_src" "$HOME/.claude/skills"
+                prune_stale_children "$skills_src" "$HOME/.claude/skills" "llm/skills"
+            fi
+            if [ "$commands_ready" = true ]; then
+                add_child_links "$commands_src" "$HOME/.claude/commands"
+                prune_stale_children "$commands_src" "$HOME/.claude/commands" "llm/commands"
+            fi
+        fi
     fi
 
     if [ ${#LINK_PAIRS[@]} -eq 0 ]; then
         log_info "No config files to link for this profile."
-        return 0
     fi
 
     for pair in "${LINK_PAIRS[@]}"; do
-        source_path="${pair%%|*}"
-        target_path="${pair#*|}"
-        if ! ensure_link "$source_path" "$target_path"; then
-            return 1
+        IFS='|' read -r source_path target_path rel <<<"$pair"
+        if [ "$claude_home_ready" = false ]; then
+            case "$target_path" in
+                "$HOME/.claude"/*) continue ;;
+            esac
+        fi
+        if ! ensure_link "$source_path" "$target_path" "$rel"; then
+            RELINK_FAILURES=$((RELINK_FAILURES + 1))
+        fi
+    done
+
+    for managed in "${MANAGED_LINKS[@]}"; do
+        IFS='|' read -r rel target_path <<<"$managed"
+        if ! prune_stale_link "$rel" "$target_path"; then
+            RELINK_FAILURES=$((RELINK_FAILURES + 1))
         fi
     done
 
@@ -570,6 +678,12 @@ main() {
             failures="$failures, "
         fi
         failures="${failures}${REFRESH_FAILURES} plugin refresh failure(s)"
+    fi
+    if [ "$RELINK_FAILURES" -gt 0 ]; then
+        if [ -n "$failures" ]; then
+            failures="$failures, "
+        fi
+        failures="${failures}${RELINK_FAILURES} relink failure(s)"
     fi
 
     if [ -n "$failures" ]; then
