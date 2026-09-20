@@ -171,12 +171,28 @@ test_starship_installer_failure_is_reported() {
         "final summary should be explicit"
 }
 
+test_darwin_brew_install_failure_returns_nonzero() {
+    new_case darwin-brew-fails
+    write_fake uname 'printf "%s\n" Darwin'
+    write_fake brew 'printf "brew %s\n" "$*" >>"$TOOL_LOG"' 'exit 1'
+
+    run_setup --profile minimal --skip-plugins
+
+    assert_eq "1" "$SETUP_STATUS" "a failed brew install is a required-package failure, like apt"
+    assert_contains "brew install zsh git starship" "$TOOL_LOG" \
+        "brew should be asked for the profile packages"
+    assert_contains "Required package installation failed" "$OUTPUT" \
+        "final summary should be explicit"
+    assert_not_contains "Setup completed successfully!" "$OUTPUT" "setup must not print success"
+}
+
 tests=(
     test_font_counter_survives_set_e
     test_root_apt_does_not_use_sudo
     test_partial_apt_failure_returns_nonzero
     test_starship_missing_from_apt_uses_official_installer
     test_starship_installer_failure_is_reported
+    test_darwin_brew_install_failure_returns_nonzero
 )
 
 for test_name in "${tests[@]}"; do

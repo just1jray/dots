@@ -906,12 +906,18 @@ install_font() {
 }
 
 # Homebrew binary for this OS. Does not run brew.
-# Darwin: Apple Silicon, then Intel. Linux: Linuxbrew prefixes, then PATH.
+# PATH first, then Darwin: Apple Silicon, Intel; Linux: Linuxbrew prefixes.
 find_brew() {
     local candidate
     local os
-    os=$(uname)
 
+    # The brew on PATH is the one this shell already uses; honour it first.
+    if command -v brew >/dev/null 2>&1; then
+        command -v brew
+        return 0
+    fi
+
+    os=$(uname)
     if [ "$os" = "Darwin" ]; then
         for candidate in /opt/homebrew/bin/brew /usr/local/bin/brew; do
             if [ -x "$candidate" ]; then
@@ -926,11 +932,6 @@ find_brew() {
                 return 0
             fi
         done
-    fi
-
-    if command -v brew >/dev/null 2>&1; then
-        command -v brew
-        return 0
     fi
     return 1
 }
@@ -968,11 +969,11 @@ install_with_brew() {
     fi
 
     log_info "Installing with Homebrew: $*"
-    if "$brew_bin" install "$@"; then
-        log_success "Homebrew packages installed: $*"
-    else
-        log_warning "brew install failed for: $*. Setup will continue."
+    if ! "$brew_bin" install "$@"; then
+        log_error "brew install failed for required packages: $*"
+        return 1
     fi
+    log_success "Homebrew packages installed: $*"
 }
 
 # Report how to get a package neither apt nor a known installer provides.
@@ -1131,14 +1132,14 @@ install_profile_packages() {
 
     if [ "$os" = "Darwin" ]; then
         install_with_brew "${packages[@]}"
-        return 0
+        return $?
     fi
 
     if [ "$os" = "Linux" ]; then
         if [ "$INSTALL_BREW" = true ]; then
             log_info "Using Linuxbrew because --brew was given."
             install_with_brew "${packages[@]}"
-            return 0
+            return $?
         fi
         if command_exists apt-get; then
             install_with_apt "${packages[@]}"
