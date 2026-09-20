@@ -102,6 +102,15 @@ elif [[ $(uname) == "Linux" ]]; then
 fi
 
 # fzf
+# LS_PREVIEW comes from aliases. Fallback must not pass GNU-only flags on Darwin.
+if [[ -z "${LS_PREVIEW-}" ]]; then
+    if [[ "$(uname)" == "Darwin" ]]; then
+        LS_PREVIEW="CLICOLOR_FORCE=1 ls -G"
+    else
+        LS_PREVIEW="ls --color"
+    fi
+fi
+
 if command -v fzf &> /dev/null; then
     # Initialize fzf with error handling
     if ! eval "$(fzf --zsh 2>/dev/null)"; then
@@ -117,7 +126,8 @@ if command -v fzf &> /dev/null; then
 
         # Configure fzf-tab with Catppuccin colors
         zstyle ':fzf-tab:*' fzf-flags --height=80% --color=bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8 --color=fg:#cdd6f4,header:#f38ba8,info:#cba6f7,pointer:#f5e0dc --color=marker:#f5e0dc,fg+:#cdd6f4,prompt:#cba6f7,hl+:#f38ba8
-        zstyle ':fzf-tab:complete:cd:*' fzf-preview 'ls --color $realpath'
+        # shellcheck disable=SC2016  # $realpath is expanded later by fzf-tab
+        zstyle ':fzf-tab:complete:cd:*' fzf-preview "${LS_PREVIEW} \$realpath"
     fi
 fi
 
@@ -126,7 +136,8 @@ if command -v zoxide &> /dev/null && ! typeset -f __zoxide_z &> /dev/null; then
     if ! eval "$(zoxide init --cmd cd zsh 2>/dev/null)"; then
         echo "Warning: Failed to initialize zoxide" >&2
     else
-        zstyle ':fzf-tab:complete:__zoxide_z:*' fzf-preview 'ls --color $realpath'
+        # shellcheck disable=SC2016  # $realpath is expanded later by fzf-tab
+        zstyle ':fzf-tab:complete:__zoxide_z:*' fzf-preview "${LS_PREVIEW} \$realpath"
     fi
 fi
 

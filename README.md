@@ -87,13 +87,14 @@ Options:
   -s, --skip-plugins      Skip plugin installation
   -c, --check-nvchad      Check NVChad installation status
   -i, --install-font      Install JetBrains Mono Nerd Font
+  -y, --yes               Continue when commands are missing (no prompt)
   -b, --brew              Install Homebrew packages from Brewfile (macOS)
   -p, --profile <name>    Install a specific profile (repeatable, stackable)
 
 Profiles:
-  minimal   Shell essentials: zsh, starship, git, ghostty
+  minimal   Shell essentials: zsh, starship, git, ghostty (default)
   claude    AI tools: Claude Code config, llm skills/commands
-  full      Everything (default if no --profile given)
+  full      Everything: minimal plus vim, tmux, Neovim, opencode
 ```
 
 ### 📋 What the Setup Script Does
