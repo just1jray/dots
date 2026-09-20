@@ -311,11 +311,21 @@ install_tmux_plugins() {
     # tmux.conf is the only plugin list. Keeping one source of truth means
     # navigator, yank, Catppuccin Mocha, and future additions cannot be missed.
     if [ "$DRY_RUN" = false ] && [ -f "$TMUX_PLUGINS_DIR/tpm/bin/install_plugins" ]; then
-        log_info "Installing tmux plugins via TPM..."
-        if "$TMUX_PLUGINS_DIR/tpm/bin/install_plugins" > /dev/null 2>&1; then
-            log_success "Tmux plugins installed successfully"
+        if ! command_exists tmux; then
+            log_warning "tmux is not installed; TPM plugins install on first tmux start with prefix + I."
+        elif [ ! -e "$HOME/.tmux.conf" ]; then
+            log_warning "$HOME/.tmux.conf is not linked; skipping TPM plugin install."
         else
-            log_warning "TPM plugin installation completed with some warnings"
+            log_info "Installing tmux plugins via TPM..."
+            local tpm_output
+            tpm_output=$(mktemp)
+            if "$TMUX_PLUGINS_DIR/tpm/bin/install_plugins" >"$tpm_output" 2>&1; then
+                log_success "Tmux plugins installed successfully"
+            else
+                log_warning "TPM plugin installation reported errors:"
+                cat "$tpm_output"
+            fi
+            rm -f "$tpm_output"
         fi
     fi
 
@@ -1258,10 +1268,11 @@ main() {
     fi
     check_requirements
     create_directories
-    install_plugins
     install_font
     link_config_files
     install_gitconfig_local
+    # After linking: TPM reads its @plugin list from ~/.tmux.conf.
+    install_plugins
 
     if profile_active "full"; then
         install_nvchad

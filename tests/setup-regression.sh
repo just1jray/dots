@@ -186,6 +186,34 @@ test_darwin_brew_install_failure_returns_nonzero() {
     assert_not_contains "Setup completed successfully!" "$OUTPUT" "setup must not print success"
 }
 
+test_tpm_installs_after_tmux_conf_is_linked() {
+    new_case tpm-order
+    cat >"$CASE_ROOT/fake-install-plugins" <<'EOF'
+#!/usr/bin/env bash
+if [ ! -L "$HOME/.tmux.conf" ]; then
+    echo "FATAL: Tmux Plugin Manager not configured in tmux.conf"
+    exit 1
+fi
+printf 'tpm install_plugins\n' >>"$TOOL_LOG"
+EOF
+    write_fake git \
+        'if [ "$1" = clone ]; then' \
+        '    mkdir -p "${@: -1}/bin"' \
+        "    cp \"$CASE_ROOT/fake-install-plugins\" \"\${@: -1}/bin/install_plugins\"" \
+        '    chmod +x "${@: -1}/bin/install_plugins"' \
+        'fi' \
+        'exit 0'
+
+    run_setup --profile full
+
+    assert_eq "0" "$SETUP_STATUS" "full setup should succeed"
+    assert_contains "Tmux plugins installed successfully" "$OUTPUT" \
+        "TPM must run after ~/.tmux.conf is linked"
+    assert_contains "tpm install_plugins" "$TOOL_LOG" "the TPM installer should have run"
+    assert_not_contains "FATAL: Tmux Plugin Manager not configured" "$OUTPUT" \
+        "TPM must not see a missing tmux.conf"
+}
+
 tests=(
     test_font_counter_survives_set_e
     test_root_apt_does_not_use_sudo
@@ -193,6 +221,7 @@ tests=(
     test_starship_missing_from_apt_uses_official_installer
     test_starship_installer_failure_is_reported
     test_darwin_brew_install_failure_returns_nonzero
+    test_tpm_installs_after_tmux_conf_is_linked
 )
 
 for test_name in "${tests[@]}"; do
