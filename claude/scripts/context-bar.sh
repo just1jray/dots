@@ -248,14 +248,9 @@ fi
 pct=$(( used_tokens * 100 / max_context ))
 [[ $pct -gt 100 ]] && pct=100
 
-# Rough, readable token count: 87k above 10k, 8.5k below, raw under 1k
-if [[ "$used_tokens" -ge 10000 ]]; then
-    tok_display="$(( (used_tokens + 500) / 1000 ))k"
-elif [[ "$used_tokens" -ge 1000 ]]; then
-    tok_display=$(awk "BEGIN {printf \"%.1fk\", $used_tokens / 1000}")
-else
-    tok_display="$used_tokens"
-fi
+# Rough token count, rounded to the nearest 1k. The floor of a real session is
+# the system prompt plus tool definitions (~20k), so sub-1k display never happens.
+tok_display="$(( (used_tokens + 500) / 1000 ))k"
 
 bar=""
 for ((i=0; i<bar_width; i++)); do
