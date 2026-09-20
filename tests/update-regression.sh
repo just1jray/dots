@@ -60,6 +60,15 @@ make_old_checkout() {
     : >"$root/btop/themes/catppuccin_mocha.theme"
 }
 
+# A checkout cloned before lib/dots-root.sh existed.
+make_legacy_checkout() {
+    local root=$1
+    mkdir -p "$root/zsh" "$root/vim"
+    : >"$root/setup.sh"
+    : >"$root/zsh/zshrc"
+    : >"$root/vim/vimrc"
+}
+
 run_update() {
     set +e
     "$REPO_ROOT/update.sh" "$@" >"$OUTPUT" 2>&1
@@ -208,6 +217,24 @@ test_neovim_refresh_failure_is_aggregated() {
         "refresh failure count should reach final summary"
 }
 
+test_legacy_checkout_without_lib_is_relinked() {
+    new_case legacy-checkout
+    local old_root="$CASE_ROOT/legacy-dots"
+    make_legacy_checkout "$old_root"
+    ln -s "$old_root/zsh/zshrc" "$HOME/.zshrc"
+    ln -s "$old_root/vim/vimrc" "$HOME/.vimrc"
+
+    run_update
+
+    assert_eq "0" "$UPDATE_STATUS" "legacy checkout should relink cleanly"
+    assert_contains "Active profiles: full" "$OUTPUT" \
+        "vimrc from a legacy checkout should identify the full profile"
+    assert_eq "$REPO_ROOT/zsh/zshrc" "$(readlink "$HOME/.zshrc")" \
+        "legacy zshrc link should point to the current clone"
+    assert_eq "$REPO_ROOT/vim/vimrc" "$(readlink "$HOME/.vimrc")" \
+        "legacy vimrc link should point to the current clone"
+}
+
 tests=(
     test_unrelated_symlink_is_preserved
     test_old_checkout_is_detected_and_relinked
@@ -218,6 +245,7 @@ tests=(
     test_relink_failures_are_aggregated
     test_stale_managed_child_is_pruned
     test_neovim_refresh_failure_is_aggregated
+    test_legacy_checkout_without_lib_is_relinked
 )
 
 for test_name in "${tests[@]}"; do

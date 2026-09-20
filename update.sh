@@ -113,6 +113,14 @@ profile_active() {
     return 1
 }
 
+# Deliberately looser than _dots_root_is_clone: checkouts cloned before
+# lib/dots-root.sh existed must still be recognised so their links relink.
+is_dots_checkout() {
+    [ -n "${1:-}" ] || return 1
+    [ -f "$1/setup.sh" ] || return 1
+    [ -f "$1/zsh/zshrc" ] || return 1
+}
+
 # Print the validated checkout root when $1 links to its repo-relative $2.
 # A matching suffix is not enough: unrelated and ambiguous dangling links
 # must never be treated as dotfiles managed by this script.
@@ -140,7 +148,7 @@ checkout_root_for_link() {
     done
 
     [ "$target" = "$candidate/$rel" ] || return 1
-    if [ "$candidate" = "$ROOT" ] || _dots_root_is_clone "$candidate"; then
+    if [ "$candidate" = "$ROOT" ] || is_dots_checkout "$candidate"; then
         printf '%s\n' "$candidate"
         return 0
     fi
