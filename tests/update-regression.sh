@@ -76,6 +76,16 @@ run_update() {
     set -e
 }
 
+# Restrict PATH to the fake bin so a tool removed from it is truly absent.
+restrict_path_to_fake_bin() {
+    local tool
+    for tool in bash readlink dirname basename mkdir ln rm grep ls; do
+        [ -e "$FAKE_BIN/$tool" ] || ln -s "$(command -v "$tool")" "$FAKE_BIN/$tool"
+    done
+    PATH="$FAKE_BIN"
+    export PATH
+}
+
 test_unrelated_symlink_is_preserved() {
     new_case unrelated-link
     mkdir -p "$CASE_ROOT/user"
@@ -301,6 +311,22 @@ test_unrelated_skills_symlink_is_not_written_into() {
         "$OUTPUT" "skip should be reported"
 }
 
+test_tpm_refresh_skips_without_tmux() {
+    new_case tpm-no-tmux
+    mkdir -p "$HOME/.tmux/plugins/tpm/bin"
+    printf '#!/bin/bash\n: >"%s/updater-ran"\nexit 1\n' "$CASE_ROOT" \
+        >"$HOME/.tmux/plugins/tpm/bin/update_plugins"
+    chmod +x "$HOME/.tmux/plugins/tpm/bin/update_plugins"
+    rm "$FAKE_BIN/tmux"
+    restrict_path_to_fake_bin
+
+    run_update --profile full
+
+    assert_eq "0" "$UPDATE_STATUS" "missing tmux should skip TPM, not fail"
+    assert_contains "tmux is not installed; skipping TPM refresh." "$OUTPUT" "skip should be reported"
+    [ ! -e "$CASE_ROOT/updater-ran" ] || fail "TPM updater must not run without tmux"
+}
+
 tests=(
     test_unrelated_symlink_is_preserved
     test_old_checkout_is_detected_and_relinked
@@ -316,6 +342,7 @@ tests=(
     test_dry_run_reports_relink_failures
     test_managed_skills_symlink_becomes_real_dir
     test_unrelated_skills_symlink_is_not_written_into
+    test_tpm_refresh_skips_without_tmux
 )
 
 for test_name in "${tests[@]}"; do

@@ -91,6 +91,7 @@ print_usage() {
     echo "  minimal   Refresh Zinit only. Does not refresh TPM or Neovim."
     echo "  claude    Relink Claude config. No plugin managers."
     echo "  full      Includes minimal and claude, and refreshes TPM and Neovim."
+    echo "            TPM refresh starts a tmux server if none is running."
     echo
     echo "With no --profile, links under \$HOME decide the profile. If nothing"
     echo "is linked yet, the default is minimal (the same default as ./setup.sh)."
@@ -569,6 +570,11 @@ refresh_tpm() {
 
     if [ ! -x "$updater" ]; then
         log_warning "TPM is not installed; skipping tmux plugin refresh."
+        return 0
+    fi
+
+    if ! command_exists tmux; then
+        log_warning "tmux is not installed; skipping TPM refresh."
         return 0
     fi
 
