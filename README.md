@@ -46,6 +46,7 @@ Used across various platforms for various things.
 - 📦 **[nvm](https://github.com/nvm-sh/nvm)** - Node version manager
 - 🥟 **[Bun](https://bun.sh/)** - Fast JavaScript runtime and package manager
 - 🤖 **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)** - AI-powered coding assistant CLI
+- 🖱️ **[Cursor CLI](https://cursor.com/docs/cli/overview)** - Agent CLI. Portable preferences live in `cursor/cli-config.json` and are merged into `~/.cursor/cli-config.json` (`jq` required)
 
 *The setup script automatically installs [Zinit](https://github.com/zdharma-continuum/zinit) plugin manager, NVChad, and Tmux Plugin Manager.*
 
@@ -95,7 +96,7 @@ Options:
 
 Profiles:
   minimal   Shell essentials: zsh, starship, git, ghostty (default)
-  claude    AI tools: Claude Code config, llm skills/commands
+  claude    AI tools: Claude Code config, llm skills/commands, Cursor CLI
   full      Everything: minimal plus vim, tmux, Neovim, opencode
 ```
 
@@ -158,10 +159,11 @@ The `dots` shortcut jumps to the linked clone. It uses `~/Developer/src/dots` on
    - `~/.claude/CLAUDE.md` → `claude/CLAUDE.md`
    - `~/.claude/skills/*` → `llm/skills/*` (individual skill symlinks)
    - `~/.claude/commands/*` → `llm/commands/*` (individual command symlinks)
-4. 🔌 **Installs Zinit** plugin manager for zsh
-5. 📝 **Installs NVChad** for Neovim (if nvim is installed)
-6. 🪟 **Installs Tmux Plugin Manager** (TPM) and plugins
-7. 💻 **Loads platform-specific profiles** based on OS
+4. 🔀 **Merges Cursor CLI preferences** from `cursor/cli-config.json` into `~/.cursor/cli-config.json` (`claude` and `full` profiles). Tracked keys win; auth, cache, and other machine state already in the live file are kept. Not a symlink, because Cursor rewrites that file. Requires `jq`.
+5. 🔌 **Installs Zinit** plugin manager for zsh
+6. 📝 **Installs NVChad** for Neovim (if nvim is installed)
+7. 🪟 **Installs Tmux Plugin Manager** (TPM) and plugins
+8. 💻 **Loads platform-specific profiles** based on OS
 
 ## 🛠️ Customization
 
@@ -211,6 +213,12 @@ The dotfiles include Claude Code configuration split between `claude/` (portable
 The setup script creates `~/.claude/` as a directory and symlinks individual items into it. This allows Claude's ephemeral runtime data to coexist with your dotfiles config, and enables externally installed skills/commands to live alongside repo-managed ones.
 
 **Note:** Claude Code will create additional files in `~/.claude/` for session data, plans, and other runtime state. These are managed by Claude and not tracked in this dotfiles repository.
+
+### 🖱️ Cursor CLI
+
+`cursor/cli-config.json` tracks portable Cursor CLI preferences, including `approvalMode` set to `auto-review`, plus editor, display, notifications, sandbox, and attribution. The setup script merges that file into `~/.cursor/cli-config.json` with `jq` (tracked keys win). Authentication, caches, and timestamps stay only in the live file and are not stored in this repo.
+
+The command allowlist (`permissions`) is deliberately **not** tracked. It is a shallow merge, so tracking it would wipe any commands allowlisted interactively in Cursor on the next setup run.
 
 ---
 

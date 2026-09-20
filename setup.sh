@@ -39,7 +39,7 @@ print_usage() {
     echo
     echo "Profiles:"
     echo "  minimal   Shell essentials: zsh, starship, git, ghostty (default)"
-    echo "  claude    AI tools: claude code config, llm skills/commands"
+    echo "  claude    AI tools: claude code config, llm skills/commands, cursor cli"
     echo "  full      Everything: minimal plus vim, tmux, Neovim, opencode"
     echo
     echo "Profiles are composable. Combine them with multiple --profile flags:"
@@ -715,6 +715,68 @@ link_config_files() {
     fi
 }
 
+# Merge portable Cursor CLI preferences into ~/.cursor/cli-config.json.
+# Cursor rewrites that file with auth and cache data, so it is not symlinked.
+# Tracked keys overwrite; keys absent from the repo file are left in place.
+install_cursor_cli_config() {
+    if ! profile_active "claude"; then
+        return
+    fi
+
+    local source_file target_dir target_file merged
+    source_file="$REPO_DIR/cursor/cli-config.json"
+    target_dir="$HOME/.cursor"
+    target_file="$target_dir/cli-config.json"
+
+    if [ ! -f "$source_file" ]; then
+        log_warning "Cursor CLI config not found: $source_file"
+        return
+    fi
+
+    if ! command_exists jq; then
+        log_warning "jq not found. Skipping Cursor CLI config merge (install jq to apply cursor/cli-config.json)."
+        return
+    fi
+
+    if [ -L "$target_file" ]; then
+        log_error "Refusing to merge Cursor CLI config into a symlink: $target_file"
+        return
+    fi
+
+    if [ "$DRY_RUN" = true ]; then
+        if [ -f "$target_file" ]; then
+            log_info "Would merge Cursor CLI preferences into $target_file (tracked keys win; auth and cache preserved)"
+        else
+            log_info "Would create $target_file from $source_file"
+        fi
+        return
+    fi
+
+    mkdir -p "$target_dir"
+
+    if [ ! -e "$target_file" ]; then
+        if cp "$source_file" "$target_file"; then
+            log_success "Created Cursor CLI config: $target_file"
+        else
+            log_error "Failed to create Cursor CLI config: $target_file"
+        fi
+        return
+    fi
+
+    merged=$(mktemp)
+    if jq -s '.[0] + .[1]' "$target_file" "$source_file" > "$merged"; then
+        if mv "$merged" "$target_file"; then
+            log_success "Merged Cursor CLI preferences into $target_file"
+        else
+            log_error "Failed to write Cursor CLI config: $target_file"
+            rm -f "$merged"
+        fi
+    else
+        log_error "Failed to merge Cursor CLI config with jq"
+        rm -f "$merged"
+    fi
+}
+
 # Install gitconfig.local template if not present
 install_gitconfig_local() {
     if ! profile_active "minimal"; then
@@ -988,6 +1050,7 @@ main() {
     install_font
     link_config_files
     install_gitconfig_local
+    install_cursor_cli_config
 
     if profile_active "full"; then
         install_nvchad
