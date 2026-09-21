@@ -2,7 +2,8 @@
 if [[ ! -f $HOME/.local/share/zinit/zinit.git/zinit.zsh ]]; then
     print -P "%F{33} %F{220}Installing %F{33}ZDHARMA-CONTINUUM%F{220} Initiative Plugin Manager (%F{33}zdharma-continuum/zinit%F{220})…%f"
     command mkdir -p "$HOME/.local/share/zinit" && command chmod g-rwX "$HOME/.local/share/zinit"
-    command git clone https://github.com/zdharma-continuum/zinit "$HOME/.local/share/zinit/zinit.git" && \
+    # Shallow clone: first launch does not need full history.
+    command git clone --depth=1 https://github.com/zdharma-continuum/zinit "$HOME/.local/share/zinit/zinit.git" && \
         print -P "%F{33} %F{34}Installation successful.%f%b" || \
         print -P "%F{160} The clone has failed.%f%b"
 fi
@@ -145,8 +146,12 @@ fi
 zinit snippet OMZP::sudo
 zinit snippet OMZP::command-not-found
 
-# Work profile loaded after plugins to allow overriding plugin aliases (e.g., gam)
-[[ -f "$HOME/.config/zsh/profile-work" ]] && source "$HOME/.config/zsh/profile-work"
+# Work tools are not on every machine. Opt in from the gitignored host file
+# (~/.config/zsh/hosts) or the environment: export DOTS_LOAD_WORK=1
+if [[ "${DOTS_LOAD_WORK:-0}" == "1" && -f "$HOME/.config/zsh/profile-work" ]]; then
+    # shellcheck source=profile-work
+    source "$HOME/.config/zsh/profile-work"
+fi
 
 # Development Environment Managers
 # Note: PYENV_ROOT and PATH are set in .zshenv
@@ -190,6 +195,9 @@ fi
 # Disable paste highlighting for cleaner pasting
 # shellcheck disable=SC2034  # zle_highlight is used by zsh
 zle_highlight=('paste:none')
+
+# Catppuccin Mocha on every OS. Linux must not unset STARSHIP_CONFIG.
+export STARSHIP_CONFIG="${STARSHIP_CONFIG:-$HOME/.config/starship.toml}"
 
 # Initialize Starship prompt (guard against re-initialization to prevent
 # zle-keymap-select wrapper recursion when sourcing .zshrc multiple times)

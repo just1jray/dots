@@ -1,9 +1,17 @@
 # macOS-specific configurations
 
-# Homebrew
-if command -v /opt/homebrew/bin/brew &> /dev/null; then
-    if ! eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null)"; then
-        echo "Warning: Failed to initialize Homebrew" >&2
+# Homebrew shellenv: Apple Silicon, then Intel.
+# zshenv does this for non-interactive shells too. Repeat here only if
+# HOMEBREW_PREFIX was not set (for example an older zshenv).
+if [[ -z "${HOMEBREW_PREFIX:-}" ]]; then
+    if [[ -x /opt/homebrew/bin/brew ]]; then
+        if ! eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null)"; then
+            echo "Warning: Failed to initialize Homebrew" >&2
+        fi
+    elif [[ -x /usr/local/bin/brew ]]; then
+        if ! eval "$(/usr/local/bin/brew shellenv 2>/dev/null)"; then
+            echo "Warning: Failed to initialize Homebrew (Intel)" >&2
+        fi
     fi
 fi
 

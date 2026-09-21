@@ -1,3 +1,6 @@
+# Work-machine tools. Not loaded on every login.
+# Opt in from the gitignored host file ~/.config/zsh/hosts:
+#   export DOTS_LOAD_WORK=1
 # shellcheck disable=SC2139  # intentional expansion at definition time
 export GAMCFGDIR="/Users/$USER/Developer/GAM/GAMConfig"
 alias gam="$HOME/bin/gam7/gam"

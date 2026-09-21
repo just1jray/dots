@@ -340,10 +340,10 @@ Use as `git <alias>`.
 
 | Item | Notes |
 | --- | --- |
-| Config | `ghostty/config` |
-| Quick terminal | Toggle with `ctrl+\`` (requires Ghostty 1.1+) |
-| Splits | `cmd+shift+enter` (horizontal), `cmd+opt+enter` (vertical) |
-| Close split | `cmd+d` |
+| Config | `ghostty/config` (theme). macOS keys: `ghostty/macos`. |
+| Quick terminal | Toggle with `ctrl+\`` (requires Ghostty 1.1+). Global bind is macOS-only. |
+| Splits (macOS) | `cmd+shift+enter` (horizontal), `cmd+opt+enter` (vertical) |
+| Close split (macOS) | `cmd+d` |
 
 ---
 
@@ -368,8 +368,9 @@ Use as `git <alias>`.
 | Install AI tools | `./setup.sh --profile claude` |
 | Combine profiles | `./setup.sh --profile minimal --profile claude` |
 | Dry run | `./setup.sh --dry-run` |
-| Install font | `./setup.sh --install-font` |
+| Install font | `./setup.sh --install-font` (also automatic for `full`) |
 | Check NVChad | `./setup.sh --check-nvchad` |
+| Work tools | `export DOTS_LOAD_WORK=1` in `~/.config/zsh/hosts` |
 | Update (pull, relink, plugins) | `./update.sh` |
 | Update dry run | `./update.sh --dry-run` |
 | Update full profile | `./update.sh --profile full` |

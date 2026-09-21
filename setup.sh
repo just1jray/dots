@@ -34,16 +34,25 @@ print_usage() {
     echo "  -c, --check-nvchad      Check NVChad installation status and exit"
     echo "  -i, --install-font      Install JetBrains Mono Nerd Font (recommended for prompt symbols)"
     echo "  -y, --yes               Continue when commands are missing (no prompt)"
-    echo "  -b, --brew              Install Homebrew packages from Brewfile (macOS)"
+    echo "  -b, --brew              Install the Brewfile with Homebrew. On Linux this chooses Linuxbrew"
     echo "  -p, --profile <name>    Install a specific profile (repeatable, stackable)"
     echo
     echo "Profiles:"
     echo "  minimal   Shell essentials: zsh, starship, git, ghostty (default)"
     echo "  claude    AI tools: claude code config, llm skills/commands"
-    echo "  full      Everything: minimal plus vim, tmux, Neovim, opencode"
+    echo "  full      Everything: minimal plus vim, tmux, Neovim, opencode, and a Nerd Font"
     echo
     echo "Profiles are composable. Combine them with multiple --profile flags:"
     echo "  $0 --profile minimal --profile claude"
+    echo
+    echo "Profile packages (separate from the Brewfile):"
+    echo "  minimal   zsh, git, and starship"
+    echo "  full      also neovim, tmux, and JetBrains Mono Nerd Font"
+    echo "  macOS     Homebrew at /opt/homebrew (Apple Silicon) or /usr/local (Intel)"
+    echo "  Linux     apt when apt-get exists (root or sudo; non-TTY needs passwordless sudo)."
+    echo "            starship comes from its official installer into ~/.local/bin."
+    echo "  --brew    On Linux, install those packages with Linuxbrew instead of apt"
+    echo "pyenv, nvm, Bun, Claude, and Ghostty are never installed as requirements."
     echo
     echo "Update an existing install with ./update.sh (same directory as this script):"
     echo "  ./update.sh --help"
@@ -57,6 +66,7 @@ CHECK_NVCHAD_ONLY=false
 INSTALL_FONT=false
 ASSUME_YES=false
 INSTALL_BREW=false
+PACKAGE_INSTALL_FAILED=false
 PROFILES=()
 
 while [[ $# -gt 0 ]]; do
@@ -280,8 +290,6 @@ install_plugins() {
 install_tmux_plugins() {
     log_info "Setting up Tmux plugins..."
 
-    local failed_plugins=()
-
     # Install Tmux Plugin Manager (tpm)
     if [ ! -d "$TMUX_PLUGINS_DIR/tpm" ]; then
         if [ "$DRY_RUN" = true ]; then
@@ -299,53 +307,25 @@ install_tmux_plugins() {
     else
         log_info "Tmux Plugin Manager already installed"
     fi
-    
-    # Define Tmux plugins to install directly
-    local tmux_plugins=(
-        "https://github.com/tmux-plugins/tmux-sensible|$TMUX_PLUGINS_DIR/tmux-sensible"
-        "https://github.com/tmux-plugins/tmux-battery|$TMUX_PLUGINS_DIR/tmux-battery"
-        "https://github.com/tmux-plugins/tmux-resurrect|$TMUX_PLUGINS_DIR/tmux-resurrect"
-        "https://github.com/tmux-plugins/tmux-continuum|$TMUX_PLUGINS_DIR/tmux-continuum"
-    )
-    
-    # Install each Tmux plugin
-    for plugin in "${tmux_plugins[@]}"; do
-        IFS='|' read -r repo_url install_dir <<< "$plugin"
-        plugin_name=$(basename "$install_dir")
 
-        if [ ! -d "$install_dir" ]; then
-            if [ "$DRY_RUN" = true ]; then
-                log_info "Would install Tmux plugin: $plugin_name"
-            else
-                log_info "Installing Tmux plugin: $plugin_name"
-                if git clone --depth=1 "$repo_url" "$install_dir"; then
-                    log_success "Installed Tmux plugin: $plugin_name"
-                else
-                    log_error "Failed to install Tmux plugin: $plugin_name"
-                    failed_plugins+=("$plugin_name")
-                fi
-            fi
-        else
-            log_info "Tmux plugin already installed: $plugin_name"
-        fi
-    done
-
-    # Report any failures
-    if [ ${#failed_plugins[@]} -gt 0 ]; then
-        log_warning "Some tmux plugins failed to install:"
-        for plugin in "${failed_plugins[@]}"; do
-            echo "  - $plugin"
-        done
-        log_warning "These plugins can be installed later via: ~/.tmux/plugins/tpm/bin/install_plugins"
-    fi
-
-    # Install all plugins defined in tmux.conf via TPM
+    # tmux.conf is the only plugin list. Keeping one source of truth means
+    # navigator, yank, Catppuccin Mocha, and future additions cannot be missed.
     if [ "$DRY_RUN" = false ] && [ -f "$TMUX_PLUGINS_DIR/tpm/bin/install_plugins" ]; then
-        log_info "Installing tmux plugins via TPM..."
-        if "$TMUX_PLUGINS_DIR/tpm/bin/install_plugins" > /dev/null 2>&1; then
-            log_success "Tmux plugins installed successfully"
+        if ! command_exists tmux; then
+            log_warning "tmux is not installed; TPM plugins install on first tmux start with prefix + I."
+        elif [ ! -e "$HOME/.tmux.conf" ]; then
+            log_warning "$HOME/.tmux.conf is not linked; skipping TPM plugin install."
         else
-            log_warning "TPM plugin installation completed with some warnings"
+            log_info "Installing tmux plugins via TPM..."
+            local tpm_output
+            tpm_output=$(mktemp)
+            if "$TMUX_PLUGINS_DIR/tpm/bin/install_plugins" >"$tpm_output" 2>&1; then
+                log_success "Tmux plugins installed successfully"
+            else
+                log_warning "TPM plugin installation reported errors:"
+                cat "$tpm_output"
+            fi
+            rm -f "$tpm_output"
         fi
     fi
 
@@ -472,7 +452,9 @@ link_config_files() {
         )
     fi
 
-    for config in "${config_files[@]}"; do
+    # bash 3.2 (macOS) treats "${arr[@]}" on an empty array as unbound under
+    # `set -u`, and --profile claude alone leaves this list empty.
+    for config in ${config_files[@]+"${config_files[@]}"}; do
         IFS='|' read -r source_file target_file <<< "$config"
         source_path="$REPO_DIR/$source_file"
 
@@ -563,6 +545,11 @@ link_config_files() {
             fi
         else
             log_warning "Ghostty config directory does not exist: $ghostty_source"
+        fi
+
+        # cmd chords and macos-* keys live in a file Ghostty loads only on Darwin.
+        if [ "$(uname)" = "Darwin" ]; then
+            link_ghostty_macos
         fi
     fi
 
@@ -899,7 +886,7 @@ install_font() {
                     for ttf in "$temp_dir"/JetBrainsMonoNerdFontMono-*.ttf; do
                         if [ -f "$ttf" ]; then
                             cp "$ttf" "$font_dir/"
-                            ((fonts_copied++))
+                            fonts_copied=$((fonts_copied + 1))
                         fi
                     done
                     if [ "$fonts_copied" -gt 0 ]; then
@@ -928,34 +915,322 @@ install_font() {
     fi
 }
 
+# Homebrew binary for this OS. Does not run brew.
+# PATH first, then Darwin: Apple Silicon, Intel; Linux: Linuxbrew prefixes.
+find_brew() {
+    local candidate
+    local os
+
+    # The brew on PATH is the one this shell already uses; honour it first.
+    if command -v brew >/dev/null 2>&1; then
+        command -v brew
+        return 0
+    fi
+
+    os=$(uname)
+    if [ "$os" = "Darwin" ]; then
+        for candidate in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+            if [ -x "$candidate" ]; then
+                printf '%s\n' "$candidate"
+                return 0
+            fi
+        done
+    else
+        for candidate in "${HOME}/.linuxbrew/bin/brew" /home/linuxbrew/.linuxbrew/bin/brew; do
+            if [ -x "$candidate" ]; then
+                printf '%s\n' "$candidate"
+                return 0
+            fi
+        done
+    fi
+    return 1
+}
+
+# Linux shells source Linuxbrew only after this marker exists, or DOTS_USE_BREW=1.
+mark_linuxbrew_chosen() {
+    local marker="${HOME}/.config/zsh/use-brew"
+    if [ "$DRY_RUN" = true ]; then
+        log_info "Would write Linuxbrew opt-in: $marker"
+        return 0
+    fi
+    mkdir -p "${HOME}/.config/zsh"
+    printf '%s\n' "DOTS_USE_BREW=1" > "$marker"
+    log_success "Linuxbrew opt-in written: $marker"
+}
+
+install_with_brew() {
+    local brew_bin
+    local os
+    os=$(uname)
+
+    if ! brew_bin=$(find_brew); then
+        if [ "$os" = "Darwin" ]; then
+            log_warning "Homebrew not found at /opt/homebrew/bin/brew (Apple Silicon) or /usr/local/bin/brew (Intel)."
+        else
+            log_warning "Linuxbrew not found at ~/.linuxbrew or /home/linuxbrew/.linuxbrew."
+        fi
+        log_warning "Install it from https://brew.sh/ and re-run. Not installing: $*"
+        return 0
+    fi
+
+    if [ "$DRY_RUN" = true ]; then
+        log_info "Would run: $brew_bin install $*"
+        return 0
+    fi
+
+    log_info "Installing with Homebrew: $*"
+    if ! "$brew_bin" install "$@"; then
+        log_error "brew install failed for required packages: $*"
+        return 1
+    fi
+    log_success "Homebrew packages installed: $*"
+}
+
+# Report how to get a package neither apt nor a known installer provides.
+apt_alternative_hint() {
+    log_info "  $1: install it manually, or re-run with --brew to use Linuxbrew"
+}
+
+# Official installer, non-interactive: --yes, into ~/.local/bin (on PATH via
+# zshenv). Downloaded to a file first so the run is not a blind curl | sh.
+install_starship_fallback() {
+    local bin_dir="$HOME/.local/bin"
+    local installer
+
+    if [ "$DRY_RUN" = true ]; then
+        log_info "Would install starship with the official installer into $bin_dir"
+        return 0
+    fi
+    if ! command_exists curl; then
+        log_error "curl is required to install starship without apt."
+        return 1
+    fi
+    installer=$(mktemp)
+    if ! curl -fsSLo "$installer" https://starship.rs/install.sh; then
+        log_error "Could not download the starship installer."
+        rm -f "$installer"
+        return 1
+    fi
+    mkdir -p "$bin_dir"
+    if sh "$installer" --yes --bin-dir "$bin_dir"; then
+        rm -f "$installer"
+        log_success "Installed starship into $bin_dir"
+        return 0
+    fi
+    rm -f "$installer"
+    log_error "The starship installer failed."
+    return 1
+}
+
+# Non-apt install path for one package. Returns 2 when none is known.
+install_apt_fallback() {
+    case "$1" in
+        starship) install_starship_fallback ;;
+        *) return 2 ;;
+    esac
+}
+
+# apt-get install aborts the whole transaction when one name is unknown, so a
+# single missing package (starship is in no Debian or Ubuntu repo) used to drop
+# zsh and git too. Probe each name with apt-cache first and install only what
+# this apt actually has; report the rest instead of installing nothing.
+install_with_apt() {
+    local requested=("$@")
+    local sudo_cmd=()
+    local available=()
+    local unavailable=()
+    local installed=()
+    local failed=()
+    local pkg status
+
+    if [ ${#requested[@]} -eq 0 ]; then
+        return 0
+    fi
+
+    if [ "$DRY_RUN" = true ]; then
+        if [ "$(id -u)" -eq 0 ]; then
+            log_info "Would run: apt-get update"
+        else
+            log_info "Would run: sudo apt-get update"
+        fi
+        log_info "Would probe each package with: apt-cache show <pkg> (${requested[*]})"
+        log_info "Would install each available package independently so one failure does not block the others."
+        log_info "Would report any package apt cannot provide, with how to install it instead."
+        log_info "Would install starship with its official installer if apt cannot provide it."
+        return 0
+    fi
+
+    if [ "$(id -u)" -ne 0 ]; then
+        sudo_cmd=(sudo)
+        if [ ! -t 0 ]; then
+            if ! sudo -n true >/dev/null 2>&1; then
+                log_error "apt needs a sudo password and stdin is not a terminal. Not installing: ${requested[*]}"
+                return 1
+            fi
+            sudo_cmd=(sudo -n)
+        fi
+    fi
+
+    log_info "Installing with apt: ${requested[*]}"
+
+    if ! "${sudo_cmd[@]}" apt-get update; then
+        log_warning "apt-get update failed. Continuing with the package lists already on disk."
+    fi
+
+    for pkg in "${requested[@]}"; do
+        if apt-cache show "$pkg" >/dev/null 2>&1; then
+            available+=("$pkg")
+        else
+            unavailable+=("$pkg")
+        fi
+    done
+
+    for pkg in "${available[@]}"; do
+        if "${sudo_cmd[@]}" env DEBIAN_FRONTEND=noninteractive apt-get install -y "$pkg"; then
+            installed+=("$pkg")
+        else
+            failed+=("$pkg")
+        fi
+    done
+
+    for pkg in ${unavailable[@]+"${unavailable[@]}"}; do
+        log_warning "apt cannot provide $pkg; trying its official installer."
+        status=0
+        install_apt_fallback "$pkg" || status=$?
+        case "$status" in
+            0) installed+=("$pkg") ;;
+            2)
+                log_error "apt cannot provide required package: $pkg"
+                apt_alternative_hint "$pkg"
+                failed+=("$pkg")
+                ;;
+            *) failed+=("$pkg") ;;
+        esac
+    done
+
+    if [ ${#installed[@]} -gt 0 ]; then
+        log_success "Packages installed: ${installed[*]}"
+    fi
+    if [ ${#failed[@]} -gt 0 ]; then
+        log_error "Required packages not installed: ${failed[*]}"
+        return 1
+    fi
+    return 0
+}
+
+# minimal: zsh, git, starship. full also: neovim, tmux.
+# Font for full is install_font, not a package-manager formula.
+# pyenv, nvm, Bun, Claude, and Ghostty are not in this list.
+install_profile_packages() {
+    local packages=()
+    local os
+
+    if profile_active "minimal"; then
+        packages+=(zsh git starship)
+    fi
+    if profile_active "full"; then
+        packages+=(neovim tmux)
+    fi
+
+    if [ ${#packages[@]} -eq 0 ]; then
+        log_info "Active profile does not install packages. pyenv, nvm, Bun, Claude, and Ghostty stay optional."
+        return 0
+    fi
+
+    os=$(uname)
+    log_info "Profile packages (${os}): ${packages[*]}"
+
+    if [ "$os" = "Darwin" ]; then
+        install_with_brew "${packages[@]}"
+        return $?
+    fi
+
+    if [ "$os" = "Linux" ]; then
+        if [ "$INSTALL_BREW" = true ]; then
+            log_info "Using Linuxbrew because --brew was given."
+            install_with_brew "${packages[@]}"
+            return $?
+        fi
+        if command_exists apt-get; then
+            install_with_apt "${packages[@]}"
+            return $?
+        fi
+        log_warning "This Linux system does not use apt (apt-get not found)."
+        log_warning "Not installing packages. Pass --brew to use Linuxbrew, or install manually: ${packages[*]}"
+        return 0
+    fi
+
+    log_warning "No package install path for ${os}. Not installing: ${packages[*]}"
+}
+
+link_ghostty_macos() {
+    local source_path
+    local target_dir
+    local target_path
+    source_path="$REPO_DIR/ghostty/macos"
+    target_dir="${HOME}/Library/Application Support/com.mitchellh.ghostty"
+    target_path="${target_dir}/config"
+
+    if [ ! -f "$source_path" ]; then
+        log_warning "macOS Ghostty config does not exist: $source_path"
+        return 0
+    fi
+
+    if [ "$DRY_RUN" = true ]; then
+        log_info "Would link macOS Ghostty keys: $source_path → $target_path"
+        return 0
+    fi
+
+    mkdir -p "$target_dir"
+    if ! backup_config_file "$target_path"; then
+        log_error "Backup failed for $target_path, skipping macOS Ghostty keys"
+        return 0
+    fi
+    if ln -sf "$source_path" "$target_path"; then
+        log_success "Linked macOS Ghostty keys: $source_path → $target_path"
+    else
+        log_error "Failed to link macOS Ghostty keys"
+    fi
+}
+
 install_brew_packages() {
     if [ "$INSTALL_BREW" = false ]; then
-        return
+        return 0
     fi
 
-    if [[ "$(uname)" != "Darwin" ]]; then
-        log_warning "Brewfile install is only supported on macOS. Skipping."
-        return
-    fi
-
-    if ! command_exists brew; then
-        log_warning "Homebrew not found. Install it from https://brew.sh/ first. Skipping."
-        return
-    fi
-
+    local os
+    local brew_bin
     local brewfile
+    os=$(uname)
+
+    if [ "$os" != "Linux" ] && [ "$os" != "Darwin" ]; then
+        log_warning "Brewfile install is not supported on ${os}. Skipping."
+        return 0
+    fi
+
+    if ! brew_bin=$(find_brew); then
+        log_warning "Homebrew not found. Install it from https://brew.sh/ first. Skipping Brewfile."
+        return 0
+    fi
+
+    # Only opt the shell into Linuxbrew once find_brew has actually located it,
+    # so a --brew run without brew never leaves a marker pointing at nothing.
+    if [ "$os" = "Linux" ]; then
+        mark_linuxbrew_chosen
+    fi
+
     brewfile="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/Brewfile"
 
     if [ "$DRY_RUN" = true ]; then
-        log_info "Would install Homebrew packages from $brewfile"
-        return
+        log_info "Would install Homebrew packages from $brewfile ($brew_bin bundle install)"
+        return 0
     fi
 
     log_info "Installing Homebrew packages from Brewfile..."
-    if brew bundle install --file="$brewfile"; then
+    if "$brew_bin" bundle install --file="$brewfile"; then
         log_success "Homebrew packages installed."
     else
-        log_error "brew bundle failed. Re-run 'brew bundle --file=$brewfile' to retry."
+        log_error "brew bundle failed. Re-run '$brew_bin bundle --file=$brewfile' to retry."
     fi
 }
 
@@ -965,8 +1240,11 @@ main() {
     if [ "$CHECK_NVCHAD_ONLY" = true ]; then
         echo -e "${BOLD}NVChad Status Check${NC}"
         echo "===================="
-        check_nvchad
-        exit 0
+        # A deliberate status query, so keep a meaningful exit code — but set it
+        # explicitly instead of letting `set -e` kill the script mid-function.
+        local nvchad_status=0
+        check_nvchad || nvchad_status=$?
+        exit "$nvchad_status"
     fi
 
     echo -e "${BOLD}Dotfiles Setup${NC}"
@@ -982,26 +1260,42 @@ main() {
     echo
 
     install_brew_packages
+    if ! install_profile_packages; then
+        PACKAGE_INSTALL_FAILED=true
+    fi
+    if profile_active "full"; then
+        INSTALL_FONT=true
+    fi
     check_requirements
     create_directories
-    install_plugins
     install_font
     link_config_files
     install_gitconfig_local
+    # After linking: TPM reads its @plugin list from ~/.tmux.conf.
+    install_plugins
 
     if profile_active "full"; then
         install_nvchad
-        check_nvchad
+        # Informational only: a machine that has not linked nvim yet is not a
+        # setup failure, so never let this abort the run under `set -e`.
+        check_nvchad || true
     fi
 
     echo
-    log_success "Setup completed successfully!"
+    if [ "$PACKAGE_INSTALL_FAILED" = true ]; then
+        log_error "Required package installation failed. Setup completed the remaining safe steps."
+    else
+        log_success "Setup completed successfully!"
+    fi
     if profile_active "minimal"; then
         log_info "You may need to restart your shell or run 'source ~/.zshrc' to apply changes."
         log_info "Zinit will automatically install ZSH plugins on first shell launch."
     fi
     if profile_active "full"; then
         log_info "To activate tmux plugins, start tmux and press prefix + I (capital I)."
+    fi
+    if [ "$PACKAGE_INSTALL_FAILED" = true ]; then
+        return 1
     fi
 }
 

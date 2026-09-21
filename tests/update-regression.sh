@@ -42,9 +42,10 @@ new_case() {
     export HOME
     PATH="$FAKE_BIN:$ORIGINAL_PATH"
     export PATH
-    # The suite must never reach the real plugin managers or the network.
+    # The suite must never reach the real plugin managers, package managers,
+    # or the network. setup.sh installs profile packages, so stub those too.
     unset ZINIT_HOME
-    for tool in git nvim tmux zsh; do
+    for tool in git nvim tmux zsh sudo apt-get apt-cache brew; do
         printf '#!/bin/bash\nexit 0\n' >"$FAKE_BIN/$tool"
         chmod +x "$FAKE_BIN/$tool"
     done
