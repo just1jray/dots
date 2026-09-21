@@ -38,11 +38,27 @@ else
     LS_PREVIEW="ls"
 fi
 
+# Dotfiles clone discovery has one implementation, shared with update.sh.
+# setup.sh and update.sh install this helper beside the aliases file.
+if [ -f "$HOME/.config/zsh/dots-root.sh" ]; then
+    # shellcheck source=../lib/dots-root.sh
+    source "$HOME/.config/zsh/dots-root.sh"
+else
+    dots_root() {
+        if [ -n "${DOTS_DIR:-}" ]; then
+            printf '%s\n' "$DOTS_DIR"
+            return 0
+        fi
+        printf '%s\n' "$HOME/Developer/src/dots"
+    }
+fi
+
 # Navigation Aliases
 # `ls` is aliased below; do not hard-code GNU flags here or they survive alias expansion.
+# Single quotes so `dots_root` and `ls` expand when the alias runs, not now.
 alias dev="cd ~/Developer && ls -lah"
 alias src="cd ~/Developer/src && ls -lah"
-alias dots="cd ~/Developer/src/dots && ls -lah"
+alias dots='cd "$(dots_root)" && ls -lah'
 alias docs="cd ~/Documents"
 alias dl="cd ~/Downloads"
 alias dt="cd ~/Desktop"

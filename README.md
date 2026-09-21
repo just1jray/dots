@@ -75,6 +75,8 @@ cd ~/Developer/src/dots
 ./setup.sh
 ```
 
+`~/Developer/src/dots` is only the default location. Any clone path works: `./setup.sh` links the directory you are in, and `./update.sh` uses the clone that contains the script.
+
 ### 🎛️ Setup Script Options
 
 ```bash
@@ -96,6 +98,49 @@ Profiles:
   claude    AI tools: Claude Code config, llm skills/commands
   full      Everything: minimal plus vim, tmux, Neovim, opencode
 ```
+
+### 🔄 Update
+
+From the clone, in any directory:
+
+```bash
+./update.sh
+```
+
+`./update.sh`:
+
+1. `git pull --ff-only` in the clone that contains the script
+2. Recreates missing symlinks and relinks links that point into this or
+   another `dots` checkout (a directory containing `setup.sh` and
+   `zsh/zshrc`, including clones made before this command existed).
+   Existing files and unrelated symlinks, including ambiguous dangling
+   links, are left alone and reported.
+3. Refreshes only the plugin managers the active profile uses
+
+Update removes a symlink only when it is dangling *and* points into a `dots`
+checkout at a path this repo used to ship (for example a command deleted from
+`llm/commands`). A link that still resolves is never removed, even if this
+clone no longer has the file; it is reported instead.
+
+| Profile | Plugin managers |
+| --- | --- |
+| `minimal` | Zinit |
+| `full` | Zinit, TPM, and Neovim (Lazy) |
+| `claude` | none |
+
+`minimal` does not refresh TPM or Neovim. The script never reads from the terminal, so a non-TTY run cannot hang on a prompt. If no profile is linked yet, update assumes `minimal` (the setup default).
+
+```bash
+./update.sh --dry-run
+./update.sh --profile full
+```
+
+Exit status is `0` only when every step succeeded. A failed `git pull`, plugin
+refresh, or relink is reported at the end and exits `1`, but the remaining
+steps still run. `--dry-run` exits `1` when it finds a relink the real run
+could not perform.
+
+The `dots` shortcut jumps to the linked clone. It uses `~/Developer/src/dots` only when that clone cannot be detected. Override it with `DOTS_DIR`.
 
 ### 📋 What the Setup Script Does
 

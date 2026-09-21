@@ -19,6 +19,8 @@ ZSH_PLUGINS_DIR="$HOME/.config/zsh/plugins"
 DEV_DIR="$HOME/Developer/src"
 TMUX_PLUGINS_DIR="$HOME/.tmux/plugins"
 TMUX_PLUGIN_RESURRECT_DIR="$HOME/.tmux/plugins/resurrect"
+# Physical path so links match what update.sh resolves with `cd -P`.
+REPO_DIR=$(pwd -P)
 
 # Print usage information
 print_usage() {
@@ -42,6 +44,9 @@ print_usage() {
     echo
     echo "Profiles are composable. Combine them with multiple --profile flags:"
     echo "  $0 --profile minimal --profile claude"
+    echo
+    echo "Update an existing install with ./update.sh (same directory as this script):"
+    echo "  ./update.sh --help"
 }
 
 # Parse command line arguments
@@ -435,22 +440,23 @@ link_config_files() {
             "starship/starship.toml|$HOME/.config/starship.toml"
             "git/gitconfig|$HOME/.gitconfig"
             "git/gitignore_global|$HOME/.gitignore_global"
+            "lib/dots-root.sh|$HOME/.config/zsh/dots-root.sh"
         )
 
         # Add optional zsh files if they exist
-        if [ -f "$(pwd)/zsh/aliases" ]; then
+        if [ -f "$REPO_DIR/zsh/aliases" ]; then
             config_files+=("zsh/aliases|$HOME/.config/zsh/aliases")
         fi
-        if [ -f "$(pwd)/zsh/hosts" ]; then
+        if [ -f "$REPO_DIR/zsh/hosts" ]; then
             config_files+=("zsh/hosts|$HOME/.config/zsh/hosts")
         fi
-        if [ -f "$(pwd)/zsh/profile-macos" ]; then
+        if [ -f "$REPO_DIR/zsh/profile-macos" ]; then
             config_files+=("zsh/profile-macos|$HOME/.config/zsh/profile-macos")
         fi
-        if [ -f "$(pwd)/zsh/profile-linux" ]; then
+        if [ -f "$REPO_DIR/zsh/profile-linux" ]; then
             config_files+=("zsh/profile-linux|$HOME/.config/zsh/profile-linux")
         fi
-        if [ -f "$(pwd)/zsh/profile-work" ]; then
+        if [ -f "$REPO_DIR/zsh/profile-work" ]; then
             config_files+=("zsh/profile-work|$HOME/.config/zsh/profile-work")
         fi
     fi
@@ -468,7 +474,7 @@ link_config_files() {
 
     for config in "${config_files[@]}"; do
         IFS='|' read -r source_file target_file <<< "$config"
-        source_path="$(pwd)/$source_file"
+        source_path="$REPO_DIR/$source_file"
 
         if [ ! -f "$source_path" ]; then
             log_warning "Source file does not exist: $source_path"
@@ -500,7 +506,7 @@ link_config_files() {
 
     # Link NVChad config directory (full profile only)
     local nvim_source
-    nvim_source="$(pwd)/nvim"
+    nvim_source="$REPO_DIR/nvim"
     local nvim_target="$HOME/.config/nvim"
 
     if profile_active "full"; then
@@ -532,7 +538,7 @@ link_config_files() {
 
     # Link Ghostty config directory (minimal profile)
     local ghostty_source
-    ghostty_source="$(pwd)/ghostty"
+    ghostty_source="$REPO_DIR/ghostty"
     local ghostty_target="$HOME/.config/ghostty"
 
     if profile_active "minimal"; then
@@ -562,7 +568,7 @@ link_config_files() {
 
     # Link Claude Code config files (claude profile)
     local claude_source
-    claude_source="$(pwd)/claude"
+    claude_source="$REPO_DIR/claude"
     local claude_target="$HOME/.claude"
 
     if profile_active "claude"; then
@@ -607,7 +613,7 @@ link_config_files() {
         # Using real directories allows externally installed skills/commands to coexist
         # without polluting the dotfiles repo
         local llm_source
-        llm_source="$(pwd)/llm"
+        llm_source="$REPO_DIR/llm"
 
         if [ -d "$llm_source" ]; then
             # Set up ~/.claude/skills/ as a real directory
@@ -716,7 +722,7 @@ install_gitconfig_local() {
     fi
 
     local template_file
-    template_file="$(pwd)/git/gitconfig.local.template"
+    template_file="$REPO_DIR/git/gitconfig.local.template"
     local target_file="$HOME/.gitconfig.local"
 
     if [ ! -f "$template_file" ]; then

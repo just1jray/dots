@@ -29,7 +29,7 @@ Quick reference for this dotfiles setup. Emphasis on Vim/Neovim, tmux, git, and 
 | `efresh` | function | Reload zsh + tmux config. |
 | `dev` | `cd ~/Developer && ls -lah` | Jump + list. |
 | `src` | `cd ~/Developer/src && ls -lah` | Jump + list. |
-| `dots` | `cd ~/Developer/src/dots && ls -lah` | Jump + list. |
+| `dots` | `cd "$(dots_root)" && ls -lah` | Jump to this clone. Defaults to `~/Developer/src/dots`. |
 | `docs` | `cd ~/Documents` | Jump. |
 | `dl` | `cd ~/Downloads` | Jump. |
 | `dt` | `cd ~/Desktop` | Jump. |
@@ -370,5 +370,8 @@ Use as `git <alias>`.
 | Dry run | `./setup.sh --dry-run` |
 | Install font | `./setup.sh --install-font` |
 | Check NVChad | `./setup.sh --check-nvchad` |
+| Update (pull, relink, plugins) | `./update.sh` |
+| Update dry run | `./update.sh --dry-run` |
+| Update full profile | `./update.sh --profile full` |
 | Reload zsh | `zfresh` or `efresh` |
 | Reload tmux | `tfresh` |
