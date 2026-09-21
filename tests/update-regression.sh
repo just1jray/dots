@@ -373,6 +373,19 @@ test_ai_profile_merges_cursor_preferences_safely() {
   "permissions": ["Shell(git)"],
   "approvalMode": "manual"
 }
+JSON
+
+    run_update --profile ai
+
+    assert_eq "0" "$UPDATE_STATUS" "AI update should merge Cursor preferences"
+    "$JQ_BIN" -e '
+      .authInfo.email == "user@example.com" and
+      .serverConfigCache.region == "local" and
+      .permissions == ["Shell(git)"] and
+      .approvalMode == "auto-review"
+    ' "$HOME/.cursor/cli-config.json" >/dev/null || \
+        fail "AI update should preserve machine state while applying preferences"
+}
 
 test_ai_profile_is_detected_from_claude_links() {
     new_case detected-ai-profile
@@ -388,19 +401,6 @@ test_ai_profile_is_detected_from_claude_links() {
     assert_contains "Active profiles: ai" "$OUTPUT" "Claude links should detect the AI profile"
     assert_eq "$REPO_ROOT/claude/CLAUDE.md" "$(readlink "$HOME/.claude/CLAUDE.md")" \
         "detected AI profile should relink Claude config"
-}
-JSON
-
-    run_update --profile ai
-
-    assert_eq "0" "$UPDATE_STATUS" "AI update should merge Cursor preferences"
-    "$JQ_BIN" -e '
-      .authInfo.email == "user@example.com" and
-      .serverConfigCache.region == "local" and
-      .permissions == ["Shell(git)"] and
-      .approvalMode == "auto-review"
-    ' "$HOME/.cursor/cli-config.json" >/dev/null || \
-        fail "AI update should preserve machine state while applying preferences"
 }
 
 tests=(
