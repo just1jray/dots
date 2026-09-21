@@ -372,6 +372,7 @@ Use as `git <alias>`.
 | Check NVChad | `./setup.sh --check-nvchad` |
 | Update (pull, relink, plugins) | `./update.sh` |
 | Update dry run | `./update.sh --dry-run` |
+| Update AI tools | `./update.sh --profile ai` |
 | Update full profile | `./update.sh --profile full` |
 | Reload zsh | `zfresh` or `efresh` |
 | Reload tmux | `tfresh` |
