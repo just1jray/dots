@@ -6,7 +6,7 @@
 #
 #   minimal  Zinit
 #   full     Zinit, TPM, and Neovim (Lazy)
-#   claude   no plugin managers
+#   ai       Claude and Cursor CLI config; no plugin managers
 #
 # The clone is the directory that contains this script, not a fixed path.
 # ~/Developer/src/dots is only the default for the `dots` shortcut.
@@ -29,6 +29,7 @@ LINK_CHANGES=0
 REFRESH_FAILURES=0
 RELINK_FAILURES=0
 PULL_FAILED=false
+CONFIG_FAILURES=0
 
 log_info() {
     printf '%b[INFO]%b %s\n' "$BLUE" "$NC" "$1"
@@ -89,8 +90,8 @@ print_usage() {
     echo
     echo "Profiles (same names as ./setup.sh):"
     echo "  minimal   Refresh Zinit only. Does not refresh TPM or Neovim."
-    echo "  claude    Relink Claude config. No plugin managers."
-    echo "  full      Includes minimal and claude, and refreshes TPM and Neovim."
+    echo "  ai        Relink Claude config and merge Cursor CLI preferences."
+    echo "  full      Includes minimal and ai, and refreshes TPM and Neovim."
     echo "            TPM refresh starts a tmux server if none is running."
     echo
     echo "With no --profile, links under \$HOME decide the profile. If nothing"
@@ -163,7 +164,7 @@ points_at_rel() {
 detect_profiles() {
     local found_full=false
     local found_minimal=false
-    local found_claude=false
+    local found_ai=false
 
     if points_at_rel "$HOME/.vimrc" "vim/vimrc" \
         || points_at_rel "$HOME/.tmux.conf" "tmux/tmux.conf" \
@@ -185,7 +186,7 @@ detect_profiles() {
     if points_at_rel "$HOME/.claude/hooks" "claude/hooks" \
         || points_at_rel "$HOME/.claude/scripts" "claude/scripts" \
         || points_at_rel "$HOME/.claude/CLAUDE.md" "claude/CLAUDE.md"; then
-        found_claude=true
+        found_ai=true
     fi
 
     if [ "$found_full" = true ]; then
@@ -197,8 +198,8 @@ detect_profiles() {
     if [ "$found_minimal" = true ]; then
         PROFILES+=("minimal")
     fi
-    if [ "$found_claude" = true ]; then
-        PROFILES+=("claude")
+    if [ "$found_ai" = true ]; then
+        PROFILES+=("ai")
     fi
 
     if [ ${#PROFILES[@]} -eq 0 ]; then
@@ -284,7 +285,7 @@ collect_links() {
             "$HOME/.config/btop/themes/catppuccin_mocha.theme"
     fi
 
-    if profile_active "claude"; then
+    if profile_active "ai"; then
         add_link "claude/hooks" "$HOME/.claude/hooks"
         add_link "claude/scripts" "$HOME/.claude/scripts"
         add_link "claude/CLAUDE.md" "$HOME/.claude/CLAUDE.md"
@@ -472,7 +473,7 @@ relink_configs() {
 
     collect_links
 
-    if profile_active "claude"; then
+    if profile_active "ai"; then
         skills_src="$ROOT/llm/skills"
         commands_src="$ROOT/llm/commands"
         if ! prepare_claude_home "$HOME/.claude"; then
@@ -531,6 +532,25 @@ relink_configs() {
     elif [ "$DRY_RUN" = true ]; then
         log_info "Would change $LINK_CHANGES link(s)."
     fi
+}
+
+install_cursor_cli_config() {
+    if ! profile_active "ai"; then
+        return 0
+    fi
+
+    local merge_helper="$ROOT/lib/cursor-config.sh"
+    if [ ! -f "$merge_helper" ]; then
+        log_error "Cursor CLI merge helper not found: $merge_helper"
+        return 1
+    fi
+
+    # shellcheck source=lib/cursor-config.sh
+    source "$merge_helper"
+    merge_cursor_cli_config \
+        "$ROOT/cursor/cli-config.json" \
+        "$HOME/.cursor/cli-config.json" \
+        "$DRY_RUN"
 }
 
 refresh_zinit() {
@@ -653,17 +673,17 @@ parse_args() {
                 ;;
             -p|--profile)
                 if [[ -z "${2:-}" ]]; then
-                    log_error "--profile requires a value (minimal, claude, full)"
+                    log_error "--profile requires a value (minimal, ai, full)"
                     print_usage
                     exit 1
                 fi
                 case $2 in
-                    minimal|claude|full)
+                    minimal|ai|full)
                         PROFILES+=("$2")
                         PROFILE_FROM_FLAG=true
                         ;;
                     *)
-                        log_error "Unknown profile: $2 (valid: minimal, claude, full)"
+                        log_error "Unknown profile: $2 (valid: minimal, ai, full)"
                         print_usage
                         exit 1
                         ;;
@@ -706,12 +726,24 @@ main() {
     echo
     relink_configs
     echo
+    if ! install_cursor_cli_config; then
+        CONFIG_FAILURES=$((CONFIG_FAILURES + 1))
+    fi
+    echo
     refresh_plugins
 
     echo
     if [ "$DRY_RUN" = true ]; then
+        if [ "$RELINK_FAILURES" -gt 0 ] && [ "$CONFIG_FAILURES" -gt 0 ]; then
+            log_error "Dry run found $RELINK_FAILURES relink failure(s) and $CONFIG_FAILURES config failure(s). No changes were made."
+            return 1
+        fi
         if [ "$RELINK_FAILURES" -gt 0 ]; then
             log_error "Dry run found $RELINK_FAILURES relink failure(s). No changes were made."
+            return 1
+        fi
+        if [ "$CONFIG_FAILURES" -gt 0 ]; then
+            log_error "Dry run found $CONFIG_FAILURES config failure(s). No changes were made."
             return 1
         fi
         log_success "Dry run finished. No changes were made."
@@ -733,6 +765,12 @@ main() {
             failures="$failures, "
         fi
         failures="${failures}${RELINK_FAILURES} relink failure(s)"
+    fi
+    if [ "$CONFIG_FAILURES" -gt 0 ]; then
+        if [ -n "$failures" ]; then
+            failures="$failures, "
+        fi
+        failures="${failures}${CONFIG_FAILURES} config failure(s)"
     fi
 
     if [ -n "$failures" ]; then

@@ -373,6 +373,7 @@ Use as `git <alias>`.
 | Work tools | `export DOTS_LOAD_WORK=1` in `~/.config/zsh/hosts` |
 | Update (pull, relink, plugins) | `./update.sh` |
 | Update dry run | `./update.sh --dry-run` |
+| Update AI tools | `./update.sh --profile ai` |
 | Update full profile | `./update.sh --profile full` |
 | Reload zsh | `zfresh` or `efresh` |
 | Reload tmux | `tfresh` |

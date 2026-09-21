@@ -132,12 +132,13 @@ clone no longer has the file; it is reported instead.
 | --- | --- |
 | `minimal` | Zinit |
 | `full` | Zinit, TPM, and Neovim (Lazy) |
-| `claude` | none |
+| `ai` | none |
 
 `minimal` does not refresh TPM or Neovim. The script never reads from the terminal, so a non-TTY run cannot hang on a prompt. If no profile is linked yet, update assumes `minimal` (the setup default).
 
 ```bash
 ./update.sh --dry-run
+./update.sh --profile ai
 ./update.sh --profile full
 ```
 
@@ -232,7 +233,7 @@ The setup script creates `~/.claude/` as a directory and symlinks individual ite
 
 ### 🖱️ Cursor CLI
 
-`cursor/cli-config.json` tracks portable Cursor CLI preferences, including `approvalMode` set to `auto-review`, plus editor, display, notifications, sandbox, attribution, and a `statusLine` that reuses Claude Code's `~/.claude/scripts/context-bar.sh`. The setup script merges that file into `~/.cursor/cli-config.json` with `jq` (tracked keys win). Authentication, caches, and timestamps stay only in the live file and are not stored in this repo.
+`cursor/cli-config.json` tracks portable Cursor CLI preferences, including `approvalMode` set to `auto-review`, plus editor, display, notifications, sandbox, attribution, and a `statusLine` that reuses Claude Code's `~/.claude/scripts/context-bar.sh`. Setup and update merge that file into `~/.cursor/cli-config.json` with `jq` for the `ai` and `full` profiles. Tracked keys win, while authentication, caches, timestamps, and permissions stay only in the live file. The merge refuses a symlink target and leaves invalid JSON untouched.
 
 The command allowlist (`permissions`) is deliberately **not** tracked. It is a shallow merge, so tracking it would wipe any commands allowlisted interactively in Cursor on the next setup run.
 

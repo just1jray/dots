@@ -783,57 +783,19 @@ install_cursor_cli_config() {
         return
     fi
 
-    local source_file target_dir target_file merged
-    source_file="$REPO_DIR/cursor/cli-config.json"
-    target_dir="$HOME/.cursor"
-    target_file="$target_dir/cli-config.json"
-
-    if [ ! -f "$source_file" ]; then
-        log_warning "Cursor CLI config not found: $source_file"
+    local merge_helper="$REPO_DIR/lib/cursor-config.sh"
+    if [ ! -f "$merge_helper" ]; then
+        log_error "Cursor CLI merge helper not found: $merge_helper"
         return
     fi
 
-    if ! command_exists jq; then
-        log_warning "jq not found. Skipping Cursor CLI config merge (install jq to apply cursor/cli-config.json)."
-        return
-    fi
-
-    if [ -L "$target_file" ]; then
-        log_error "Refusing to merge Cursor CLI config into a symlink: $target_file"
-        return
-    fi
-
-    if [ "$DRY_RUN" = true ]; then
-        if [ -f "$target_file" ]; then
-            log_info "Would merge Cursor CLI preferences into $target_file (tracked keys win; auth and cache preserved)"
-        else
-            log_info "Would create $target_file from $source_file"
-        fi
-        return
-    fi
-
-    mkdir -p "$target_dir"
-
-    if [ ! -e "$target_file" ]; then
-        if cp "$source_file" "$target_file"; then
-            log_success "Created Cursor CLI config: $target_file"
-        else
-            log_error "Failed to create Cursor CLI config: $target_file"
-        fi
-        return
-    fi
-
-    merged=$(mktemp)
-    if jq -s '.[0] + .[1]' "$target_file" "$source_file" > "$merged"; then
-        if mv "$merged" "$target_file"; then
-            log_success "Merged Cursor CLI preferences into $target_file"
-        else
-            log_error "Failed to write Cursor CLI config: $target_file"
-            rm -f "$merged"
-        fi
-    else
-        log_error "Failed to merge Cursor CLI config with jq"
-        rm -f "$merged"
+    # shellcheck source=lib/cursor-config.sh
+    source "$merge_helper"
+    if ! merge_cursor_cli_config \
+        "$REPO_DIR/cursor/cli-config.json" \
+        "$HOME/.cursor/cli-config.json" \
+        "$DRY_RUN"; then
+        log_warning "Cursor CLI preferences were not changed."
     fi
 }
 
