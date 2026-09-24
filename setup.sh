@@ -337,7 +337,74 @@ install_tmux_plugins() {
     fi
 }
 
-# Backup existing config file or directory
+# Merge portable hook stanzas into ~/.claude/settings.json.
+#
+# settings.json stays machine-local (it holds model, statusLine, plugins and
+# other per-machine choices), so the hook wiring cannot simply be symlinked.
+# Instead the stanzas live in claude/settings.hooks.json and are merged in
+# here. The merge is idempotent: entries are keyed on their command string,
+# so re-running setup.sh never duplicates a hook.
+merge_claude_hooks() {
+    local fragment="$1"
+    local settings="$2"
+    local hooks_dir="$3"
+
+    [ -f "$fragment" ] || return 0
+
+    if ! command_exists jq; then
+        log_warning "jq not found; skipping Claude hook merge (hooks are installed but not registered)"
+        return 0
+    fi
+
+    if [ "$DRY_RUN" = true ]; then
+        log_info "Would merge hook config from $fragment into $settings"
+        return 0
+    fi
+
+    [ -f "$settings" ] || echo '{}' >"$settings"
+
+    if ! jq -e . "$settings" >/dev/null 2>&1; then
+        log_error "$settings is not valid JSON; skipping hook merge"
+        return 1
+    fi
+
+    local resolved merged
+    resolved=$(mktemp) || return 1
+    merged=$(mktemp) || { rm -f "$resolved"; return 1; }
+
+    sed "s|{{CLAUDE_HOOKS}}|$hooks_dir|g" "$fragment" >"$resolved"
+
+    if jq -s '
+        .[0] as $cur
+        | .[1] as $add
+        | reduce ($add.hooks | to_entries[]) as $evt
+            ($cur;
+             .hooks = (.hooks // {})
+             | .hooks[$evt.key] = (
+                 (.hooks[$evt.key] // []) as $existing
+                 | ($existing | map(.hooks[].command)) as $have
+                 | $existing + (
+                     $evt.value
+                     | map(select(([.hooks[].command] - $have) | length > 0))
+                   )
+               ))
+    ' "$settings" "$resolved" >"$merged" && [ -s "$merged" ]; then
+        if ! cmp -s "$settings" "$merged"; then
+            backup_config_file "$settings" >/dev/null 2>&1 || true
+            mv "$merged" "$settings"
+            log_success "Merged Claude hook config into $settings"
+        else
+            log_info "Claude hook config already present in $settings"
+            rm -f "$merged"
+        fi
+    else
+        log_error "Failed to merge hook config into $settings"
+        rm -f "$merged"
+    fi
+
+    rm -f "$resolved"
+}
+
 backup_config_file() {
     local file="$1"
 
@@ -595,6 +662,12 @@ link_config_files() {
                 fi
             fi
         done
+
+        # Register the portable hooks in the machine-local settings.json
+        merge_claude_hooks \
+            "$claude_source/settings.hooks.json" \
+            "$claude_target/settings.json" \
+            "$claude_target/hooks"
 
         # Link LLM skills and commands into real directories
         # Using real directories allows externally installed skills/commands to coexist
