@@ -1,3 +1,8 @@
+---
+description: Write missing tests for a file or directory, or for the whole codebase if none given
+argument-hint: "[file or directory]"
+---
+
 ## Step 1: Determine scope
 If arguments were provided (`$ARGUMENTS` is not empty):
 - Target only the file or directory specified: `$ARGUMENTS`
