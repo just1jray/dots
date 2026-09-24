@@ -24,7 +24,7 @@
 
 ### Shell / Environment
 
-- `cd` is aliased to zoxide (`__zoxide_z`) — use `builtin cd` or absolute paths in Bash tool calls, since Claude Code runs non-interactive shells that don't source `.zshrc`
+- The Bash tool inherits `.zshrc` aliases through a shell snapshot, so `cd` may be zoxide's (`__zoxide_z`) — use `builtin cd` or absolute paths when exact directory changes matter
 - Bun is at `~/.bun/bin/bun`
 
 ### Node.js Development
