@@ -1,0 +1,8 @@
+# .zprofile - Sourced for login shells, after .zshenv and /etc/zprofile
+# macOS /etc/zprofile runs path_helper, which moves system dirs ahead of
+# the user and Homebrew dirs set in .zshenv. Rebuild PATH to restore order.
+# Safe on Linux: dots_init_path only re-prepends dirs that exist.
+
+if (( ${+functions[dots_init_path]} )); then
+    dots_init_path
+fi

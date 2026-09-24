@@ -1,24 +1,5 @@
 # macOS-specific configurations
-
-# Homebrew shellenv: Apple Silicon, then Intel.
-# zshenv does this for non-interactive shells too. Repeat here only if
-# HOMEBREW_PREFIX was not set (for example an older zshenv).
-if [[ -z "${HOMEBREW_PREFIX:-}" ]]; then
-    if [[ -x /opt/homebrew/bin/brew ]]; then
-        if ! eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null)"; then
-            echo "Warning: Failed to initialize Homebrew" >&2
-        fi
-    elif [[ -x /usr/local/bin/brew ]]; then
-        if ! eval "$(/usr/local/bin/brew shellenv 2>/dev/null)"; then
-            echo "Warning: Failed to initialize Homebrew (Intel)" >&2
-        fi
-    fi
-fi
-
-# Docker Desktop
-if command -v docker &> /dev/null; then
-    # The following lines have been added by Docker Desktop to enable Docker CLI completions.
-    # shellcheck disable=SC2206  # zsh array assignment syntax
-    fpath=("$HOME/.docker/completions" $fpath)
-    # End of Docker CLI completions
-fi
+#
+# Homebrew is initialized in zshenv (all shells) and re-ordered after
+# path_helper in zprofile (login shells). Docker CLI completions are added
+# to fpath in zshrc before compinit.
