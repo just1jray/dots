@@ -1,6 +1,10 @@
 #!/bin/bash
 # No set -euo pipefail: status line must never crash — graceful degradation only.
 
+# Cursor CLI passes --cursor; Claude.ai subscription usage is meaningless there.
+HOST="claude"
+[[ "${1-}" == "--cursor" ]] && HOST="cursor"
+
 # Cache files may hold remote URLs and account usage; keep them private.
 umask 077
 CACHE_DIR="${TMPDIR:-/tmp}"
@@ -360,6 +364,7 @@ format_reset_time() {
 # Runs in a subshell so any unexpected error is contained.
 usage_line=$(
     set +e  # no errexit inside usage block
+    [[ "$HOST" == "cursor" ]] && exit 0
 
     usage_cache_file="${CACHE_DIR}/claude-statusline-usage.json"
     usage_cache_max_age=150
