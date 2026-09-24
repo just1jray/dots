@@ -12,10 +12,20 @@
 # [commit]
 #     gpgsign = true
 
+# Credential helpers: the empty "helper =" line clears the global cache helper
+# Recommended (any platform): run `gh auth setup-git` to use the GitHub CLI
+
 # macOS-specific credential helper
 # [credential]
+#     helper =
 #     helper = osxkeychain
 
-# Linux-specific credential helper
+# Linux-specific credential helper (Debian/Ubuntu)
+# Build first: sudo make -C /usr/share/doc/git/contrib/credential/libsecret
 # [credential]
-#     helper = /usr/share/git/credential/libsecret/git-credential-libsecret
+#     helper =
+#     helper = /usr/share/doc/git/contrib/credential/libsecret/git-credential-libsecret
+
+# Work identity for repos under ~/Developer/work/
+# [includeIf "gitdir:~/Developer/work/"]
+#     path = ~/.gitconfig.work
