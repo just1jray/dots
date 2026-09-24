@@ -24,7 +24,6 @@ $java\
 $kotlin\
 $haskell\
 $python\
-${custom.pyvenv}\
 [](fg:sapphire bg:lavender)\
 $conda\
 [ ](fg:lavender)\
@@ -137,32 +136,16 @@ format = '[[ $symbol( $version) ](fg:crust bg:sapphire)]($style)'
 [python]
 symbol = ""
 style = "bg:sapphire"
-format = '[[ $symbol ](fg:crust bg:sapphire)]($style)'
+format = '[[ $symbol( $version)( \($virtualenv\)) ](fg:crust bg:sapphire)]($style)'
 detect_extensions = []
 detect_files = ['.python-version', 'Pipfile', 'pyproject.toml', 'requirements.txt', 'setup.py', 'tox.ini']
 detect_folders = ['.venv', 'venv']
-
-[custom.pyvenv]
-when = 'test -n "$VIRTUAL_ENV"'
-command = 'echo "$(python --version 2>&1 | cut -d" " -f2) ($(basename "$VIRTUAL_ENV"))"'
-format = '[ $output ](fg:crust bg:sapphire)'
-
-[docker_context]
-symbol = ""
-style = "bg:sapphire"
-format = '[[ $symbol( $context) ](fg:crust bg:sapphire)]($style)'
 
 [conda]
 symbol = "  "
 style = "fg:crust bg:sapphire"
 format = '[$symbol$environment ]($style)'
 ignore_base = false
-
-[time]
-disabled = true 
-time_format = "%R"
-style = "bg:lavender"
-format = '[[  $time ](fg:crust bg:lavender)]($style)'
 
 [line_break]
 disabled = false
@@ -178,8 +161,8 @@ vimcmd_visual_symbol = '[❮](bold fg:yellow)'
 
 [cmd_duration]
 show_milliseconds = false
-format = " in $duration "
-style = "bg:lavender"
+format = "[ in $duration ]($style)"
+style = "fg:lavender"
 disabled = false
 show_notifications = true
 min_time_to_notify = 45000
