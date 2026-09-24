@@ -18,9 +18,16 @@ NC='\033[0m' # No Color
 ZSH_PLUGINS_DIR="$HOME/.config/zsh/plugins"
 DEV_DIR="$HOME/Developer/src"
 TMUX_PLUGINS_DIR="$HOME/.tmux/plugins"
-TMUX_PLUGIN_RESURRECT_DIR="$HOME/.tmux/plugins/resurrect"
+VIM_CATPPUCCIN_DIR="$HOME/.vim/pack/themes/start/catppuccin"
+# The clone is this script's directory, not the caller's working directory.
 # Physical path so links match what update.sh resolves with `cd -P`.
-REPO_DIR=$(pwd -P)
+REPO_DIR=$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+DOTS_REPO_DIR=$REPO_DIR
+
+# shellcheck source=lib/links.sh
+source "$REPO_DIR/lib/links.sh"
+# shellcheck source=lib/claude-hooks.sh
+source "$REPO_DIR/lib/claude-hooks.sh"
 
 # Print usage information
 print_usage() {
@@ -40,14 +47,16 @@ print_usage() {
     echo "Profiles:"
     echo "  minimal   Shell essentials: zsh, starship, git, ghostty (default)"
     echo "  ai        AI tools: Claude Code config, llm skills/commands, Cursor CLI"
-    echo "  full      Everything: minimal plus vim, tmux, Neovim, opencode, and a Nerd Font"
+    echo "  full      Everything: minimal and ai, plus vim, tmux, Neovim, opencode,"
+    echo "            btop, and a Nerd Font"
     echo
     echo "Profiles are composable. Combine them with multiple --profile flags:"
     echo "  $0 --profile minimal --profile ai"
     echo
-    echo "Profile packages (separate from the Brewfile):"
-    echo "  minimal   zsh, git, and starship"
-    echo "  full      also neovim, tmux, and JetBrains Mono Nerd Font"
+    echo "Profile packages (separate from the Brewfile). Commands already on PATH are skipped:"
+    echo "  minimal   zsh, git, starship, fzf, and zoxide"
+    echo "  ai        jq (registers Claude Code hooks, merges Cursor CLI config)"
+    echo "  full      also neovim (0.10+ for NvChad), tmux, and JetBrains Mono Nerd Font"
     echo "  macOS     Homebrew at /opt/homebrew (Apple Silicon) or /usr/local (Intel)"
     echo "  Linux     apt when apt-get exists (root or sudo; non-TTY needs passwordless sudo)."
     echo "            starship comes from its official installer into ~/.local/bin."
@@ -67,6 +76,7 @@ INSTALL_FONT=false
 ASSUME_YES=false
 INSTALL_BREW=false
 PACKAGE_INSTALL_FAILED=false
+SETUP_FAILURES=()
 PROFILES=()
 
 while [[ $# -gt 0 ]]; do
@@ -167,6 +177,25 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+# A recoverable step failed: keep going, but report it and exit nonzero.
+record_failure() {
+    SETUP_FAILURES+=("$1")
+}
+
+# NvChad needs Neovim 0.10+. Unparseable versions are not flagged.
+nvim_version_ok() {
+    local version major minor
+    version=$(nvim --version 2>/dev/null | head -n1) || true
+    version=${version#*v}
+    major=${version%%.*}
+    minor=${version#*.}
+    minor=${minor%%.*}
+    case "$major$minor" in
+        ''|*[!0-9]*) return 0 ;;
+    esac
+    [ "$major" -gt 0 ] || [ "$minor" -ge 10 ]
+}
+
 # Missing commands used to prompt with `read`. A non-TTY run has nothing to
 # read from, and `set -e` then aborts. --yes is the explicit assume-yes path.
 # Without a terminal, continue instead of hanging or dying on `read`.
@@ -218,7 +247,16 @@ check_requirements() {
             fi
         done
     fi
-    
+
+    # jq registers the Claude Code hooks in settings.json
+    if profile_active "ai" && ! command_exists jq; then
+        missing_commands+=("jq")
+    fi
+
+    if profile_active "full" && command_exists nvim && ! nvim_version_ok; then
+        log_warning "$(nvim --version 2>/dev/null | head -n1 || true) is older than 0.10; NvChad needs Neovim 0.10 or newer."
+    fi
+
     if [ ${#missing_commands[@]} -gt 0 ]; then
         log_warning "The following required commands are missing:"
         for cmd in "${missing_commands[@]}"; do
@@ -247,7 +285,6 @@ create_directories() {
 
     if profile_active "full"; then
         directories+=("$TMUX_PLUGINS_DIR")
-        directories+=("$TMUX_PLUGIN_RESURRECT_DIR")
         directories+=("$HOME/.config/opencode")
         directories+=("$HOME/.config/btop/themes")
     fi
@@ -282,7 +319,37 @@ install_plugins() {
     if profile_active "full"; then
         log_info "NVChad will be installed and configured for Neovim on first nvim launch"
         # Install Tmux Plugin Manager and plugins
-        install_tmux_plugins
+        if ! install_tmux_plugins; then
+            record_failure "Tmux Plugin Manager install"
+        fi
+        install_vim_catppuccin
+    fi
+}
+
+# Catppuccin Mocha for plain vim, loaded as a native package
+install_vim_catppuccin() {
+    if [ -d "$VIM_CATPPUCCIN_DIR" ]; then
+        log_info "Catppuccin vim theme already installed"
+        return 0
+    fi
+
+    if [ "$DRY_RUN" = true ]; then
+        log_info "Would clone Catppuccin vim theme into $VIM_CATPPUCCIN_DIR"
+        return 0
+    fi
+
+    if ! command_exists git; then
+        log_warning "git not found; skipping Catppuccin vim theme"
+        return 0
+    fi
+
+    log_info "Installing Catppuccin vim theme"
+    if mkdir -p "$(dirname "$VIM_CATPPUCCIN_DIR")" \
+        && git clone --depth=1 https://github.com/catppuccin/vim "$VIM_CATPPUCCIN_DIR"; then
+        log_success "Installed Catppuccin vim theme: $VIM_CATPPUCCIN_DIR"
+    else
+        rm -rf "$VIM_CATPPUCCIN_DIR"
+        log_warning "Could not clone Catppuccin vim theme; vim falls back to its default colors"
     fi
 }
 
@@ -337,441 +404,234 @@ install_tmux_plugins() {
     fi
 }
 
-# Merge portable hook stanzas into ~/.claude/settings.json.
-#
-# settings.json stays machine-local (it holds model, statusLine, plugins and
-# other per-machine choices), so the hook wiring cannot simply be symlinked.
-# Instead the stanzas live in claude/settings.hooks.json and are merged in
-# here. The merge is idempotent: entries are keyed on their command string,
-# so re-running setup.sh never duplicates a hook.
-merge_claude_hooks() {
-    local fragment="$1"
-    local settings="$2"
-    local hooks_dir="$3"
+# Move an existing config out of the way before linking.
+# $2 is the repo-relative source: a symlink into a dots checkout at that path
+# is ours and is simply removed; any other symlink is backed up like a file.
+# $3 puts the backup in that directory instead of next to the original.
+backup_config_file() {
+    local file="$1"
+    local rel="${2:-}"
+    local backup_dir="${3:-}"
+    local kind suffix backup_path
 
-    [ -f "$fragment" ] || return 0
-
-    if ! command_exists jq; then
-        log_warning "jq not found; skipping Claude hook merge (hooks are installed but not registered)"
+    if [ -L "$file" ]; then
+        if [ -n "$rel" ] && checkout_root_for_link "$file" "$rel" >/dev/null; then
+            if [ "$DRY_RUN" = true ]; then
+                log_info "Would remove existing symlink: $file"
+            else
+                rm -f "$file"
+                log_info "Removed existing symlink: $file"
+            fi
+            return 0
+        fi
+        kind="symlink"
+        suffix="old"
+    elif [ -d "$file" ]; then
+        kind="directory"
+        suffix="backup"
+    elif [ -e "$file" ]; then
+        kind="file"
+        suffix="old"
+    else
         return 0
+    fi
+
+    if [ "$FORCE" = true ]; then
+        if [ "$DRY_RUN" = true ]; then
+            log_info "Would remove existing $kind without backup: $file"
+        elif rm -rf "$file"; then
+            log_warning "Removed existing $kind without backup: $file"
+        else
+            log_error "Failed to remove $kind: $file"
+            return 1
+        fi
+        return 0
+    fi
+
+    if [ -n "$backup_dir" ]; then
+        backup_path="$backup_dir/$(basename "$file").${suffix}_$(date +%F_%H-%M-%S)"
+    else
+        backup_path="${file}.${suffix}_$(date +%F_%H-%M-%S)"
     fi
 
     if [ "$DRY_RUN" = true ]; then
-        log_info "Would merge hook config from $fragment into $settings"
+        log_info "Would backup $kind: $file → $backup_path"
         return 0
     fi
 
-    [ -f "$settings" ] || echo '{}' >"$settings"
+    if [ -n "$backup_dir" ] && ! mkdir -p "$backup_dir"; then
+        log_error "Failed to create backup directory: $backup_dir"
+        return 1
+    fi
+    if mv "$file" "$backup_path"; then
+        log_success "Backed up $kind: $file → $backup_path"
+    else
+        log_error "Failed to backup $kind: $file"
+        return 1
+    fi
+}
 
-    if ! jq -e . "$settings" >/dev/null 2>&1; then
-        log_error "$settings is not valid JSON; skipping hook merge"
+# Symlink $1 to $2. $3 is the repo-relative source, $4 is "optional" when a
+# missing source is expected, $5 is passed on to backup_config_file.
+# A link that already points at $1 is left alone. Returns 1 on failure.
+link_item() {
+    local source_path="$1"
+    local target_path="$2"
+    local rel="$3"
+    local kind="${4:-required}"
+    local backup_dir="${5:-}"
+
+    if [ ! -e "$source_path" ]; then
+        [ "$kind" = optional ] && return 0
+        log_error "Source file does not exist: $source_path"
         return 1
     fi
 
-    local resolved merged
-    resolved=$(mktemp) || return 1
-    merged=$(mktemp) || { rm -f "$resolved"; return 1; }
-
-    sed "s|{{CLAUDE_HOOKS}}|$hooks_dir|g" "$fragment" >"$resolved"
-
-    if jq -s '
-        .[0] as $cur
-        | .[1] as $add
-        | reduce ($add.hooks | to_entries[]) as $evt
-            ($cur;
-             .hooks = (.hooks // {})
-             | .hooks[$evt.key] = (
-                 (.hooks[$evt.key] // []) as $existing
-                 | ($existing | map(.hooks[].command)) as $have
-                 | $existing + (
-                     $evt.value
-                     | map(select(([.hooks[].command] - $have) | length > 0))
-                   )
-               ))
-    ' "$settings" "$resolved" >"$merged" && [ -s "$merged" ]; then
-        if ! cmp -s "$settings" "$merged"; then
-            backup_config_file "$settings" >/dev/null 2>&1 || true
-            mv "$merged" "$settings"
-            log_success "Merged Claude hook config into $settings"
-        else
-            log_info "Claude hook config already present in $settings"
-            rm -f "$merged"
-        fi
-    else
-        log_error "Failed to merge hook config into $settings"
-        rm -f "$merged"
+    if [ -L "$target_path" ] && [ -e "$target_path" ] \
+        && [ "$(readlink "$target_path")" = "$source_path" ]; then
+        return 0
     fi
 
-    rm -f "$resolved"
+    if ! backup_config_file "$target_path" "$rel" "$backup_dir"; then
+        log_error "Backup failed for $target_path, skipping to prevent data loss"
+        return 1
+    fi
+
+    if [ "$DRY_RUN" = true ]; then
+        log_info "Would link: $source_path → $target_path"
+        return 0
+    fi
+
+    if ! mkdir -p "$(dirname "$target_path")"; then
+        log_error "Failed to create parent directory for $target_path"
+        return 1
+    fi
+    if ! ln -sfn "$source_path" "$target_path"; then
+        log_error "Failed to create symlink: $source_path → $target_path"
+        return 1
+    fi
+    if [ -L "$target_path" ] && [ -e "$target_path" ]; then
+        log_success "Linked: $source_path → $target_path"
+        return 0
+    fi
+    log_error "Symlink created but target is broken: $target_path"
+    rm -f "$target_path"
+    return 1
 }
 
-backup_config_file() {
-    local file="$1"
-
-    # Handle regular files
-    if [ -f "$file" ] && [ ! -L "$file" ]; then
-        if [ "$FORCE" = true ]; then
-            if [ "$DRY_RUN" = true ]; then
-                log_info "Would remove existing file without backup: $file"
-            else
-                if rm -f "$file"; then
-                    log_warning "Removed existing file without backup: $file"
-                else
-                    log_error "Failed to remove file: $file"
-                    return 1
-                fi
-            fi
-        else
-            local backup_file
-            backup_file="${file}.old_$(date +%F_%H-%M-%S)"
-            if [ "$DRY_RUN" = true ]; then
-                log_info "Would backup file: $file → $backup_file"
-            else
-                if mv "$file" "$backup_file"; then
-                    log_success "Backed up file: $file → $backup_file"
-                else
-                    log_error "Failed to backup file: $file"
-                    return 1
-                fi
-            fi
-        fi
-    # Handle directories (not symlinks)
-    elif [ -d "$file" ] && [ ! -L "$file" ]; then
-        if [ "$FORCE" = true ]; then
-            if [ "$DRY_RUN" = true ]; then
-                log_info "Would remove existing directory without backup: $file"
-            else
-                if rm -rf "$file"; then
-                    log_warning "Removed existing directory without backup: $file"
-                else
-                    log_error "Failed to remove directory: $file"
-                    return 1
-                fi
-            fi
-        else
-            local backup_dir
-            backup_dir="${file}.backup_$(date +%F_%H-%M-%S)"
-            if [ "$DRY_RUN" = true ]; then
-                log_info "Would backup directory: $file → $backup_dir"
-            else
-                if mv "$file" "$backup_dir"; then
-                    log_success "Backed up directory: $file → $backup_dir"
-                else
-                    log_error "Failed to backup directory: $file"
-                    return 1
-                fi
-            fi
-        fi
-    # Handle symlinks
-    elif [ -L "$file" ]; then
+# ~/.claude/skills and ~/.claude/commands are real directories so externally
+# installed skills and commands can coexist without polluting the repo.
+prepare_claude_item_dir() {
+    local dir="$1"
+    if [ -L "$dir" ]; then
         if [ "$DRY_RUN" = true ]; then
-            log_info "Would remove existing symlink: $file"
-        else
-            rm -f "$file"
-            log_info "Removed existing symlink: $file"
+            log_info "Would replace symlink with a directory: $dir"
+            return 0
         fi
+        rm -f "$dir"
+        log_info "Removed old symlink: $dir"
+    elif [ -d "$dir" ]; then
+        return 0
+    elif [ "$DRY_RUN" = true ]; then
+        log_info "Would create directory: $dir"
+        return 0
     fi
+    mkdir -p "$dir"
 }
 
-# Link config files
+# Link config files listed in lib/links.sh
 link_config_files() {
     log_info "Linking configuration files..."
 
-    local config_files=()
+    local table profile kind rel target_path
+    local link_failures=0
+    local extra_failures=0
 
-    # minimal profile: zsh, starship, git
-    if profile_active "minimal"; then
-        config_files+=(
-            "zsh/zshrc|$HOME/.zshrc"
-            "zsh/zshenv|$HOME/.zshenv"
-            "starship/starship.toml|$HOME/.config/starship.toml"
-            "git/gitconfig|$HOME/.gitconfig"
-            "git/gitignore_global|$HOME/.gitignore_global"
-            "lib/dots-root.sh|$HOME/.config/zsh/dots-root.sh"
-        )
+    table=$(dots_link_table)
+    while IFS='|' read -r profile kind rel target_path; do
+        profile_active "$profile" || continue
+        if ! link_item "$REPO_DIR/$rel" "$target_path" "$rel" "$kind"; then
+            link_failures=$((link_failures + 1))
+        fi
+    done <<< "$table"
 
-        # Add optional zsh files if they exist
-        if [ -f "$REPO_DIR/zsh/aliases" ]; then
-            config_files+=("zsh/aliases|$HOME/.config/zsh/aliases")
-        fi
-        if [ -f "$REPO_DIR/zsh/hosts" ]; then
-            config_files+=("zsh/hosts|$HOME/.config/zsh/hosts")
-        fi
-        if [ -f "$REPO_DIR/zsh/profile-macos" ]; then
-            config_files+=("zsh/profile-macos|$HOME/.config/zsh/profile-macos")
-        fi
-        if [ -f "$REPO_DIR/zsh/profile-linux" ]; then
-            config_files+=("zsh/profile-linux|$HOME/.config/zsh/profile-linux")
-        fi
-        if [ -f "$REPO_DIR/zsh/profile-work" ]; then
-            config_files+=("zsh/profile-work|$HOME/.config/zsh/profile-work")
-        fi
+    if profile_active "ai"; then
+        link_claude_extras || extra_failures=$?
+        link_failures=$((link_failures + extra_failures))
     fi
 
-    # full profile: vim, tmux, opencode, btop
-    if profile_active "full"; then
-        config_files+=(
-            "vim/vimrc|$HOME/.vimrc"
-            "tmux/tmux.conf|$HOME/.tmux.conf"
-            "opencode/opencode.json|$HOME/.config/opencode/opencode.json"
-            "btop/btop.conf|$HOME/.config/btop/btop.conf"
-            "btop/themes/catppuccin_mocha.theme|$HOME/.config/btop/themes/catppuccin_mocha.theme"
-        )
+    if [ "$link_failures" -gt 0 ]; then
+        record_failure "$link_failures config link(s)"
+    fi
+}
+
+# Hook registration, skills, and commands for the ai profile.
+# Returns the number of links that failed.
+link_claude_extras() {
+    local claude_target="$HOME/.claude"
+    local llm_source="$REPO_DIR/llm"
+    local skills_target="$claude_target/skills"
+    local commands_target="$claude_target/commands"
+    local failures=0
+    local skill_dir skill_name cmd_file cmd_name
+
+    # Register the portable hooks in the machine-local settings.json
+    if ! merge_claude_hooks \
+        "$REPO_DIR/claude/settings.hooks.json" \
+        "$claude_target/settings.json" \
+        "$claude_target/hooks"; then
+        record_failure "Claude hook merge"
     fi
 
-    # bash 3.2 (macOS) treats "${arr[@]}" on an empty array as unbound under
-    # `set -u`, and --profile ai alone leaves this list empty.
-    for config in ${config_files[@]+"${config_files[@]}"}; do
-        IFS='|' read -r source_file target_file <<< "$config"
-        source_path="$REPO_DIR/$source_file"
+    [ -d "$llm_source" ] || return 0
 
-        if [ ! -f "$source_path" ]; then
-            log_warning "Source file does not exist: $source_path"
-            continue
-        fi
-
-        if ! backup_config_file "$target_file"; then
-            log_error "Backup failed for $target_file, skipping to prevent data loss"
-            continue
-        fi
-
-        if [ "$DRY_RUN" = true ]; then
-            log_info "Would link file: $source_path → $target_file"
-        else
-            if ln -sf "$source_path" "$target_file"; then
-                # Verify symlink was created and target exists
-                if [ -L "$target_file" ] && [ -e "$target_file" ]; then
-                    log_success "Linked file: $source_path → $target_file"
-                else
-                    log_error "Symlink created but target is broken: $target_file"
-                    log_error "Source may not exist: $source_path"
-                    rm -f "$target_file"  # Remove broken symlink
-                fi
-            else
-                log_error "Failed to create symlink: $source_path → $target_file"
-            fi
+    prepare_claude_item_dir "$skills_target"
+    # Backups stay outside skills/, where Claude would load them as duplicates.
+    for skill_dir in "$llm_source"/skills/*/; do
+        [ -d "$skill_dir" ] || continue
+        skill_name=$(basename "$skill_dir")
+        if ! link_item "${skill_dir%/}" "$skills_target/$skill_name" \
+            "llm/skills/$skill_name" required "$claude_target/skills.backup"; then
+            failures=$((failures + 1))
         fi
     done
 
-    # Link NVChad config directory (full profile only)
-    local nvim_source
-    nvim_source="$REPO_DIR/nvim"
-    local nvim_target="$HOME/.config/nvim"
-
-    if profile_active "full"; then
-        if [ -d "$nvim_source" ]; then
-            if ! backup_config_file "$nvim_target"; then
-                log_error "Backup failed for $nvim_target, skipping to prevent data loss"
-                return 1
-            fi
-
-            if [ "$DRY_RUN" = true ]; then
-                log_info "Would link directory: $nvim_source → $nvim_target"
-            else
-                if ln -sf "$nvim_source" "$nvim_target"; then
-                    if [ -L "$nvim_target" ] && [ -e "$nvim_target" ]; then
-                        log_success "Linked NVChad config: $nvim_source → $nvim_target"
-                    else
-                        log_error "Symlink created but target is broken: $nvim_target"
-                        log_error "Source may not exist: $nvim_source"
-                        rm -f "$nvim_target"
-                    fi
-                else
-                    log_error "Failed to create symlink: $nvim_source → $nvim_target"
-                fi
-            fi
-        else
-            log_warning "NVChad config directory does not exist: $nvim_source"
+    prepare_claude_item_dir "$commands_target"
+    for cmd_file in "$llm_source"/commands/*; do
+        [ -e "$cmd_file" ] || continue
+        cmd_name=$(basename "$cmd_file")
+        if ! link_item "$cmd_file" "$commands_target/$cmd_name" "llm/commands/$cmd_name"; then
+            failures=$((failures + 1))
         fi
+    done
+
+    return "$failures"
+}
+
+# The homelab skills source ~/.config/homelab/devices.env
+install_homelab_devices_env() {
+    if ! profile_active "ai"; then
+        return
     fi
 
-    # Link Ghostty config directory (minimal profile)
-    local ghostty_source
-    ghostty_source="$REPO_DIR/ghostty"
-    local ghostty_target="$HOME/.config/ghostty"
+    local template_file="$REPO_DIR/llm/devices.env.template"
+    local target_file="$HOME/.config/homelab/devices.env"
 
-    if profile_active "minimal"; then
-        if [ -d "$ghostty_source" ]; then
-            if ! backup_config_file "$ghostty_target"; then
-                log_error "Backup failed for $ghostty_target, skipping"
-            else
-                if [ "$DRY_RUN" = true ]; then
-                    log_info "Would link directory: $ghostty_source → $ghostty_target"
-                else
-                    if ln -sf "$ghostty_source" "$ghostty_target"; then
-                        if [ -L "$ghostty_target" ] && [ -e "$ghostty_target" ]; then
-                            log_success "Linked Ghostty config: $ghostty_source → $ghostty_target"
-                        else
-                            log_error "Symlink created but target is broken: $ghostty_target"
-                            rm -f "$ghostty_target"
-                        fi
-                    else
-                        log_error "Failed to create symlink: $ghostty_source → $ghostty_target"
-                    fi
-                fi
-            fi
-        else
-            log_warning "Ghostty config directory does not exist: $ghostty_source"
-        fi
-
-        # cmd chords and macos-* keys live in a file Ghostty loads only on Darwin.
-        if [ "$(uname)" = "Darwin" ]; then
-            link_ghostty_macos
-        fi
+    if [ ! -f "$template_file" ] || [ -e "$target_file" ]; then
+        return
     fi
 
-    # Link Claude Code config files (ai profile)
-    local claude_source
-    claude_source="$REPO_DIR/claude"
-    local claude_target="$HOME/.claude"
+    if [ "$DRY_RUN" = true ]; then
+        log_info "Would copy template: $template_file → $target_file"
+        return
+    fi
 
-    if profile_active "ai"; then
-    if [ -d "$claude_source" ]; then
-        # Create ~/.claude directory if it doesn't exist (Claude Code manages ephemeral data here)
-        if [ "$DRY_RUN" = true ]; then
-            log_info "Would create directory: $claude_target"
-        else
-            mkdir -p "$claude_target"
-        fi
-
-        # Symlink individual portable config files/directories
-        local claude_items=("hooks" "scripts" "CLAUDE.md")
-        for item in "${claude_items[@]}"; do
-            local item_source="$claude_source/$item"
-            local item_target="$claude_target/$item"
-
-            if [ -e "$item_source" ] || [ -L "$item_source" ]; then
-                if ! backup_config_file "$item_target"; then
-                    log_error "Backup failed for $item_target, skipping"
-                    continue
-                fi
-
-                if [ "$DRY_RUN" = true ]; then
-                    log_info "Would link: $item_source → $item_target"
-                else
-                    if ln -sf "$item_source" "$item_target"; then
-                        if [ -L "$item_target" ] && [ -e "$item_target" ]; then
-                            log_success "Linked Claude Code config: $item → $item_target"
-                        else
-                            log_error "Symlink created but target is broken: $item_target"
-                            rm -f "$item_target"
-                        fi
-                    else
-                        log_error "Failed to create symlink: $item_source → $item_target"
-                    fi
-                fi
-            fi
-        done
-
-        # Register the portable hooks in the machine-local settings.json
-        merge_claude_hooks \
-            "$claude_source/settings.hooks.json" \
-            "$claude_target/settings.json" \
-            "$claude_target/hooks"
-
-        # Link LLM skills and commands into real directories
-        # Using real directories allows externally installed skills/commands to coexist
-        # without polluting the dotfiles repo
-        local llm_source
-        llm_source="$REPO_DIR/llm"
-
-        if [ -d "$llm_source" ]; then
-            # Set up ~/.claude/skills/ as a real directory
-            local skills_target="$claude_target/skills"
-            if [ -L "$skills_target" ]; then
-                if [ "$DRY_RUN" = true ]; then
-                    log_info "Would remove skills symlink and create directory: $skills_target"
-                else
-                    rm -f "$skills_target"
-                    log_info "Removed old skills symlink: $skills_target"
-                    mkdir -p "$skills_target"
-                fi
-            elif [ ! -d "$skills_target" ]; then
-                if [ "$DRY_RUN" = true ]; then
-                    log_info "Would create directory: $skills_target"
-                else
-                    mkdir -p "$skills_target"
-                fi
-            fi
-
-            # Symlink each skill from llm/skills/ into ~/.claude/skills/
-            for skill_dir in "$llm_source"/skills/*/; do
-                [ -d "$skill_dir" ] || continue
-                local skill_name
-                skill_name=$(basename "$skill_dir")
-                local skill_source="${skill_dir%/}"
-                local skill_target="$skills_target/$skill_name"
-
-                if ! backup_config_file "$skill_target"; then
-                    log_error "Backup failed for $skill_target, skipping"
-                    continue
-                fi
-
-                if [ "$DRY_RUN" = true ]; then
-                    log_info "Would link skill: $skill_source → $skill_target"
-                else
-                    if ln -sf "$skill_source" "$skill_target"; then
-                        if [ -L "$skill_target" ] && [ -e "$skill_target" ]; then
-                            log_success "Linked skill: $skill_name → $skill_target"
-                        else
-                            log_error "Symlink created but target is broken: $skill_target"
-                            rm -f "$skill_target"
-                        fi
-                    else
-                        log_error "Failed to create symlink: $skill_source → $skill_target"
-                    fi
-                fi
-            done
-
-            # Set up ~/.claude/commands/ as a real directory
-            local commands_target="$claude_target/commands"
-            if [ -L "$commands_target" ]; then
-                if [ "$DRY_RUN" = true ]; then
-                    log_info "Would remove commands symlink and create directory: $commands_target"
-                else
-                    rm -f "$commands_target"
-                    log_info "Removed old commands symlink: $commands_target"
-                    mkdir -p "$commands_target"
-                fi
-            elif [ ! -d "$commands_target" ]; then
-                if [ "$DRY_RUN" = true ]; then
-                    log_info "Would create directory: $commands_target"
-                else
-                    mkdir -p "$commands_target"
-                fi
-            fi
-
-            # Symlink each command from llm/commands/ into ~/.claude/commands/
-            for cmd_file in "$llm_source"/commands/*; do
-                [ -e "$cmd_file" ] || continue
-                local cmd_name
-                cmd_name=$(basename "$cmd_file")
-                local cmd_target="$commands_target/$cmd_name"
-
-                if ! backup_config_file "$cmd_target"; then
-                    log_error "Backup failed for $cmd_target, skipping"
-                    continue
-                fi
-
-                if [ "$DRY_RUN" = true ]; then
-                    log_info "Would link command: $cmd_file → $cmd_target"
-                else
-                    if ln -sf "$cmd_file" "$cmd_target"; then
-                        if [ -L "$cmd_target" ] && [ -e "$cmd_target" ]; then
-                            log_success "Linked command: $cmd_name → $cmd_target"
-                        else
-                            log_error "Symlink created but target is broken: $cmd_target"
-                            rm -f "$cmd_target"
-                        fi
-                    else
-                        log_error "Failed to create symlink: $cmd_file → $cmd_target"
-                    fi
-                fi
-            done
-        fi
+    if mkdir -p "$(dirname "$target_file")" && cp "$template_file" "$target_file" \
+        && chmod 600 "$target_file"; then
+        log_success "Copied homelab devices template: $target_file"
+        log_info "Fill in $target_file for the homelab skills"
     else
-        log_warning "Claude Code config directory does not exist: $claude_source"
-    fi
+        log_warning "Failed to copy homelab devices template to $target_file"
     fi
 }
 
@@ -795,6 +655,7 @@ install_cursor_cli_config() {
         "$HOME/.cursor/cli-config.json" \
         "$DRY_RUN"; then
         log_warning "Cursor CLI preferences were not changed."
+        record_failure "Cursor CLI config merge"
     fi
 }
 
@@ -1169,7 +1030,10 @@ install_with_apt() {
 
     log_info "Installing with apt: ${requested[*]}"
 
-    if ! "${sudo_cmd[@]}" apt-get update; then
+    # bash 3.2 (macOS) treats "${arr[@]}" on an empty array as unbound under
+    # `set -u`; as root sudo_cmd is empty, and so is available when apt has
+    # none of the packages.
+    if ! ${sudo_cmd[@]+"${sudo_cmd[@]}"} apt-get update; then
         log_warning "apt-get update failed. Continuing with the package lists already on disk."
     fi
 
@@ -1181,8 +1045,8 @@ install_with_apt() {
         fi
     done
 
-    for pkg in "${available[@]}"; do
-        if "${sudo_cmd[@]}" env DEBIAN_FRONTEND=noninteractive apt-get install -y "$pkg"; then
+    for pkg in ${available[@]+"${available[@]}"}; do
+        if ${sudo_cmd[@]+"${sudo_cmd[@]}"} env DEBIAN_FRONTEND=noninteractive apt-get install -y "$pkg"; then
             installed+=("$pkg")
         else
             failed+=("$pkg")
@@ -1214,22 +1078,53 @@ install_with_apt() {
     return 0
 }
 
-# minimal: zsh, git, starship. full also: neovim, tmux.
+# Command a profile package provides, to detect it is already installed.
+package_command() {
+    case "$1" in
+        neovim) printf '%s\n' nvim ;;
+        *) printf '%s\n' "$1" ;;
+    esac
+}
+
+# minimal: zsh, git, starship, fzf, zoxide. ai: jq. full also: neovim, tmux.
+# Packages whose command is already on PATH are skipped, so a re-run does not
+# touch apt (or brew-install a second zsh and git on macOS).
 # Font for full is install_font, not a package-manager formula.
 # pyenv, nvm, Bun, Claude, and Ghostty are not in this list.
 install_profile_packages() {
+    local wanted=()
     local packages=()
+    local present=()
+    local pkg
     local os
 
     if profile_active "minimal"; then
-        packages+=(zsh git starship)
+        wanted+=(zsh git starship fzf zoxide)
+    fi
+    if profile_active "ai"; then
+        wanted+=(jq)
     fi
     if profile_active "full"; then
-        packages+=(neovim tmux)
+        wanted+=(neovim tmux)
     fi
 
-    if [ ${#packages[@]} -eq 0 ]; then
+    if [ ${#wanted[@]} -eq 0 ]; then
         log_info "Active profile does not install packages. pyenv, nvm, Bun, Claude, and Ghostty stay optional."
+        return 0
+    fi
+
+    for pkg in "${wanted[@]}"; do
+        if command_exists "$(package_command "$pkg")"; then
+            present+=("$pkg")
+        else
+            packages+=("$pkg")
+        fi
+    done
+
+    if [ ${#present[@]} -gt 0 ]; then
+        log_info "Profile packages already installed: ${present[*]}"
+    fi
+    if [ ${#packages[@]} -eq 0 ]; then
         return 0
     fi
 
@@ -1259,36 +1154,6 @@ install_profile_packages() {
     log_warning "No package install path for ${os}. Not installing: ${packages[*]}"
 }
 
-link_ghostty_macos() {
-    local source_path
-    local target_dir
-    local target_path
-    source_path="$REPO_DIR/ghostty/macos"
-    target_dir="${HOME}/Library/Application Support/com.mitchellh.ghostty"
-    target_path="${target_dir}/config"
-
-    if [ ! -f "$source_path" ]; then
-        log_warning "macOS Ghostty config does not exist: $source_path"
-        return 0
-    fi
-
-    if [ "$DRY_RUN" = true ]; then
-        log_info "Would link macOS Ghostty keys: $source_path → $target_path"
-        return 0
-    fi
-
-    mkdir -p "$target_dir"
-    if ! backup_config_file "$target_path"; then
-        log_error "Backup failed for $target_path, skipping macOS Ghostty keys"
-        return 0
-    fi
-    if ln -sf "$source_path" "$target_path"; then
-        log_success "Linked macOS Ghostty keys: $source_path → $target_path"
-    else
-        log_error "Failed to link macOS Ghostty keys"
-    fi
-}
-
 install_brew_packages() {
     if [ "$INSTALL_BREW" = false ]; then
         return 0
@@ -1315,7 +1180,7 @@ install_brew_packages() {
         mark_linuxbrew_chosen
     fi
 
-    brewfile="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/Brewfile"
+    brewfile="$REPO_DIR/Brewfile"
 
     if [ "$DRY_RUN" = true ]; then
         log_info "Would install Homebrew packages from $brewfile ($brew_bin bundle install)"
@@ -1327,7 +1192,19 @@ install_brew_packages() {
         log_success "Homebrew packages installed."
     else
         log_error "brew bundle failed. Re-run '$brew_bin bundle --file=$brewfile' to retry."
+        record_failure "Brewfile install"
     fi
+}
+
+# chsh can prompt for a password, so only say how.
+suggest_login_shell() {
+    if ! profile_active "minimal" || [ "$(uname)" != "Linux" ] || ! command_exists zsh; then
+        return
+    fi
+    case "${SHELL:-}" in
+        */zsh) ;;
+        *) log_info "Your login shell is ${SHELL:-unknown}. Switch to zsh with: chsh -s \"$(command -v zsh)\"" ;;
+    esac
 }
 
 # Main function
@@ -1368,6 +1245,7 @@ main() {
     link_config_files
     install_gitconfig_local
     install_cursor_cli_config
+    install_homelab_devices_env
     # After linking: TPM reads its @plugin list from ~/.tmux.conf.
     install_plugins
 
@@ -1381,17 +1259,24 @@ main() {
     echo
     if [ "$PACKAGE_INSTALL_FAILED" = true ]; then
         log_error "Required package installation failed. Setup completed the remaining safe steps."
-    else
+    fi
+    if [ ${#SETUP_FAILURES[@]} -gt 0 ]; then
+        local joined
+        joined=$(printf '%s, ' "${SETUP_FAILURES[@]}")
+        log_error "Setup finished with failures: ${joined%, }"
+    fi
+    if [ "$PACKAGE_INSTALL_FAILED" = false ] && [ ${#SETUP_FAILURES[@]} -eq 0 ]; then
         log_success "Setup completed successfully!"
     fi
     if profile_active "minimal"; then
         log_info "You may need to restart your shell or run 'source ~/.zshrc' to apply changes."
         log_info "Zinit will automatically install ZSH plugins on first shell launch."
     fi
+    suggest_login_shell
     if profile_active "full"; then
         log_info "To activate tmux plugins, start tmux and press prefix + I (capital I)."
     fi
-    if [ "$PACKAGE_INSTALL_FAILED" = true ]; then
+    if [ "$PACKAGE_INSTALL_FAILED" = true ] || [ ${#SETUP_FAILURES[@]} -gt 0 ]; then
         return 1
     fi
 }

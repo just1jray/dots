@@ -30,6 +30,8 @@ REFRESH_FAILURES=0
 RELINK_FAILURES=0
 PULL_FAILED=false
 CONFIG_FAILURES=0
+PULL_BEFORE=""
+ORIGINAL_ARGS=("$@")
 
 log_info() {
     printf '%b[INFO]%b %s\n' "$BLUE" "$NC" "$1"
@@ -90,7 +92,8 @@ print_usage() {
     echo
     echo "Profiles (same names as ./setup.sh):"
     echo "  minimal   Refresh Zinit only. Does not refresh TPM or Neovim."
-    echo "  ai        Relink Claude config and merge Cursor CLI preferences."
+    echo "  ai        Relink Claude config, register its hooks, and merge Cursor CLI"
+    echo "            preferences. No plugin managers."
     echo "  full      Includes minimal and ai, and refreshes TPM and Neovim."
     echo "            TPM refresh starts a tmux server if none is running."
     echo
@@ -112,48 +115,6 @@ profile_active() {
             return 0
         fi
     done
-    return 1
-}
-
-# Deliberately looser than _dots_root_is_clone: checkouts cloned before
-# lib/dots-root.sh existed must still be recognised so their links relink.
-is_dots_checkout() {
-    [ -n "${1:-}" ] || return 1
-    [ -f "$1/setup.sh" ] || return 1
-    [ -f "$1/zsh/zshrc" ] || return 1
-}
-
-# Print the validated checkout root when $1 links to its repo-relative $2.
-# A matching suffix is not enough: unrelated and ambiguous dangling links
-# must never be treated as dotfiles managed by this script.
-checkout_root_for_link() {
-    local path="$1"
-    local rel="$2"
-    local target candidate remainder
-    if [ ! -L "$path" ]; then
-        return 1
-    fi
-    target=$(readlink "$path") || return 1
-    case "$target" in
-        /*) ;;
-        *) target="$(dirname "$path")/$target" ;;
-    esac
-
-    candidate="$target"
-    remainder="$rel"
-    while [ -n "$remainder" ]; do
-        candidate=$(dirname "$candidate")
-        case "$remainder" in
-            */*) remainder="${remainder#*/}" ;;
-            *) remainder="" ;;
-        esac
-    done
-
-    [ "$target" = "$candidate/$rel" ] || return 1
-    if [ "$candidate" = "$ROOT" ] || is_dots_checkout "$candidate"; then
-        printf '%s\n' "$candidate"
-        return 0
-    fi
     return 1
 }
 
@@ -234,6 +195,8 @@ pull_clone() {
         return 1
     fi
 
+    PULL_BEFORE=$(git -C "$ROOT" rev-parse HEAD 2>/dev/null) || PULL_BEFORE=""
+
     log_info "Pulling $ROOT"
     if ! git -C "$ROOT" pull --ff-only; then
         log_error "git pull --ff-only failed in $ROOT"
@@ -241,6 +204,23 @@ pull_clone() {
         return 1
     fi
     log_success "Clone is up to date."
+}
+
+# When the pull changed this script or lib/, run the new version once so
+# relinking uses the logic that was just pulled.
+reexec_if_updated() {
+    local status=0
+    [ "$DRY_RUN" = false ] || return 0
+    [ -z "${DOTS_UPDATE_REEXEC:-}" ] || return 0
+    [ -n "$PULL_BEFORE" ] || return 0
+
+    git -C "$ROOT" diff --quiet "$PULL_BEFORE" HEAD -- update.sh lib/ || status=$?
+    [ "$status" -eq 1 ] || return 0
+
+    log_info "update.sh or lib/ changed in the pull; re-running the new version."
+    echo
+    export DOTS_UPDATE_REEXEC=1
+    exec "${BASH:-bash}" "$ROOT/update.sh" ${ORIGINAL_ARGS[@]+"${ORIGINAL_ARGS[@]}"}
 }
 
 add_link() {
@@ -253,43 +233,18 @@ add_link() {
     fi
 }
 
+# The link list lives in lib/links.sh, shared with setup.sh.
 collect_links() {
+    local table profile rel dest
     LINK_PAIRS=()
     MANAGED_LINKS=()
 
-    if profile_active "minimal"; then
-        add_link "zsh/zshrc" "$HOME/.zshrc"
-        add_link "zsh/zshenv" "$HOME/.zshenv"
-        add_link "starship/starship.toml" "$HOME/.config/starship.toml"
-        add_link "git/gitconfig" "$HOME/.gitconfig"
-        add_link "git/gitignore_global" "$HOME/.gitignore_global"
-        add_link "zsh/aliases" "$HOME/.config/zsh/aliases"
-        add_link "zsh/hosts" "$HOME/.config/zsh/hosts"
-        add_link "zsh/profile-macos" "$HOME/.config/zsh/profile-macos"
-        add_link "zsh/profile-linux" "$HOME/.config/zsh/profile-linux"
-        add_link "zsh/profile-work" "$HOME/.config/zsh/profile-work"
-        add_link "lib/dots-root.sh" "$HOME/.config/zsh/dots-root.sh"
-        add_link "ghostty" "$HOME/.config/ghostty"
-        if [ "$(uname)" = "Darwin" ]; then
-            add_link "ghostty/macos" "$HOME/Library/Application Support/com.mitchellh.ghostty/config"
+    table=$(dots_link_table)
+    while IFS='|' read -r profile _ rel dest; do
+        if profile_active "$profile"; then
+            add_link "$rel" "$dest"
         fi
-    fi
-
-    if profile_active "full"; then
-        add_link "vim/vimrc" "$HOME/.vimrc"
-        add_link "tmux/tmux.conf" "$HOME/.tmux.conf"
-        add_link "opencode/opencode.json" "$HOME/.config/opencode/opencode.json"
-        add_link "nvim" "$HOME/.config/nvim"
-        add_link "btop/btop.conf" "$HOME/.config/btop/btop.conf"
-        add_link "btop/themes/catppuccin_mocha.theme" \
-            "$HOME/.config/btop/themes/catppuccin_mocha.theme"
-    fi
-
-    if profile_active "ai"; then
-        add_link "claude/hooks" "$HOME/.claude/hooks"
-        add_link "claude/scripts" "$HOME/.claude/scripts"
-        add_link "claude/CLAUDE.md" "$HOME/.claude/CLAUDE.md"
-    fi
+    done <<<"$table"
 }
 
 # ~/.claude/skills and commands are real directories of per-item symlinks.
@@ -527,6 +482,15 @@ relink_configs() {
         fi
     done
 
+    if profile_active "ai" && [ "$claude_home_ready" = true ]; then
+        if ! merge_claude_hooks \
+            "$ROOT/claude/settings.hooks.json" \
+            "$HOME/.claude/settings.json" \
+            "$HOME/.claude/hooks"; then
+            RELINK_FAILURES=$((RELINK_FAILURES + 1))
+        fi
+    fi
+
     if [ "$LINK_CHANGES" -eq 0 ]; then
         log_info "Config links already point at this clone."
     elif [ "$DRY_RUN" = true ]; then
@@ -720,7 +684,9 @@ main() {
     echo
 
     # A failed pull is not fatal: relinking and refreshing need no network.
-    if ! pull_clone; then
+    if pull_clone; then
+        reexec_if_updated
+    else
         PULL_FAILED=true
     fi
     echo
@@ -785,6 +751,12 @@ if [ -z "${ROOT}" ]; then
     log_error "Could not resolve the directory of $0"
     exit 1
 fi
+DOTS_REPO_DIR=$ROOT
+
+# shellcheck source=lib/links.sh
+source "$ROOT/lib/links.sh"
+# shellcheck source=lib/claude-hooks.sh
+source "$ROOT/lib/claude-hooks.sh"
 
 if [ -f "$ROOT/lib/dots-root.sh" ]; then
     # shellcheck source=lib/dots-root.sh
