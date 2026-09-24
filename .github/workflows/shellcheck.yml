@@ -6,6 +6,9 @@ on:
     paths:
       - '**.sh'
       - 'zsh/**'
+      - 'lib/**'
+      - 'tests/**'
+      - 'claude/settings.hooks.json'
       - '.shellcheckrc'
       - '.github/workflows/shellcheck.yml'
   pull_request:
@@ -13,6 +16,9 @@ on:
     paths:
       - '**.sh'
       - 'zsh/**'
+      - 'lib/**'
+      - 'tests/**'
+      - 'claude/settings.hooks.json'
       - '.shellcheckrc'
       - '.github/workflows/shellcheck.yml'
 
@@ -26,9 +32,31 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run ShellCheck
-        uses: ludeeus/action-shellcheck@master
+        uses: ludeeus/action-shellcheck@00cae500b08a931fb5698e11e79bfbd38e612a38 # 2.0.0
         with:
           scandir: '.'
           severity: 'warning'
           format: 'gcc'
           additional_files: 'zsh/zshenv zsh/zshrc zsh/profile-macos zsh/profile-linux zsh/profile-work zsh/aliases'
+
+  regression-tests:
+    name: Regression tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        # macOS runs the stock /bin/bash 3.2; Ubuntu runs bash 5.
+        os: [ ubuntu-latest, macos-latest ]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Show bash version
+        run: /bin/bash --version
+
+      - name: setup.sh regression tests
+        run: /bin/bash tests/setup-regression.sh
+
+      - name: update.sh regression tests
+        run: /bin/bash tests/update-regression.sh
