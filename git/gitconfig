@@ -1,30 +1,42 @@
 # Git Configuration
-# User settings should be configured locally per machine using:
-# git config --global user.name "Your Name"
-# git config --global user.email "your.email@example.com"
+# User settings should be configured locally per machine in ~/.gitconfig.local:
+# git config --file ~/.gitconfig.local user.name "Your Name"
+# git config --file ~/.gitconfig.local user.email "your.email@example.com"
+
+[user]
+    # Refuse to guess identity if ~/.gitconfig.local is missing
+    useConfigOnly = true
 
 [core]
     excludesfile = ~/.gitignore_global
-    editor = nvim
     autocrlf = input
     # Improve performance for large repositories
     preloadindex = true
-    fscache = true
 
 [init]
     defaultBranch = main
 
 [pull]
-    rebase = false
+    rebase = true
 
 [push]
-    default = simple
     autoSetupRemote = true
     followTags = true
 
 [fetch]
     prune = true
-    pruneTags = true
+
+[column]
+    ui = auto
+
+[branch]
+    sort = -committerdate
+
+[tag]
+    sort = version:refname
+
+[commit]
+    verbose = true
 
 [color]
     ui = auto
@@ -44,20 +56,31 @@
     new = green bold
 
 [color "status"]
-    added = yellow
-    changed = green
+    added = green
+    changed = yellow
     untracked = cyan
 
 [diff]
-    colorMoved = default
+    algorithm = histogram
+    colorMoved = zebra
 
 [merge]
-    conflictstyle = diff3
     # Show common ancestor in merge conflicts
+    conflictstyle = zdiff3
+    autoStash = true
 
 [rebase]
     autoStash = true
     autoSquash = true
+    updateRefs = true
+
+[rerere]
+    enabled = true
+    autoUpdate = true
+
+[delta]
+    navigate = true
+    features = catppuccin-mocha
 
 [alias]
     st = status -sb
@@ -72,11 +95,15 @@
     last = log -1 HEAD --stat
 
 [help]
-    autocorrect = 1
+    autocorrect = prompt
 
 [credential]
     helper = cache --timeout=3600
 
-# Platform-specific settings
-[includeIf "gitdir:~/"]
+# Catppuccin theme for delta
+[include]
+    path = ~/.config/delta/catppuccin.gitconfig
+
+# Machine-specific settings (identity, credentials); included last so it wins
+[include]
     path = ~/.gitconfig.local
