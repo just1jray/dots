@@ -1,24 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# PostToolUse hook: run shellcheck on .sh files after Edit/Write
+# PostToolUse hook: run shellcheck on .sh files after Edit/MultiEdit/Write
 # Receives JSON on stdin with tool_name and tool_input fields
+# Missing jq or shellcheck is not an error: the hook silently does nothing.
 
 input=$(cat)
 
-tool_name=$(echo "$input" | jq -r '.tool_name // empty')
-[[ "$tool_name" == "Edit" || "$tool_name" == "Write" ]] || exit 0
-
-file_path=$(echo "$input" | jq -r '.tool_input.file_path // empty')
-[[ -n "$file_path" ]] || exit 0
-[[ -f "$file_path" ]] || exit 0
-
+command -v jq >/dev/null 2>&1 || exit 0
 # Homebrew on Apple Silicon is not the only install path.
 shellcheck_bin=$(command -v shellcheck || true)
-if [[ -z "$shellcheck_bin" ]]; then
-    echo "shellcheck not on PATH; skipping."
-    exit 0
-fi
+[[ -n "$shellcheck_bin" ]] || exit 0
+
+tool_name=$(printf '%s' "$input" | jq -r '.tool_name // empty' 2>/dev/null) || exit 0
+[[ "$tool_name" == "Edit" || "$tool_name" == "MultiEdit" || "$tool_name" == "Write" ]] || exit 0
+
+file_path=$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty' 2>/dev/null) || exit 0
+[[ -n "$file_path" ]] || exit 0
+[[ -f "$file_path" ]] || exit 0
 
 first_line=""
 if [[ -s "$file_path" ]]; then
@@ -55,7 +54,7 @@ esac
 # exit 1 would only surface to the user and get skipped over
 # ${arr[@]+"${arr[@]}"} so an empty array is safe under `set -u` on bash 3.2
 output=$("$shellcheck_bin" ${shell_opt[@]+"${shell_opt[@]}"} "$file_path" 2>&1) || {
-    echo "shellcheck found issues in $file_path:" >&2
-    echo "$output" >&2
+    printf '%s\n' "shellcheck found issues in $file_path:" >&2
+    printf '%s\n' "$output" >&2
     exit 2
 }
