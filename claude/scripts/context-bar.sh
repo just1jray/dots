@@ -1,6 +1,11 @@
 #!/bin/bash
 # No set -euo pipefail: status line must never crash — graceful degradation only.
 
+# Cache files may hold remote URLs and account usage; keep them private.
+umask 077
+CACHE_DIR="${TMPDIR:-/tmp}"
+CACHE_DIR="${CACHE_DIR%/}"
+
 if ! command -v jq >/dev/null 2>&1; then
     # Status line should fail gracefully if jq isn't installed.
     input=$(cat)
@@ -18,13 +23,22 @@ COLOR="orange"
 # Groups: all, catppuccin, classic, blues, greens, warms, cools, pastel, jewel
 RANDOM_COLOR="catppuccin"
 
-# Read stdin early so transcript_path is available for stable color seeding
+# Read stdin early so transcript_path is available for stable color seeding.
+# One jq pass both validates the JSON and extracts every field used below.
 input=$(cat)
-# Validate input is JSON; if not, show minimal fallback
-if ! echo "$input" | jq -e . >/dev/null 2>&1; then
+tp="" model="?" cwd="" max_context=200000 used_tokens=""
+fields=$(printf '%s' "$input" | jq -r '
+    @sh "tp=\(.transcript_path // "" | tostring)",
+    @sh "model=\(.model.display_name // .model.id // "?" | tostring)",
+    @sh "cwd=\(.cwd // "" | tostring)",
+    @sh "max_context=\(.context_window.context_window_size // 200000 | tostring)",
+    @sh "used_tokens=\(.context_window.total_input_tokens // "" | tostring)"
+' 2>/dev/null)
+if [[ -z "$fields" ]]; then
     printf '%s\n' "📦 ? / 🧿 ? | invalid input"
     exit 0
 fi
+eval "$fields"
 
 if [[ -n "$RANDOM_COLOR" ]]; then
     case "$RANDOM_COLOR" in
@@ -41,7 +55,6 @@ if [[ -n "$RANDOM_COLOR" ]]; then
     # shellcheck disable=SC2206
     colors=($palette)
     # Seed from transcript path for stable per-session color
-    tp=$(echo "$input" | jq -r '.transcript_path // empty' 2>/dev/null || true)
     if [[ -n "$tp" ]]; then
         hash=$(cksum <<< "$tp" | cut -d' ' -f1)
     else
@@ -112,9 +125,6 @@ usage_color_for_pct() {
     fi
 }
 
-# Extract model and cwd (safe: always produce a value)
-model=$(echo "$input" | jq -r '.model.display_name // .model.id // "?"' 2>/dev/null || echo "?")
-cwd=$(echo "$input" | jq -r '.cwd // empty' 2>/dev/null || true)
 dir=$(basename "${cwd:-/}" 2>/dev/null || echo "?")
 
 # Git info with caching (5s TTL per working directory)
@@ -127,7 +137,7 @@ is_git=false
 
 if [[ -n "$cwd" ]]; then
     cwd_hash=$(cksum <<< "$cwd" | cut -d' ' -f1)
-    GIT_CACHE_FILE="/tmp/statusline-git-${cwd_hash}"
+    GIT_CACHE_FILE="${CACHE_DIR}/statusline-git-${cwd_hash}"
 
     git_cache_is_stale=true
     if [[ -f "$GIT_CACHE_FILE" ]]; then
@@ -146,22 +156,21 @@ if [[ -n "$cwd" ]]; then
             if [[ -n "$branch_val" ]]; then
                 # Check sync status with upstream
                 # shellcheck disable=SC1083  # @{upstream} is valid git syntax
-                upstream=$(git -C "$cwd" rev-parse --abbrev-ref @{upstream} 2>/dev/null || true)
+                upstream=$(git -C "$cwd" rev-parse --symbolic-full-name @{upstream} 2>/dev/null || true)
                 if [[ -n "$upstream" ]]; then
                     # Find most recent remote sync time (fetch or push)
-                    # FETCH_HEAD is updated by fetch/pull; remote ref is updated by push
+                    # FETCH_HEAD is updated by fetch/pull; the upstream ref and its
+                    # reflog by push. --git-path resolves worktrees, and the reflog
+                    # still has an mtime once the ref itself is packed.
                     fetch_ago=""
                     latest_sync=0
-                    fetch_head="$cwd/.git/FETCH_HEAD"
-                    if [[ -f "$fetch_head" ]]; then
-                        fmt=$(stat -f %m "$fetch_head" 2>/dev/null || stat -c %Y "$fetch_head" 2>/dev/null || echo 0)
-                        [[ "$fmt" -gt "$latest_sync" ]] && latest_sync="$fmt"
-                    fi
-                    remote_ref="$cwd/.git/refs/remotes/origin/${branch_val}"
-                    if [[ -f "$remote_ref" ]]; then
-                        rmt=$(stat -f %m "$remote_ref" 2>/dev/null || stat -c %Y "$remote_ref" 2>/dev/null || echo 0)
-                        [[ "$rmt" -gt "$latest_sync" ]] && latest_sync="$rmt"
-                    fi
+                    while IFS= read -r sync_path; do
+                        [[ -z "$sync_path" ]] && continue
+                        [[ "$sync_path" == /* ]] || sync_path="$cwd/$sync_path"
+                        [[ -f "$sync_path" ]] || continue
+                        smt=$(stat -f %m "$sync_path" 2>/dev/null || stat -c %Y "$sync_path" 2>/dev/null || echo 0)
+                        [[ "$smt" -gt "$latest_sync" ]] && latest_sync="$smt"
+                    done < <(git -C "$cwd" rev-parse --git-path FETCH_HEAD --git-path "$upstream" --git-path "logs/$upstream" 2>/dev/null)
                     if [[ "$latest_sync" -gt 0 ]]; then
                         now=$(date +%s)
                         diff_t=$((now - latest_sync))
@@ -178,8 +187,7 @@ if [[ -n "$cwd" ]]; then
 
                     # shellcheck disable=SC1083  # @{upstream} is valid git syntax
                     counts=$(git -C "$cwd" rev-list --left-right --count HEAD...@{upstream} 2>/dev/null || true)
-                    ahead=$(echo "$counts" | cut -f1)
-                    behind=$(echo "$counts" | cut -f2)
+                    read -r ahead behind <<< "$counts"
                     ahead=${ahead:-0}
                     behind=${behind:-0}
                     if [[ "$ahead" -eq 0 && "$behind" -eq 0 ]]; then
@@ -199,10 +207,17 @@ if [[ -n "$cwd" ]]; then
                     sync_val="🚱"
                 fi
 
-                # Get remote URL for clickable link; convert SSH to HTTPS
-                raw_remote=$(git -C "$cwd" remote get-url origin 2>/dev/null || true)
+                # Get remote URL for clickable link; convert SSH to HTTPS and
+                # drop any user:token@ credentials so they never reach the cache
+                remote_name=$(git -C "$cwd" config --get "branch.${branch_val}.remote" 2>/dev/null || true)
+                [[ -z "$remote_name" || "$remote_name" == "." ]] && remote_name=origin
+                raw_remote=$(git -C "$cwd" remote get-url "$remote_name" 2>/dev/null || true)
                 if [[ -n "$raw_remote" ]]; then
-                    remote_val=$(echo "$raw_remote" | sed 's|git@github\.com:|https://github.com/|' | sed 's|\.git$||')
+                    remote_val=$(printf '%s\n' "$raw_remote" | sed -E \
+                        -e 's|^git@github\.com:|https://github.com/|' \
+                        -e 's|//[^@/]+@|//|' \
+                        -e 's|^ssh://github\.com/|https://github.com/|' \
+                        -e 's|\.git$||')
                 fi
             fi
 
@@ -221,7 +236,6 @@ if [[ -n "$cwd" ]]; then
 fi
 
 # Context window size and pre-calculated percentage (v2.1.50+: includes system prompt/tools/memory)
-max_context=$(echo "$input" | jq -r '.context_window.context_window_size // 200000' 2>/dev/null || echo "200000")
 # Ensure max_context is numeric
 [[ "$max_context" =~ ^[0-9]+$ ]] || max_context=200000
 if [[ "$max_context" -ge 1000000 && $((max_context % 1000000)) -eq 0 ]]; then
@@ -230,7 +244,6 @@ else
     max_display="$((max_context / 1000))k"
 fi
 # total_input_tokens = input + cache creation + cache reads, i.e. what's in the window now
-used_tokens=$(echo "$input" | jq -r '.context_window.total_input_tokens // empty' 2>/dev/null || true)
 [[ "$used_tokens" =~ ^[0-9]+$ ]] || used_tokens=""
 
 bar_width=10
@@ -290,23 +303,24 @@ get_oauth_creds() {
     echo ""
 }
 
-get_oauth_token() {
-    local creds token
+# Prints `token=... subscription_type=...` shell assignments for eval.
+get_oauth_fields() {
+    local creds
     creds=$(get_oauth_creds)
-    [[ -z "$creds" ]] && { echo ""; return; }
-    token=$(echo "$creds" | jq -r '.claudeAiOauth.accessToken // empty' 2>/dev/null || true)
-    if [[ -n "$token" && "$token" != "null" ]]; then
-        echo "$token"; return 0
-    fi
-    echo ""
+    [[ -z "$creds" ]] && return
+    printf '%s' "$creds" | jq -r '.claudeAiOauth |
+        @sh "token=\(.accessToken // "")",
+        @sh "subscription_type=\(.subscriptionType // "")"' 2>/dev/null || true
 }
 
-get_subscription_type() {
-    local creds sub_type
-    creds=$(get_oauth_creds)
-    [[ -z "$creds" ]] && { echo ""; return; }
-    sub_type=$(echo "$creds" | jq -r '.claudeAiOauth.subscriptionType // empty' 2>/dev/null || true)
-    echo "$sub_type"
+claude_user_agent() {
+    local version
+    version=$(claude --version 2>/dev/null | awk 'NR == 1 {print $1}')
+    if [[ "$version" =~ ^[0-9][0-9A-Za-z.+-]*$ ]]; then
+        echo "claude-code/${version}"
+    else
+        echo "claude-code"
+    fi
 }
 
 build_usage_bar() {
@@ -347,10 +361,13 @@ format_reset_time() {
 usage_line=$(
     set +e  # no errexit inside usage block
 
-    usage_cache_file="/tmp/claude-statusline-usage.json"
+    usage_cache_file="${CACHE_DIR}/claude-statusline-usage.json"
     usage_cache_max_age=150
     usage_needs_refresh=true
     usage_data=""
+    token=""
+    subscription_type=""
+    creds_read=false
 
     if [[ -f "$usage_cache_file" ]]; then
         usage_cache_mtime=$(stat -f %m "$usage_cache_file" 2>/dev/null || stat -c %Y "$usage_cache_file" 2>/dev/null || echo 0)
@@ -361,51 +378,76 @@ usage_line=$(
         fi
     fi
 
-    subscription_type=$(get_subscription_type)
-
+    # Keychain and credentials are only read when the cache needs refreshing;
+    # the subscription type is stored in the cache for the fresh-cache path.
     if [[ "$usage_needs_refresh" == true ]]; then
-        token=$(get_oauth_token)
+        eval "$(get_oauth_fields)"
+        creds_read=true
         if [[ -n "$token" ]]; then
             response=$(curl -s --max-time 5 \
                 -H "Accept: application/json" \
                 -H "Authorization: Bearer $token" \
                 -H "anthropic-beta: oauth-2025-04-20" \
-                -H "User-Agent: claude-code/2.1.34" \
+                -H "User-Agent: $(claude_user_agent)" \
                 "https://api.anthropic.com/api/oauth/usage" 2>/dev/null || true)
-            # Cache if response is valid JSON (works for both pro and enterprise)
-            if echo "$response" | jq -e . >/dev/null 2>&1; then
-                usage_data="$response"
-                echo "$response" > "$usage_cache_file"
+            # Cache if response is a JSON object (works for both pro and enterprise)
+            cached=$(printf '%s' "$response" | jq -c --arg sub "$subscription_type" \
+                'select(type == "object") | . + {_subscription_type: $sub}' 2>/dev/null || true)
+            if [[ -n "$cached" ]]; then
+                usage_data="$cached"
+                cache_tmp=$(mktemp "${usage_cache_file}.XXXXXX" 2>/dev/null) &&
+                    printf '%s\n' "$cached" > "$cache_tmp" && mv -f "$cache_tmp" "$usage_cache_file"
             fi
         fi
         [[ -z "$usage_data" && -f "$usage_cache_file" ]] && usage_data=$(cat "$usage_cache_file" 2>/dev/null || true)
     fi
 
-    if [[ -n "$usage_data" ]] && echo "$usage_data" | jq -e . >/dev/null 2>&1; then
+    usage_fields=""
+    has_cached_sub=false cached_sub="" has_extra=false has_five_hour=false
+    eu_pct=0 eu_used=0 eu_limit_k=0 fh_pct=0 fh_resets_at="" sd_pct=0 sd_resets_at=""
+    [[ -n "$usage_data" ]] && usage_fields=$(printf '%s' "$usage_data" | jq -r '
+        def pct: (tonumber? // 0) | round;
+        select(type == "object") |
+        @sh "has_cached_sub=\(has("_subscription_type"))",
+        @sh "cached_sub=\(._subscription_type // "" | tostring)",
+        @sh "has_extra=\(.extra_usage | . != null and . != false)",
+        @sh "eu_pct=\(.extra_usage.utilization? // 0 | pct)",
+        @sh "eu_used=\(.extra_usage.used_credits? // 0 | pct)",
+        @sh "eu_limit_k=\((.extra_usage.monthly_limit? // 0 | pct) / 1000 | round)",
+        @sh "has_five_hour=\(.five_hour | . != null and . != false)",
+        @sh "fh_pct=\(.five_hour.utilization? // 0 | pct)",
+        @sh "fh_resets_at=\(.five_hour.resets_at? // "" | tostring)",
+        @sh "sd_pct=\(.seven_day.utilization? // 0 | pct)",
+        @sh "sd_resets_at=\(.seven_day.resets_at? // "" | tostring)"
+    ' 2>/dev/null)
+
+    if [[ -n "$usage_fields" ]]; then
+        eval "$usage_fields"
+        if [[ "$creds_read" == false ]]; then
+            if [[ "$has_cached_sub" == true ]]; then
+                subscription_type="$cached_sub"
+            else
+                eval "$(get_oauth_fields)"
+            fi
+        fi
+
         if [[ "$subscription_type" == "enterprise" ]]; then
             # Enterprise: show extra_usage (monthly credits) if available
-            if echo "$usage_data" | jq -e '.extra_usage' >/dev/null 2>&1; then
-                eu_pct=$(echo "$usage_data" | jq -r '.extra_usage.utilization // 0' | awk '{printf "%.0f", $1}')
-                eu_used=$(echo "$usage_data" | jq -r '.extra_usage.used_credits // 0' | awk '{printf "%.0f", $1}')
-                eu_limit=$(echo "$usage_data" | jq -r '.extra_usage.monthly_limit // 0' | awk '{printf "%.0f", $1}')
+            if [[ "$has_extra" == true ]]; then
                 eu_bar=$(build_usage_bar "$eu_pct")
                 eu_tip=$(( eu_pct >= 3 ? (eu_pct - 3) / 10 : 0 )); [[ $eu_tip -gt 9 ]] && eu_tip=9
                 eu_col="${C_BAR[$eu_tip]}"
 
-                eu_limit_k=$(awk "BEGIN {printf \"%.0f\", $eu_limit / 1000}")
                 echo "🏢 ${eu_bar}  ${eu_col}${eu_pct}%${C_RESET} ${C_GRAY}(${eu_used}/${eu_limit_k}k credits)${C_RESET}"
             fi
         else
             # Pro/individual: show 5hr and 7day usage
-            if echo "$usage_data" | jq -e '.five_hour' >/dev/null 2>&1; then
-                fh_pct=$(echo "$usage_data" | jq -r '.five_hour.utilization // 0' | awk '{printf "%.0f", $1}')
-                fh_reset=$(format_reset_time "$(echo "$usage_data" | jq -r '.five_hour.resets_at // empty')" "time")
+            if [[ "$has_five_hour" == true ]]; then
+                fh_reset=$(format_reset_time "$fh_resets_at" "time")
                 fh_bar=$(build_usage_bar "$fh_pct")
                 fh_tip=$(( fh_pct >= 3 ? (fh_pct - 3) / 10 : 0 )); [[ $fh_tip -gt 9 ]] && fh_tip=9
                 fh_col="${C_BAR[$fh_tip]}"
 
-                sd_pct=$(echo "$usage_data" | jq -r '.seven_day.utilization // 0' | awk '{printf "%.0f", $1}')
-                sd_resets_at=$(echo "$usage_data" | jq -r '.seven_day.resets_at // empty')
                 sd_reset_date=$(format_reset_time "$sd_resets_at" "date")
                 today_date=$(date +"%m-%e" | sed 's/^0//; s/ //')
                 if [[ -n "$sd_reset_date" && "$sd_reset_date" == "$today_date" ]]; then
