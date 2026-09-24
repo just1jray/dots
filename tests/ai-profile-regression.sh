@@ -159,6 +159,7 @@ test_jq_failure_is_controlled() {
         "failed jq merge should leave live config untouched"
 }
 
+# shellcheck disable=SC2329 # log/command stubs are called by the sourced lib
 test_merge_helper_never_applies_tracked_permissions() {
     new_case tracked-permissions
     local source_file="$CASE_ROOT/source.json"

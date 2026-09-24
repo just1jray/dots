@@ -520,7 +520,7 @@ link_config_files() {
     fi
 
     # bash 3.2 (macOS) treats "${arr[@]}" on an empty array as unbound under
-    # `set -u`, and --profile claude alone leaves this list empty.
+    # `set -u`, and --profile ai alone leaves this list empty.
     for config in ${config_files[@]+"${config_files[@]}"}; do
         IFS='|' read -r source_file target_file <<< "$config"
         source_path="$REPO_DIR/$source_file"
@@ -667,7 +667,8 @@ link_config_files() {
         merge_claude_hooks \
             "$claude_source/settings.hooks.json" \
             "$claude_target/settings.json" \
-            "$claude_target/hooks"
+            "$claude_target/hooks" ||
+            log_warning "Claude hooks were not registered; re-run setup after fixing settings.json"
 
         # Link LLM skills and commands into real directories
         # Using real directories allows externally installed skills/commands to coexist
