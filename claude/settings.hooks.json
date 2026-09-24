@@ -1,5 +1,5 @@
 {
-  "_comment": "Portable Claude Code hook wiring. setup.sh merges these stanzas into ~/.claude/settings.json, which stays machine-local. {{CLAUDE_HOOKS}} is replaced with the installed hooks directory. Merging is idempotent and keyed on the command string, so re-running setup.sh never duplicates an entry.",
+  "_comment": "Portable Claude Code hook wiring. setup.sh merges these stanzas into ~/.claude/settings.json, which stays machine-local. {{CLAUDE_HOOKS}} is replaced with the installed hooks directory; paths are single-quoted so a HOME containing spaces still works. Merging is idempotent and keyed on the hook script name, so re-running setup.sh never duplicates an entry.",
   "hooks": {
     "PreToolUse": [
       {
@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash {{CLAUDE_HOOKS}}/block-force-push.sh",
+            "command": "bash '{{CLAUDE_HOOKS}}/block-force-push.sh'",
             "timeout": 10
           }
         ]
@@ -15,12 +15,23 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Edit|Write",
+        "matcher": "Edit|MultiEdit|Write",
         "hooks": [
           {
             "type": "command",
-            "command": "bash {{CLAUDE_HOOKS}}/shellcheck.sh",
+            "command": "bash '{{CLAUDE_HOOKS}}/shellcheck.sh'",
             "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash '{{CLAUDE_HOOKS}}/stop-hook-git-check.sh'",
+            "timeout": 10
           }
         ]
       }
