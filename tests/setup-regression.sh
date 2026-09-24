@@ -552,6 +552,7 @@ EOF
 EOF
 
     (
+        # shellcheck disable=SC2034  # read by lib/claude-hooks.sh
         DRY_RUN=false
         log_info() { :; }
         log_success() { :; }

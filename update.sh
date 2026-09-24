@@ -751,6 +751,7 @@ if [ -z "${ROOT}" ]; then
     log_error "Could not resolve the directory of $0"
     exit 1
 fi
+# shellcheck disable=SC2034  # read by lib/links.sh
 DOTS_REPO_DIR=$ROOT
 
 # shellcheck source=lib/links.sh

@@ -22,6 +22,7 @@ VIM_CATPPUCCIN_DIR="$HOME/.vim/pack/themes/start/catppuccin"
 # The clone is this script's directory, not the caller's working directory.
 # Physical path so links match what update.sh resolves with `cd -P`.
 REPO_DIR=$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC2034  # read by lib/links.sh
 DOTS_REPO_DIR=$REPO_DIR
 
 # shellcheck source=lib/links.sh
