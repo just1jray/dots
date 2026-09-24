@@ -15,14 +15,11 @@ autoload -Uz _zinit
 ### End of Zinit's installer chunk
 
 # Environment Setup
-export LANG=en_US.UTF-8
-export LC_ALL=en_US.UTF-8
+# LANG and PATH are managed in .zshenv
 EDITOR=$(command -v nvim >/dev/null && echo "nvim" || echo "vim")
 export EDITOR
 [[ $EDITOR == "nvim" ]] && alias vim="nvim"
 command -v codium &> /dev/null && alias code="codium"
-
-# PATH is managed in .zshenv
 
 # Set LS_COLORS for file type coloring
 if command -v vivid &> /dev/null; then
@@ -48,14 +45,18 @@ export KEYTIMEOUT=20  # Allow double-Esc bindings (200ms)
 bindkey '^p' history-search-backward
 bindkey '^n' history-search-forward
 bindkey '^\[w' kill-region
+bindkey -M viins '^@' set-mark-command  # Ctrl-Space
+
+# vv in normal mode edits the command line in $EDITOR (single v stays visual mode)
+autoload -Uz edit-command-line
+zle -N edit-command-line
+bindkey -M vicmd 'vv' edit-command-line
 
 # History Configuration
 HISTSIZE=50000                      # Increased from 5000 for better history retention
 HISTFILE=~/.zsh_history
 # shellcheck disable=SC2034  # SAVEHIST is used by zsh
 SAVEHIST=$HISTSIZE
-# shellcheck disable=SC2034  # HISTDUP is used by zsh
-HISTDUP=erase
 setopt appendhistory                # Append to history file, don't overwrite
 setopt sharehistory                 # Share history between all sessions
 setopt extended_history             # Record timestamp of command in HISTFILE
@@ -71,22 +72,79 @@ setopt auto_cd                      # Auto cd to a directory without typing cd
 zstyle ':completion:*' matcher-list 'm:{a-z}={A-Za-z}'
 # shellcheck disable=SC2296  # zsh parameter expansion syntax
 zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
-zstyle ':completion:*' menu no
 
 # Load Custom Host Configurations
 # shellcheck disable=SC2139  # intentional expansion at definition time
 [[ -f "$HOME/.config/zsh/hosts" ]] && source "$HOME/.config/zsh/hosts" && alias hosts="cat $HOME/.config/zsh/hosts"
+
+# Platform-specific configurations
+if [[ "$OSTYPE" == darwin* ]]; then
+    [[ -f "$HOME/.config/zsh/profile-macos" ]] && source "$HOME/.config/zsh/profile-macos"
+elif [[ "$OSTYPE" == linux* ]]; then
+    [[ -f "$HOME/.config/zsh/profile-linux" ]] && source "$HOME/.config/zsh/profile-linux"
+fi
 
 # Docker CLI completions (fpath must be set before compinit)
 # Note: Docker Desktop may re-add compinit lines at end of file - remove them if so
 # shellcheck disable=SC2206  # zsh array assignment syntax
 [[ -d "$HOME/.docker/completions" ]] && fpath=("$HOME/.docker/completions" $fpath)
 
+# Completion system. fzf-tab needs compinit first and must load before
+# widget-wrapping plugins (fast-syntax-highlighting, autosuggestions).
+zicompinit
+zicdreplay
+
+# fzf
+# LS_PREVIEW comes from aliases. Fallback must not pass GNU-only flags on Darwin.
+if [[ -z "${LS_PREVIEW-}" ]]; then
+    if [[ "$OSTYPE" == darwin* ]]; then
+        LS_PREVIEW="CLICOLOR_FORCE=1 ls -G"
+    else
+        LS_PREVIEW="ls --color"
+    fi
+fi
+if command -v eza &> /dev/null; then
+    FZF_DIR_PREVIEW="eza -1 --color=always --icons=always"
+else
+    FZF_DIR_PREVIEW="$LS_PREVIEW"
+fi
+
+# Catppuccin Mocha theme for fzf and fzf-tab
+# shellcheck disable=SC2054  # commas belong to fzf --color values
+FZF_MOCHA_COLORS=(
+    --color=bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8
+    --color=fg:#cdd6f4,header:#f38ba8,info:#cba6f7,pointer:#f5e0dc
+    --color=marker:#f5e0dc,fg+:#cdd6f4,prompt:#cba6f7,hl+:#f38ba8
+)
+
+if command -v fzf &> /dev/null; then
+    export FZF_DEFAULT_OPTS="--height=80% ${FZF_MOCHA_COLORS[*]}"
+
+    # fzf < 0.48 (e.g. Ubuntu 24.04 apt) has no --zsh and prints nothing
+    _fzf_init="$(fzf --zsh 2>/dev/null)"
+    if [[ -n "$_fzf_init" ]]; then
+        eval "$_fzf_init"
+    elif [[ -f /usr/share/doc/fzf/examples/key-bindings.zsh ]]; then
+        source /usr/share/doc/fzf/examples/key-bindings.zsh
+        [[ -f /usr/share/doc/fzf/examples/completion.zsh ]] && source /usr/share/doc/fzf/examples/completion.zsh
+    else
+        echo "Warning: Failed to initialize fzf" >&2
+    fi
+    unset _fzf_init
+
+    zinit light Aloxaf/fzf-tab
+
+    zstyle ':completion:*' menu no
+    zstyle ':fzf-tab:*' fzf-flags --height=80% "${FZF_MOCHA_COLORS[@]}"
+    # shellcheck disable=SC2016  # $realpath is expanded later by fzf-tab
+    zstyle ':fzf-tab:complete:cd:*' fzf-preview "${FZF_DIR_PREVIEW} \$realpath"
+else
+    zstyle ':completion:*' menu select
+fi
+
 # ZSH Plugins
 # Load fast-syntax-highlighting synchronously to avoid prompt issues
-zinit light-mode for \
-    atinit"zicompinit; zicdreplay" \
-        zdharma-continuum/fast-syntax-highlighting
+zinit light zdharma-continuum/fast-syntax-highlighting
 
 # Load other plugins with turbo mode for faster startup
 zinit wait lucid light-mode for \
@@ -95,50 +153,13 @@ zinit wait lucid light-mode for \
     blockf atpull'zinit creinstall -q .' \
         zsh-users/zsh-completions
 
-# Platform-specific configurations
-if [[ $(uname) == "Darwin" ]]; then
-    [[ -f "$HOME/.config/zsh/profile-macos" ]] && source "$HOME/.config/zsh/profile-macos"
-elif [[ $(uname) == "Linux" ]]; then
-    [[ -f "$HOME/.config/zsh/profile-linux" ]] && source "$HOME/.config/zsh/profile-linux"
-fi
-
-# fzf
-# LS_PREVIEW comes from aliases. Fallback must not pass GNU-only flags on Darwin.
-if [[ -z "${LS_PREVIEW-}" ]]; then
-    if [[ "$(uname)" == "Darwin" ]]; then
-        LS_PREVIEW="CLICOLOR_FORCE=1 ls -G"
-    else
-        LS_PREVIEW="ls --color"
-    fi
-fi
-
-if command -v fzf &> /dev/null; then
-    # Initialize fzf with error handling
-    if ! eval "$(fzf --zsh 2>/dev/null)"; then
-        echo "Warning: Failed to initialize fzf" >&2
-    else
-        # Catppuccin Mocha theme for fzf
-        export FZF_DEFAULT_OPTS="--height=80% \
---color=bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8 \
---color=fg:#cdd6f4,header:#f38ba8,info:#cba6f7,pointer:#f5e0dc \
---color=marker:#f5e0dc,fg+:#cdd6f4,prompt:#cba6f7,hl+:#f38ba8"
-
-        zinit light Aloxaf/fzf-tab
-
-        # Configure fzf-tab with Catppuccin colors
-        zstyle ':fzf-tab:*' fzf-flags --height=80% --color=bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8 --color=fg:#cdd6f4,header:#f38ba8,info:#cba6f7,pointer:#f5e0dc --color=marker:#f5e0dc,fg+:#cdd6f4,prompt:#cba6f7,hl+:#f38ba8
-        # shellcheck disable=SC2016  # $realpath is expanded later by fzf-tab
-        zstyle ':fzf-tab:complete:cd:*' fzf-preview "${LS_PREVIEW} \$realpath"
-    fi
-fi
-
-# zoxide (skip if already initialized in .zshenv for non-interactive shells)
+# zoxide (interactive only; guard against re-sourcing .zshrc)
 if command -v zoxide &> /dev/null && ! typeset -f __zoxide_z &> /dev/null; then
     if ! eval "$(zoxide init --cmd cd zsh 2>/dev/null)"; then
         echo "Warning: Failed to initialize zoxide" >&2
     else
         # shellcheck disable=SC2016  # $realpath is expanded later by fzf-tab
-        zstyle ':fzf-tab:complete:__zoxide_z:*' fzf-preview "${LS_PREVIEW} \$realpath"
+        zstyle ':fzf-tab:complete:__zoxide_z:*' fzf-preview "${FZF_DIR_PREVIEW} \$realpath"
     fi
 fi
 
@@ -157,7 +178,8 @@ fi
 # Note: PYENV_ROOT and PATH are set in .zshenv
 if command -v pyenv &> /dev/null; then
     # Initialize pyenv with error handling
-    if ! eval "$(pyenv init - 2>/dev/null)"; then
+    # --no-rehash: rehashing every shell costs ~80ms; pyenv rehashes on install
+    if ! eval "$(pyenv init - --no-rehash zsh 2>/dev/null)"; then
         echo "Warning: Failed to initialize pyenv" >&2
     fi
 fi
@@ -178,11 +200,15 @@ if [[ -s "$NVM_DIR/nvm.sh" ]]; then
         [[ -s "$NVM_DIR/bash_completion" ]] && source "$NVM_DIR/bash_completion"
     }
 
-    # Wrapper functions trigger lazy load on first use
+    # Wrapper functions trigger lazy load on first use. When .zshenv already
+    # put the default node on PATH, node/npm/npx run it directly.
     nvm() { _load_nvm; nvm "$@"; }
-    node() { _load_nvm; node "$@"; }
-    npm() { _load_nvm; npm "$@"; }
-    npx() { _load_nvm; npx "$@"; }
+    # shellcheck disable=SC2154  # path is the zsh array tied to PATH
+    if [[ "${path[*]}" != *"$NVM_DIR/versions/node/"* ]]; then
+        node() { _load_nvm; node "$@"; }
+        npm() { _load_nvm; npm "$@"; }
+        npx() { _load_nvm; npx "$@"; }
+    fi
 fi
 
 # Bun completions
