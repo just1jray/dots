@@ -27,7 +27,7 @@ enable=quote-safe-variables
 # Warn about unquoted variables in [[ ]]
 enable=avoid-nullary-conditions
 
-# Require explicit [[ -v var ]] instead of [[ -n $var ]]
+# Warn when an uppercase variable is used but never assigned
 enable=check-unassigned-uppercase
 
 # Default shell dialect
