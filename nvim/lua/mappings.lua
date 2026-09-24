@@ -7,4 +7,10 @@ local map = vim.keymap.set
 map("n", ";", ":", { desc = "CMD enter command mode" })
 map("i", "jk", "<ESC>")
 
+map("n", "<C-h>", "<cmd>TmuxNavigateLeft<cr>", { desc = "switch window/pane left" })
+map("n", "<C-j>", "<cmd>TmuxNavigateDown<cr>", { desc = "switch window/pane down" })
+map("n", "<C-k>", "<cmd>TmuxNavigateUp<cr>", { desc = "switch window/pane up" })
+map("n", "<C-l>", "<cmd>TmuxNavigateRight<cr>", { desc = "switch window/pane right" })
+map("n", "<C-\\>", "<cmd>TmuxNavigatePrevious<cr>", { desc = "switch to previous window/pane" })
+
 -- map({ "n", "i", "v" }, "<C-s>", "<cmd> w <cr>")
