@@ -1,11 +1,12 @@
 # Global gitignore file
-# Configure with: git config --global core.excludesfile ~/.gitignore_global
+# Linked to ~/.gitignore_global and loaded via core.excludesfile in gitconfig
+# Keep this to OS junk, editor files, and secrets; project patterns belong in each repo
 
 # macOS
 .DS_Store
 .AppleDouble
 .LSOverride
-Icon
+Icon[]
 ._*
 .DocumentRevisions-V100
 .fseventsd
@@ -35,11 +36,6 @@ ehthumbs_vista.db
 *.stackdump
 [Dd]esktop.ini
 $RECYCLE.BIN/
-*.cab
-*.msi
-*.msix
-*.msm
-*.msp
 *.lnk
 
 # Editor and IDE
@@ -47,134 +43,23 @@ $RECYCLE.BIN/
 .idea/
 *.swp
 *.swo
-*~
 .*.swp
 .*.swo
-*.bak
-*.tmp
-*.backup
-.project
-.classpath
-.settings/
-*.sublime-project
 *.sublime-workspace
 .viminfo
 
-# Compiled source
-*.com
-*.class
-*.dll
-*.exe
-*.o
-*.so
-*.pyc
-*.pyo
-__pycache__/
+# Local environments
+.venv/
+.direnv/
 
-# Packages and Archives
-*.7z
-*.dmg
-*.gz
-*.iso
-*.jar
-*.rar
-*.tar
-*.zip
-
-# Logs and databases
-*.log
-*.sql
-*.sqlite
-*.db
-
-# Environment and Config
+# Secrets - never commit these
 .env
-.env.local
-.env.*.local
-*.env
-.envrc
-
-# Node.js
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.npm
-.yarn-integrity
-.pnp.*
-
-# Python
-*.py[cod]
-*$py.class
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-venv/
-ENV/
-env/
-
-# Ruby
-*.gem
-*.rbc
-/.config
-/coverage/
-/InstalledFiles
-/pkg/
-/spec/reports/
-/spec/examples.txt
-/test/tmp/
-/test/version_tmp/
-/tmp/
-.bundle/
-vendor/bundle
-
-# Go
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-*.test
-*.out
-go.work
-
-# Rust
-target/
-Cargo.lock
-
-# Java
-*.class
-*.jar
-*.war
-*.ear
-target/
-
-# Security - Never commit these
+.env.*
+!.env.example
+id_rsa*
+id_ed25519*
+id_ecdsa*
 *.pem
-*.key
-*.p12
-*.pfx
-id_rsa
-id_dsa
-*.secret
-secrets.yml
-credentials.json
-
-# OS generated files
-.fseventsd
-.Spotlight-V100
-.TemporaryItems
+.netrc
+*.tfstate*
+.terraform/
