@@ -6,6 +6,7 @@
 
 macos-titlebar-style = transparent
 background-blur = 20
+macos-option-as-alt = left
 
 keybind = global:ctrl+grave_accent=toggle_quick_terminal
 keybind = cmd+shift+enter=new_split:right
@@ -17,4 +18,3 @@ keybind = cmd+alt+up=goto_split:top
 keybind = cmd+alt+down=goto_split:bottom
 keybind = cmd+shift+e=equalize_splits
 keybind = cmd+shift+f=toggle_split_zoom
-keybind = cmd+shift+comma=reload_config
