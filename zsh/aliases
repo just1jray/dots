@@ -1,20 +1,19 @@
 # ZSH Configuration Aliases
 # shellcheck disable=SC2139,SC2154  # intentional expansion at definition time
 alias zfig="$EDITOR ~/.zshrc"
-alias zfresh="source ~/.zshenv && source ~/.zshrc"
+alias zfresh="exec zsh"
 
-# Refresh all configurations
+# Refresh all configurations (tmux first: exec replaces this shell)
 efresh() {
     echo "♻️  Refreshing configurations..."
-    source ~/.zshenv && source ~/.zshrc
-    echo "✓ ZSH config reloaded"
 
     if [[ -n "$TMUX" ]]; then
         tmux source-file ~/.tmux.conf
         echo "✓ Tmux config reloaded"
     fi
 
-    echo "✨ All configs refreshed!"
+    echo "✨ Restarting zsh..."
+    exec zsh
 }
 
 # Portable ls color. Probe the ls on PATH (instant: -d on one path).
@@ -111,7 +110,7 @@ else
 fi
 alias df="df -h"
 alias path='echo -e ${PATH//:/\\n}'
-psg() { ps aux | grep -v grep | grep -i -e VSZ -e "$@"; }
+psg() { ps aux | grep -v grep | grep -i -e VSZ -e "$*"; }
 alias myip="curl -s ifconfig.me"
 
 # Python Virtual Environment
@@ -119,12 +118,12 @@ alias activate="source ./venv/bin/activate"
 mkvenv() { [[ ! -d "./venv" ]] && python -m venv venv; }
 
 # OS Specific Aliases and Functions
-if [[ $(uname) == "Linux" ]]; then
+if [[ "$OSTYPE" == linux* ]]; then
     # Run updates
     alias up="sudo apt update -y && sudo apt upgrade -y && sudo apt autoremove -y"
 fi
 
-if [[ $(uname) == "Darwin" ]]; then
+if [[ "$OSTYPE" == darwin* ]]; then
     # File visibility
     show() { defaults write com.apple.Finder AppleShowAllFiles true; killall Finder; }
     hide() { defaults write com.apple.Finder AppleShowAllFiles false; killall Finder; }

@@ -2,91 +2,130 @@
 # This file is loaded before .zshrc
 # All PATH modifications should be centralized here
 
-# Function to add directories to PATH without duplicates
+# Keep PATH and fpath free of duplicates (first occurrence wins)
+# shellcheck disable=SC2034  # path and fpath are zsh special arrays
+typeset -gU path fpath
+
+# Prepend a directory to PATH, moving it to the front if already present
 add_to_path() {
-    if [[ -d "$1" ]] && [[ ":$PATH:" != *":$1:"* ]]; then
-        export PATH="$1:$PATH"
+    if [[ -d "$1" ]]; then
+        # shellcheck disable=SC2206  # zsh array assignment syntax
+        path=("$1" $path)
     fi
 }
 
-# Homebrew (required early for non-interactive shells like mosh-server)
-# Darwin: Apple Silicon, then Intel, via brew shellenv (PATH, MANPATH, HOMEBREW_*).
-# Linuxbrew is not initialized unless this machine opted in with ./setup.sh --brew
-# (marker ~/.config/zsh/use-brew, or DOTS_USE_BREW=1).
-if [[ "$OSTYPE" == darwin* ]]; then
-    if [[ -x /opt/homebrew/bin/brew ]]; then
-        if ! eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null)"; then
-            echo "Warning: Failed to initialize Homebrew" >&2
+# Build PATH. Called again from .zprofile because macOS path_helper
+# (/etc/zprofile) moves system dirs ahead of these in login shells.
+dots_init_path() {
+    emulate -L zsh
+
+    # Homebrew (required early for non-interactive shells like mosh-server)
+    # Darwin: Apple Silicon, then Intel, via brew shellenv (PATH, MANPATH, HOMEBREW_*).
+    # Linuxbrew is not initialized unless this machine opted in with ./setup.sh --brew
+    # (marker ~/.config/zsh/use-brew, or DOTS_USE_BREW=1).
+    # shellenv runs once; later calls and child shells only re-prepend its bin dirs.
+    if [[ "$OSTYPE" == darwin* ]]; then
+        if [[ -z "${HOMEBREW_PREFIX:-}" ]]; then
+            if [[ -x /opt/homebrew/bin/brew ]]; then
+                if ! eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null)"; then
+                    echo "Warning: Failed to initialize Homebrew" >&2
+                fi
+            elif [[ -x /usr/local/bin/brew ]]; then
+                if ! eval "$(/usr/local/bin/brew shellenv 2>/dev/null)"; then
+                    echo "Warning: Failed to initialize Homebrew (Intel)" >&2
+                fi
+            fi
         fi
-    elif [[ -x /usr/local/bin/brew ]]; then
-        if ! eval "$(/usr/local/bin/brew shellenv 2>/dev/null)"; then
-            echo "Warning: Failed to initialize Homebrew (Intel)" >&2
+        if [[ -n "${HOMEBREW_PREFIX:-}" ]]; then
+            add_to_path "$HOMEBREW_PREFIX/sbin"
+            add_to_path "$HOMEBREW_PREFIX/bin"
+        else
+            add_to_path "/usr/local/bin"
         fi
     else
-        add_to_path "/opt/homebrew/bin"
-        add_to_path "/opt/homebrew/sbin"
         add_to_path "/usr/local/bin"
-    fi
-else
-    if [[ -d "/usr/local/bin" ]]; then
-        add_to_path "/usr/local/bin"
-    fi
-    if [[ "$OSTYPE" == linux* ]]; then
-        if [[ "${DOTS_USE_BREW:-0}" == "1" || -f "${HOME}/.config/zsh/use-brew" ]]; then
-            if [[ -x "${HOME}/.linuxbrew/bin/brew" ]]; then
-                if ! eval "$("${HOME}/.linuxbrew/bin/brew" shellenv 2>/dev/null)"; then
-                    echo "Warning: Failed to initialize Linuxbrew" >&2
+        if [[ "$OSTYPE" == linux* ]]; then
+            if [[ "${DOTS_USE_BREW:-0}" == "1" || -f "${HOME}/.config/zsh/use-brew" ]]; then
+                if [[ -z "${HOMEBREW_PREFIX:-}" ]]; then
+                    if [[ -x "${HOME}/.linuxbrew/bin/brew" ]]; then
+                        if ! eval "$("${HOME}/.linuxbrew/bin/brew" shellenv 2>/dev/null)"; then
+                            echo "Warning: Failed to initialize Linuxbrew" >&2
+                        fi
+                    elif [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+                        if ! eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv 2>/dev/null)"; then
+                            echo "Warning: Failed to initialize Linuxbrew" >&2
+                        fi
+                    fi
                 fi
-            elif [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
-                if ! eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv 2>/dev/null)"; then
-                    echo "Warning: Failed to initialize Linuxbrew" >&2
+                if [[ -n "${HOMEBREW_PREFIX:-}" ]]; then
+                    add_to_path "$HOMEBREW_PREFIX/sbin"
+                    add_to_path "$HOMEBREW_PREFIX/bin"
                 fi
             fi
         fi
     fi
-fi
 
-# Local bin directories
-add_to_path "$HOME/.local/bin"
-add_to_path "$HOME/bin"
+    # Local bin directories
+    add_to_path "$HOME/.local/bin"
+    add_to_path "$HOME/bin"
 
-# Development tool paths (will be properly initialized in zshrc)
-# pyenv
-if [[ -d "$HOME/.pyenv/bin" ]]; then
-    export PYENV_ROOT="$HOME/.pyenv"
-    add_to_path "$PYENV_ROOT/bin"
-fi
-
-# Cargo (Rust)
-if [[ -d "$HOME/.cargo/bin" ]]; then
-    add_to_path "$HOME/.cargo/bin"
-fi
-
-# Go
-if [[ -d "$HOME/.local/opt/go/bin" ]]; then
-    add_to_path "$HOME/.local/opt/go/bin"
-fi
-if [[ -d "$HOME/go/bin" ]]; then
-    add_to_path "$HOME/go/bin"
-fi
-
-# Ruby gems
-if [[ -d "$HOME/.gem/ruby" ]]; then
-    # Find the latest Ruby version directory (only match valid version patterns)
-    latest_ruby=$(find "$HOME/.gem/ruby" -maxdepth 1 -type d -name "[0-9]*.[0-9]*" 2>/dev/null | sort -V | tail -1)
-    if [[ -n "$latest_ruby" ]]; then
-        add_to_path "$latest_ruby/bin"
+    # Development tool paths (will be properly initialized in zshrc)
+    # pyenv
+    if [[ -d "$HOME/.pyenv/bin" ]]; then
+        export PYENV_ROOT="$HOME/.pyenv"
+        add_to_path "$PYENV_ROOT/bin"
     fi
+
+    # Cargo (Rust)
+    add_to_path "$HOME/.cargo/bin"
+
+    # Go
+    add_to_path "$HOME/.local/opt/go/bin"
+    add_to_path "$HOME/go/bin"
+
+    # Ruby gems: newest version directory
+    local -a rubies
+    rubies=("$HOME"/.gem/ruby/[0-9]*.[0-9]*(N/nOn[1]))
+    if (( ${#rubies} )); then
+        add_to_path "${rubies[1]}/bin"
+    fi
+
+    # nvm default node, resolved without sourcing nvm.sh so npm -g CLIs
+    # work before nvm is lazy-loaded in zshrc
+    local nvm_dir="${NVM_DIR:-$HOME/.nvm}" node_version node_dir hops=0
+    if [[ -r "$nvm_dir/alias/default" ]]; then
+        node_version=$(<"$nvm_dir/alias/default")
+        # Follow alias chains such as lts/* -> lts/jod -> v22.x.y
+        while [[ -f "$nvm_dir/alias/$node_version" ]] && (( hops++ < 5 )); do
+            node_version=$(<"$nvm_dir/alias/$node_version")
+        done
+        node_version=${node_version#v}
+        if [[ "$node_version" == node || "$node_version" == stable ]]; then
+            node_version=""
+        fi
+        # Newest install matching the version prefix on a component boundary
+        for node_dir in "$nvm_dir"/versions/node/v"$node_version"*(N/nOn); do
+            if [[ -z "$node_version" || "${node_dir##*/}" == "v$node_version" || "${node_dir##*/}" == "v$node_version".* ]]; then
+                add_to_path "$node_dir/bin"
+                break
+            fi
+        done
+    fi
+
+    # Bun
+    if [[ -d "$HOME/.bun/bin" ]]; then
+        export BUN_INSTALL="$HOME/.bun"
+        add_to_path "$BUN_INSTALL/bin"
+    fi
+}
+dots_init_path
+
+# Locale default; /etc/zprofile on macOS would otherwise set C.UTF-8
+if [[ -z "${LANG-}" ]]; then
+    export LANG=en_US.UTF-8
 fi
 
-# Bun
-if [[ -d "$HOME/.bun/bin" ]]; then
-    export BUN_INSTALL="$HOME/.bun"
-    add_to_path "$BUN_INSTALL/bin"
-fi
-
-# Zoxide for non-interactive shells (Claude Code, mosh, zsh -c)
-# Interactive shells get zoxide with --cmd cd from .zshrc instead
-if command -v zoxide &>/dev/null && [[ ! -o interactive ]]; then
-    eval "$(zoxide init zsh)"
+# Delta as git pager when installed
+if command -v delta &>/dev/null; then
+    export GIT_PAGER=delta
 fi
