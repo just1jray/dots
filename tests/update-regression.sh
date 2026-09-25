@@ -32,6 +32,10 @@ assert_contains() {
     fi
 }
 
+count_matches() {
+    grep -c -F "$1" "$2" || true
+}
+
 new_case() {
     local name=$1
     local tool
@@ -73,7 +77,7 @@ make_legacy_checkout() {
 
 run_update() {
     set +e
-    "$REPO_ROOT/update.sh" "$@" >"$OUTPUT" 2>&1
+    "$BASH" "$REPO_ROOT/update.sh" "$@" >"$OUTPUT" 2>&1
     UPDATE_STATUS=$?
     set -e
 }
@@ -332,7 +336,7 @@ test_tpm_refresh_skips_without_tmux() {
 test_setup_through_symlinked_clone_needs_no_relink() {
     new_case symlinked-clone
     ln -s "$REPO_ROOT" "$CASE_ROOT/clone"
-    (cd "$CASE_ROOT/clone" && ./setup.sh --profile minimal --skip-plugins --yes \
+    (cd "$CASE_ROOT/clone" && "$BASH" ./setup.sh --profile minimal --skip-plugins --yes \
         >"$CASE_ROOT/setup-output" 2>&1) \
         || fail "setup.sh through a symlinked clone should succeed"
 
@@ -441,6 +445,69 @@ test_update_dry_run_is_noninteractive_on_linux_and_darwin() {
     done
 }
 
+test_ai_relink_registers_hooks() {
+    new_case claude-hooks
+    mkdir -p "$HOME/.claude"
+    printf '{"model": "opus"}\n' >"$HOME/.claude/settings.json"
+
+    run_update --profile ai
+    assert_eq "0" "$UPDATE_STATUS" "ai relink should succeed"
+    cp "$HOME/.claude/settings.json" "$CASE_ROOT/first.json"
+    run_update --profile ai
+
+    assert_eq "0" "$UPDATE_STATUS" "a second ai relink should succeed"
+    assert_eq "opus" "$(jq -r .model "$HOME/.claude/settings.json")" \
+        "unrelated settings must be preserved"
+    assert_eq "1" "$(count_matches "block-force-push.sh" "$HOME/.claude/settings.json")" \
+        "the managed hook should be registered once"
+    cmp -s "$CASE_ROOT/first.json" "$HOME/.claude/settings.json" || \
+        fail "a second merge must leave settings.json unchanged"
+}
+
+test_invalid_settings_json_is_a_relink_failure() {
+    new_case claude-bad-json
+    mkdir -p "$HOME/.claude"
+    printf '{ not json\n' >"$HOME/.claude/settings.json"
+
+    run_update --profile ai
+
+    assert_eq "1" "$UPDATE_STATUS" "a failed hook merge should produce final nonzero status"
+    assert_contains "is not valid JSON; skipping hook merge" "$OUTPUT" "the bad file should be named"
+    [ -L "$HOME/.claude/CLAUDE.md" ] || fail "relinking should not stop at the failed merge"
+}
+
+test_pull_that_changes_updater_reexecs_once() {
+    new_case reexec
+    cat >"$FAKE_BIN/git" <<'EOF'
+#!/bin/bash
+case "$*" in
+    *"rev-parse HEAD"*) echo old-head ;;
+    *"diff --quiet"*) exit 1 ;;
+esac
+exit 0
+EOF
+    chmod +x "$FAKE_BIN/git"
+
+    run_update --profile minimal
+
+    assert_eq "0" "$UPDATE_STATUS" "the re-executed update should succeed"
+    assert_eq "1" "$(count_matches "re-running the new version" "$OUTPUT")" \
+        "the updater should re-exec exactly once"
+    assert_eq "2" "$(count_matches "Dotfiles Update" "$OUTPUT")" \
+        "the new version should run after the pull"
+    assert_contains "Active profiles: minimal" "$OUTPUT" "arguments should survive the re-exec"
+}
+
+test_unchanged_pull_does_not_reexec() {
+    new_case no-reexec
+
+    run_update --profile minimal
+
+    assert_eq "0" "$UPDATE_STATUS" "update should succeed"
+    assert_eq "1" "$(count_matches "Dotfiles Update" "$OUTPUT")" \
+        "an update that pulled nothing new should run once"
+}
+
 tests=(
     test_unrelated_symlink_is_preserved
     test_old_checkout_is_detected_and_relinked
@@ -464,6 +531,10 @@ tests=(
     test_update_cursor_merge_preserves_live_state
     test_update_cursor_failure_is_aggregated
     test_update_dry_run_is_noninteractive_on_linux_and_darwin
+    test_ai_relink_registers_hooks
+    test_invalid_settings_json_is_a_relink_failure
+    test_pull_that_changes_updater_reexecs_once
+    test_unchanged_pull_does_not_reexec
 )
 
 for test_name in "${tests[@]}"; do
