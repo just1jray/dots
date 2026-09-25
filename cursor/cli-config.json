@@ -1,0 +1,32 @@
+{
+  "editor": {
+    "vimMode": true
+  },
+  "display": {
+    "showLineNumbers": true,
+    "showThinkingBlocks": true,
+    "showStatusIndicators": true,
+    "showStatusLineRunningTime": true,
+    "mode": "zen"
+  },
+  "notifications": true,
+  "hints": true,
+  "modelSlashCommands": true,
+  "steering": true,
+  "rewind": true,
+  "approvalMode": "auto-review",
+  "autoAcceptWebSearch": false,
+  "sandbox": {
+    "mode": "disabled",
+    "networkAccess": "user_config_with_defaults"
+  },
+  "attribution": {
+    "attributeCommitsToAgent": true,
+    "attributePRsToAgent": true
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "~/.claude/scripts/context-bar.sh",
+    "padding": 2
+  }
+}

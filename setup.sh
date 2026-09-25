@@ -39,11 +39,11 @@ print_usage() {
     echo
     echo "Profiles:"
     echo "  minimal   Shell essentials: zsh, starship, git, ghostty (default)"
-    echo "  claude    AI tools: claude code config, llm skills/commands"
+    echo "  ai        AI tools: Claude Code config, llm skills/commands, Cursor CLI"
     echo "  full      Everything: minimal plus vim, tmux, Neovim, opencode, and a Nerd Font"
     echo
     echo "Profiles are composable. Combine them with multiple --profile flags:"
-    echo "  $0 --profile minimal --profile claude"
+    echo "  $0 --profile minimal --profile ai"
     echo
     echo "Profile packages (separate from the Brewfile):"
     echo "  minimal   zsh, git, and starship"
@@ -105,16 +105,16 @@ while [[ $# -gt 0 ]]; do
             ;;
         -p|--profile)
             if [[ -z "${2:-}" ]]; then
-                echo -e "${RED}Error:${NC} --profile requires a value (minimal, claude, full)"
+                echo -e "${RED}Error:${NC} --profile requires a value (minimal, ai, full)"
                 print_usage
                 exit 1
             fi
             case $2 in
-                minimal|claude|full)
+                minimal|ai|full)
                     PROFILES+=("$2")
                     ;;
                 *)
-                    echo -e "${RED}Error:${NC} Unknown profile: $2 (valid: minimal, claude, full)"
+                    echo -e "${RED}Error:${NC} Unknown profile: $2 (valid: minimal, ai, full)"
                     print_usage
                     exit 1
                     ;;
@@ -520,7 +520,7 @@ link_config_files() {
     fi
 
     # bash 3.2 (macOS) treats "${arr[@]}" on an empty array as unbound under
-    # `set -u`, and --profile claude alone leaves this list empty.
+    # `set -u`, and --profile ai alone leaves this list empty.
     for config in ${config_files[@]+"${config_files[@]}"}; do
         IFS='|' read -r source_file target_file <<< "$config"
         source_path="$REPO_DIR/$source_file"
@@ -620,12 +620,12 @@ link_config_files() {
         fi
     fi
 
-    # Link Claude Code config files (claude profile)
+    # Link Claude Code config files (ai profile)
     local claude_source
     claude_source="$REPO_DIR/claude"
     local claude_target="$HOME/.claude"
 
-    if profile_active "claude"; then
+    if profile_active "ai"; then
     if [ -d "$claude_source" ]; then
         # Create ~/.claude directory if it doesn't exist (Claude Code manages ephemeral data here)
         if [ "$DRY_RUN" = true ]; then
@@ -772,6 +772,29 @@ link_config_files() {
     else
         log_warning "Claude Code config directory does not exist: $claude_source"
     fi
+    fi
+}
+
+# Merge portable Cursor CLI preferences into ~/.cursor/cli-config.json.
+# Cursor rewrites that file with auth and cache data, so it is not symlinked.
+install_cursor_cli_config() {
+    if ! profile_active "ai"; then
+        return 0
+    fi
+
+    local merge_helper="$REPO_DIR/lib/cursor-config.sh"
+    if [ ! -f "$merge_helper" ]; then
+        log_error "Cursor CLI merge helper not found: $merge_helper"
+        return 0
+    fi
+
+    # shellcheck source=lib/cursor-config.sh
+    source "$merge_helper"
+    if ! merge_cursor_cli_config \
+        "$REPO_DIR/cursor/cli-config.json" \
+        "$HOME/.cursor/cli-config.json" \
+        "$DRY_RUN"; then
+        log_warning "Cursor CLI preferences were not changed."
     fi
 }
 
@@ -1344,6 +1367,7 @@ main() {
     install_font
     link_config_files
     install_gitconfig_local
+    install_cursor_cli_config
     # After linking: TPM reads its @plugin list from ~/.tmux.conf.
     install_plugins
 

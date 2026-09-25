@@ -6,6 +6,7 @@ set -euo pipefail
 
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 ORIGINAL_PATH=$PATH
+JQ_BIN=$(command -v jq)
 TEST_ROOT=$(mktemp -d)
 trap 'rm -rf "$TEST_ROOT"' EXIT
 
@@ -214,6 +215,134 @@ EOF
         "TPM must not see a missing tmux.conf"
 }
 
+test_ai_profile_installs_claude_and_cursor_config() {
+    new_case ai-profile
+
+    run_setup --profile ai --skip-plugins --yes
+
+    assert_eq "0" "$SETUP_STATUS" "AI profile should install non-interactively"
+    assert_contains "Active profiles: ai" "$OUTPUT" "AI should be the canonical profile name"
+    [ -L "$HOME/.claude/CLAUDE.md" ] || fail "AI profile should install Claude config"
+    [ -f "$HOME/.cursor/cli-config.json" ] || fail "AI profile should install Cursor preferences"
+}
+
+test_claude_profile_is_rejected() {
+    new_case rejected-claude-profile
+
+    run_setup --profile claude --skip-plugins --yes
+
+    assert_eq "1" "$SETUP_STATUS" "legacy claude profile should be rejected"
+    assert_contains "Unknown profile: claude (valid: minimal, ai, full)" "$OUTPUT" \
+        "rejection should identify canonical profiles"
+}
+
+test_full_profile_includes_ai() {
+    new_case full-includes-ai
+
+    run_setup --profile full --skip-plugins --yes
+
+    assert_eq "0" "$SETUP_STATUS" "full profile should install successfully"
+    [ -L "$HOME/.zshrc" ] || fail "full profile should include minimal config"
+    [ -L "$HOME/.claude/CLAUDE.md" ] || fail "full profile should include Claude config"
+    [ -f "$HOME/.cursor/cli-config.json" ] || fail "full profile should include Cursor preferences"
+}
+
+test_cursor_merge_preserves_live_machine_state() {
+    new_case cursor-merge
+    mkdir -p "$HOME/.cursor"
+    cat >"$HOME/.cursor/cli-config.json" <<'JSON'
+{
+  "authInfo": {"email": "user@example.com"},
+  "serverConfigCache": {"region": "local"},
+  "privacyCache": {"enabled": true},
+  "localOnly": {"keep": "me"},
+  "permissions": ["Shell(git)", "Shell(ls)"],
+  "approvalMode": "manual"
+}
+JSON
+
+    run_setup --profile ai --skip-plugins --yes
+
+    assert_eq "0" "$SETUP_STATUS" "Cursor preferences should merge successfully"
+    "$JQ_BIN" -e '
+      .authInfo.email == "user@example.com" and
+      .serverConfigCache.region == "local" and
+      .privacyCache.enabled == true and
+      .localOnly.keep == "me" and
+      .permissions == ["Shell(git)", "Shell(ls)"] and
+      .approvalMode == "auto-review"
+    ' "$HOME/.cursor/cli-config.json" >/dev/null || fail "merge should preserve live machine state"
+}
+
+test_cursor_invalid_json_is_controlled() {
+    new_case invalid-cursor-json
+    mkdir -p "$HOME/.cursor"
+    printf '{invalid\n' >"$HOME/.cursor/cli-config.json"
+
+    run_setup --profile ai --skip-plugins --yes
+
+    assert_eq "0" "$SETUP_STATUS" "invalid live JSON should not abort setup under set -e"
+    assert_contains "Failed to merge Cursor CLI config with jq" "$OUTPUT" \
+        "invalid JSON should report the merge failure"
+    assert_eq "{invalid" "$(tr -d '\n' <"$HOME/.cursor/cli-config.json")" \
+        "invalid live config should remain untouched"
+}
+
+test_cursor_jq_failure_is_controlled() {
+    new_case cursor-jq-failure
+    mkdir -p "$HOME/.cursor"
+    printf '{"authInfo":{"email":"safe@example.com"}}\n' >"$HOME/.cursor/cli-config.json"
+    write_fake jq \
+        'case "$*" in *cli-config.json*) exit 7 ;; esac' \
+        "exec \"$JQ_BIN\" \"\$@\""
+
+    run_setup --profile ai --skip-plugins --yes
+
+    assert_eq "0" "$SETUP_STATUS" "jq failure should not abort setup under set -e"
+    assert_contains "Failed to merge Cursor CLI config with jq" "$OUTPUT" \
+        "jq failure should be reported"
+    assert_eq "safe@example.com" \
+        "$("$JQ_BIN" -r '.authInfo.email' "$HOME/.cursor/cli-config.json")" \
+        "failed merge should leave live config untouched"
+}
+
+test_cursor_symlink_target_is_refused() {
+    new_case cursor-symlink
+    mkdir -p "$HOME/.cursor" "$CASE_ROOT/external"
+    printf '{"authInfo":{"email":"safe@example.com"}}\n' >"$CASE_ROOT/external/config.json"
+    ln -s "$CASE_ROOT/external/config.json" "$HOME/.cursor/cli-config.json"
+
+    run_setup --profile ai --skip-plugins --yes
+
+    assert_eq "0" "$SETUP_STATUS" "symlink refusal should be controlled"
+    assert_contains "Refusing to merge Cursor CLI config into a symlink" "$OUTPUT" \
+        "symlink refusal should be explicit"
+    assert_eq "$CASE_ROOT/external/config.json" "$(readlink "$HOME/.cursor/cli-config.json")" \
+        "Cursor config symlink should remain unchanged"
+    assert_eq "safe@example.com" \
+        "$("$JQ_BIN" -r '.authInfo.email' "$CASE_ROOT/external/config.json")" \
+        "symlink target should not be modified"
+}
+
+test_tracked_cursor_config_has_no_permissions() {
+    "$JQ_BIN" -e 'has("permissions") | not' "$REPO_ROOT/cursor/cli-config.json" >/dev/null \
+        || fail "tracked Cursor preferences must never contain permissions"
+}
+
+test_setup_dry_run_is_noninteractive_on_linux_and_darwin() {
+    local os
+    for os in Linux Darwin; do
+        new_case "dry-run-${os}"
+        write_fake uname "printf '%s\\n' '$os'"
+
+        run_setup --dry-run --profile full --skip-plugins --yes
+
+        assert_eq "0" "$SETUP_STATUS" "$os non-TTY dry run should succeed"
+        assert_contains "Running in dry-run mode" "$OUTPUT" "$os dry run should be reported"
+        [ ! -e "$HOME/.cursor/cli-config.json" ] || fail "$os dry run must not write Cursor config"
+    done
+}
+
 tests=(
     test_font_counter_survives_set_e
     test_root_apt_does_not_use_sudo
@@ -222,6 +351,15 @@ tests=(
     test_starship_installer_failure_is_reported
     test_darwin_brew_install_failure_returns_nonzero
     test_tpm_installs_after_tmux_conf_is_linked
+    test_ai_profile_installs_claude_and_cursor_config
+    test_claude_profile_is_rejected
+    test_full_profile_includes_ai
+    test_cursor_merge_preserves_live_machine_state
+    test_cursor_invalid_json_is_controlled
+    test_cursor_jq_failure_is_controlled
+    test_cursor_symlink_target_is_refused
+    test_tracked_cursor_config_has_no_permissions
+    test_setup_dry_run_is_noninteractive_on_linux_and_darwin
 )
 
 for test_name in "${tests[@]}"; do
