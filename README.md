@@ -46,6 +46,7 @@ Used across various platforms for various things.
 - 📦 **[nvm](https://github.com/nvm-sh/nvm)** - Node version manager
 - 🥟 **[Bun](https://bun.sh/)** - Fast JavaScript runtime and package manager
 - 🤖 **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)** - AI-powered coding assistant CLI
+- 🖱️ **[Cursor CLI](https://cursor.com/docs/cli/overview)** - Agent CLI whose portable preferences are safely merged into the live config (`jq` required)
 
 *The setup script installs [Zinit](https://github.com/zdharma-continuum/zinit) (shallow clone) for the `minimal` profile. NVChad and Tmux Plugin Manager run only for `full`. `nvim/lazy-lock.json` is gitignored on purpose: Neovim plugin versions drift per machine.*
 
@@ -96,7 +97,7 @@ Options:
 
 Profiles:
   minimal   Shell essentials: zsh, starship, git, ghostty (default)
-  claude    AI tools: Claude Code config, llm skills/commands
+  ai        AI tools: Claude Code config, llm skills/commands, Cursor CLI
   full      Everything: minimal plus vim, tmux, Neovim, opencode, and a Nerd Font
 
 `minimal` installs zsh, git, and Starship. `full` also installs Neovim, tmux, and JetBrains Mono Nerd Font. pyenv, nvm, Bun, Claude, and Ghostty stay optional. macOS uses Homebrew (Apple Silicon or Intel). Linux uses apt (as root, or through `sudo`; a non-terminal run needs passwordless `sudo`), or Linuxbrew only when `--brew` is passed. Starship is not in Debian or Ubuntu repositories, so setup installs it with the official installer into `~/.local/bin`.
@@ -131,12 +132,13 @@ clone no longer has the file; it is reported instead.
 | --- | --- |
 | `minimal` | Zinit |
 | `full` | Zinit, TPM, and Neovim (Lazy) |
-| `claude` | none |
+| `ai` | none |
 
 `minimal` does not refresh TPM or Neovim. The script never reads from the terminal, so a non-TTY run cannot hang on a prompt. If no profile is linked yet, update assumes `minimal` (the setup default).
 
 ```bash
 ./update.sh --dry-run
+./update.sh --profile ai
 ./update.sh --profile full
 ```
 
@@ -164,10 +166,11 @@ The `dots` shortcut jumps to the linked clone. It uses `~/Developer/src/dots` on
    - `~/.claude/CLAUDE.md` → `claude/CLAUDE.md`
    - `~/.claude/skills/*` → `llm/skills/*` (individual skill symlinks)
    - `~/.claude/commands/*` → `llm/commands/*` (individual command symlinks)
-5. 🔌 **Installs Zinit** plugin manager for zsh (shallow clone, on first shell launch)
-6. 📝 **Installs NVChad** for Neovim only when the `full` profile is active
-7. 🪟 **Installs Tmux Plugin Manager** (TPM) and plugins only for `full` (not the unused tmux-battery clone)
-8. 💻 **Loads platform-specific profiles** based on OS
+5. 🔀 **Merges Cursor CLI preferences** from `cursor/cli-config.json` into `~/.cursor/cli-config.json` for `ai` and `full`. Tracked preferences win; live authentication, caches, permissions, and other machine state are preserved.
+6. 🔌 **Installs Zinit** plugin manager for zsh (shallow clone, on first shell launch)
+7. 📝 **Installs NVChad** for Neovim only when the `full` profile is active
+8. 🪟 **Installs Tmux Plugin Manager** (TPM) and plugins only for `full` (not the unused tmux-battery clone)
+9. 💻 **Loads platform-specific profiles** based on OS
 
 ## 🛠️ Customization
 
@@ -227,6 +230,12 @@ The dotfiles include Claude Code configuration split between `claude/` (portable
 The setup script creates `~/.claude/` as a directory and symlinks individual items into it. This allows Claude's ephemeral runtime data to coexist with your dotfiles config, and enables externally installed skills/commands to live alongside repo-managed ones.
 
 **Note:** Claude Code will create additional files in `~/.claude/` for session data, plans, and other runtime state. These are managed by Claude and not tracked in this dotfiles repository.
+
+### 🖱️ Cursor CLI
+
+`cursor/cli-config.json` tracks portable Cursor CLI preferences, including `approvalMode: auto-review`, Vim mode, display settings, sandbox settings, attribution, and a status line that reuses `~/.claude/scripts/context-bar.sh`. Setup and update shallow-merge those preferences into `~/.cursor/cli-config.json` with `jq` for the `ai` and `full` profiles.
+
+The live file is never symlinked because Cursor also writes authentication, caches, timestamps, and other machine state there. Merge failures leave it untouched, and symlink targets are refused. The command allowlist (`permissions`) is deliberately not tracked or applied, so interactive permissions remain local.
 
 ---
 

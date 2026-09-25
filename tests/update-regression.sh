@@ -4,6 +4,7 @@ set -euo pipefail
 
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 ORIGINAL_PATH=$PATH
+JQ_BIN=$(command -v jq)
 TEST_ROOT=$(mktemp -d)
 trap 'rm -rf "$TEST_ROOT"' EXIT
 
@@ -133,7 +134,7 @@ test_dangling_claude_parent_is_controlled_failure() {
     new_case dangling-claude
     ln -s "$CASE_ROOT/missing-claude" "$HOME/.claude"
 
-    run_update --profile claude
+    run_update --profile ai
 
     assert_eq "1" "$UPDATE_STATUS" "dangling Claude parent should produce final failure"
     assert_eq "$CASE_ROOT/missing-claude" "$(readlink "$HOME/.claude")" \
@@ -148,7 +149,7 @@ test_resolving_claude_parent_is_used() {
     mkdir -p "$CASE_ROOT/cloud-claude"
     ln -s "$CASE_ROOT/cloud-claude" "$HOME/.claude"
 
-    run_update --profile claude
+    run_update --profile ai
 
     assert_eq "0" "$UPDATE_STATUS" "resolving Claude parent should remain usable"
     assert_eq "$CASE_ROOT/cloud-claude" "$(readlink "$HOME/.claude")" \
@@ -205,7 +206,7 @@ test_stale_managed_child_is_pruned() {
     mkdir -p "$old_root/llm/commands" "$HOME/.claude/commands"
     ln -s "$old_root/llm/commands/removed.md" "$HOME/.claude/commands/removed.md"
 
-    run_update --profile claude
+    run_update --profile ai
 
     assert_eq "0" "$UPDATE_STATUS" "stale managed child should prune cleanly"
     [ ! -L "$HOME/.claude/commands/removed.md" ] || \
@@ -253,7 +254,7 @@ test_resolving_managed_link_is_not_pruned() {
     : >"$old_root/llm/commands/local-only.md"
     ln -s "$old_root/llm/commands/local-only.md" "$HOME/.claude/commands/local-only.md"
 
-    run_update --profile claude
+    run_update --profile ai
 
     assert_eq "0" "$UPDATE_STATUS" "a resolving managed link should not fail the update"
     assert_eq "$old_root/llm/commands/local-only.md" \
@@ -268,7 +269,7 @@ test_dry_run_reports_relink_failures() {
     new_case dry-run-failure
     ln -s "$CASE_ROOT/missing-claude" "$HOME/.claude"
 
-    run_update --dry-run --profile claude
+    run_update --dry-run --profile ai
 
     assert_eq "1" "$UPDATE_STATUS" "dry run should exit nonzero when the real run would fail"
     assert_contains "Dry run found 1 relink failure(s). No changes were made." "$OUTPUT" \
@@ -284,7 +285,7 @@ test_managed_skills_symlink_becomes_real_dir() {
     mkdir -p "$old_root/llm/skills" "$HOME/.claude"
     ln -s "$old_root/llm/skills" "$HOME/.claude/skills"
 
-    run_update --profile claude
+    run_update --profile ai
 
     assert_eq "0" "$UPDATE_STATUS" "managed skills symlink should convert cleanly"
     if [ -L "$HOME/.claude/skills" ] || [ ! -d "$HOME/.claude/skills" ]; then
@@ -301,7 +302,7 @@ test_unrelated_skills_symlink_is_not_written_into() {
     mkdir -p "$CASE_ROOT/other-tool/skills" "$HOME/.claude"
     ln -s "$CASE_ROOT/other-tool/skills" "$HOME/.claude/skills"
 
-    run_update --profile claude
+    run_update --profile ai
 
     assert_eq "0" "$UPDATE_STATUS" "unrelated skills symlink should be a warning, not a failure"
     assert_eq "$CASE_ROOT/other-tool/skills" "$(readlink "$HOME/.claude/skills")" \
@@ -342,6 +343,104 @@ test_setup_through_symlinked_clone_needs_no_relink() {
         "setup and update must agree on the clone path"
 }
 
+test_ai_profile_updates_claude_and_cursor_config() {
+    new_case ai-profile
+
+    run_update --profile ai
+
+    assert_eq "0" "$UPDATE_STATUS" "AI profile should update non-interactively"
+    assert_contains "Active profiles: ai" "$OUTPUT" "AI should be the canonical profile name"
+    [ -L "$HOME/.claude/CLAUDE.md" ] || fail "AI profile should relink Claude config"
+    [ -f "$HOME/.cursor/cli-config.json" ] || fail "AI profile should install Cursor preferences"
+}
+
+test_claude_profile_is_rejected() {
+    new_case rejected-claude-profile
+
+    run_update --profile claude
+
+    assert_eq "1" "$UPDATE_STATUS" "legacy claude profile should be rejected"
+    assert_contains "Unknown profile: claude (valid: minimal, ai, full)" "$OUTPUT" \
+        "rejection should identify canonical profiles"
+}
+
+test_ai_profile_is_detected_from_claude_links() {
+    new_case detected-ai-profile
+    local old_root="$CASE_ROOT/old-dots"
+    make_old_checkout "$old_root"
+    mkdir -p "$old_root/claude" "$HOME/.claude"
+    : >"$old_root/claude/CLAUDE.md"
+    ln -s "$old_root/claude/CLAUDE.md" "$HOME/.claude/CLAUDE.md"
+
+    run_update
+
+    assert_eq "0" "$UPDATE_STATUS" "AI profile detection should update cleanly"
+    assert_contains "Active profiles: ai" "$OUTPUT" "Claude links should detect the AI profile"
+    assert_eq "$REPO_ROOT/claude/CLAUDE.md" "$(readlink "$HOME/.claude/CLAUDE.md")" \
+        "detected AI profile should relink Claude config"
+    [ -f "$HOME/.cursor/cli-config.json" ] || fail "detected AI profile should merge Cursor config"
+}
+
+test_update_cursor_merge_preserves_live_state() {
+    new_case cursor-merge
+    mkdir -p "$HOME/.cursor"
+    cat >"$HOME/.cursor/cli-config.json" <<'JSON'
+{
+  "authInfo": {"email": "user@example.com"},
+  "serverConfigCache": {"region": "local"},
+  "privacyCache": {"enabled": true},
+  "untracked": {"keep": true},
+  "permissions": ["Shell(git)"],
+  "approvalMode": "manual"
+}
+JSON
+
+    run_update --profile ai
+
+    assert_eq "0" "$UPDATE_STATUS" "AI update should merge Cursor preferences"
+    "$JQ_BIN" -e '
+      .authInfo.email == "user@example.com" and
+      .serverConfigCache.region == "local" and
+      .privacyCache.enabled == true and
+      .untracked.keep == true and
+      .permissions == ["Shell(git)"] and
+      .approvalMode == "auto-review"
+    ' "$HOME/.cursor/cli-config.json" >/dev/null || \
+        fail "update should preserve live state while applying preferences"
+}
+
+test_update_cursor_failure_is_aggregated() {
+    new_case cursor-jq-failure
+    mkdir -p "$HOME/.cursor"
+    printf '{"authInfo":{"email":"safe@example.com"}}\n' >"$HOME/.cursor/cli-config.json"
+    printf '#!/usr/bin/env bash\nexit 7\n' >"$FAKE_BIN/jq"
+    chmod +x "$FAKE_BIN/jq"
+
+    run_update --profile ai
+
+    assert_eq "1" "$UPDATE_STATUS" "Cursor merge failure should reach the final update status"
+    assert_contains "1 config failure(s)" "$OUTPUT" "config failure should be aggregated"
+    assert_eq "safe@example.com" \
+        "$("$JQ_BIN" -r '.authInfo.email' "$HOME/.cursor/cli-config.json")" \
+        "failed update merge should leave live config untouched"
+}
+
+test_update_dry_run_is_noninteractive_on_linux_and_darwin() {
+    local os
+    for os in Linux Darwin; do
+        new_case "dry-run-${os}"
+        printf '#!/usr/bin/env bash\nprintf "%%s\\n" "%s"\n' "$os" >"$FAKE_BIN/uname"
+        chmod +x "$FAKE_BIN/uname"
+
+        run_update --dry-run --profile full
+
+        assert_eq "0" "$UPDATE_STATUS" "$os non-TTY dry run should succeed"
+        assert_contains "Dry run finished. No changes were made." "$OUTPUT" \
+            "$os dry run should complete"
+        [ ! -e "$HOME/.cursor/cli-config.json" ] || fail "$os dry run must not write Cursor config"
+    done
+}
+
 tests=(
     test_unrelated_symlink_is_preserved
     test_old_checkout_is_detected_and_relinked
@@ -359,6 +458,12 @@ tests=(
     test_unrelated_skills_symlink_is_not_written_into
     test_tpm_refresh_skips_without_tmux
     test_setup_through_symlinked_clone_needs_no_relink
+    test_ai_profile_updates_claude_and_cursor_config
+    test_claude_profile_is_rejected
+    test_ai_profile_is_detected_from_claude_links
+    test_update_cursor_merge_preserves_live_state
+    test_update_cursor_failure_is_aggregated
+    test_update_dry_run_is_noninteractive_on_linux_and_darwin
 )
 
 for test_name in "${tests[@]}"; do
