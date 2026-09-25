@@ -1,3 +1,7 @@
+---
+description: Run a phased review of the entire codebase and produce a fix plan
+---
+
 Conduct a thorough code review of this entire codebase. Follow the structured review process below exactly, in order.
 
 ---

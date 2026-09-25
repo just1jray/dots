@@ -1,3 +1,7 @@
+---
+description: Implement an approved code-review fix plan one logical group at a time
+---
+
 The code review is complete and the fix plan has been approved. Now implement the fixes.
 
 Follow these rules exactly:

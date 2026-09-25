@@ -142,7 +142,7 @@ CUR=$(ssh -i $ROUTER_KEY $ROUTER_USER@$ROUTER_HOST 'nvram get dhcp_staticlist')
 echo "$CUR" | tr '<' '\n'          # one entry per line — confirm you are removing the right one
 
 # drop one entry by its exact text
-NEW=${CUR/<$PROJECTOR_MAC>$PROJECTOR_HOST>xgimi/}
+NEW=${CUR/<$PROJECTOR_MAC>$PROJECTOR_HOST>$PROJECTOR_NAME/}
 echo "$NEW" | tr '<' '\n'          # inspect again BEFORE writing
 
 ssh -i $ROUTER_KEY $ROUTER_USER@$ROUTER_HOST \
