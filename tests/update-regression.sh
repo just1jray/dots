@@ -49,7 +49,7 @@ new_case() {
     export PATH
     # The suite must never reach the real plugin managers, package managers,
     # or the network. setup.sh installs profile packages, so stub those too.
-    unset ZINIT_HOME
+    unset ZINIT_HOME AGENT_SKILLS_DIR AGENT_SKILLS_REPO
     for tool in git nvim tmux zsh sudo apt-get apt-cache brew; do
         printf '#!/bin/bash\nexit 0\n' >"$FAKE_BIN/$tool"
         chmod +x "$FAKE_BIN/$tool"
@@ -295,7 +295,6 @@ test_managed_skills_symlink_becomes_real_dir() {
     if [ -L "$HOME/.claude/skills" ] || [ ! -d "$HOME/.claude/skills" ]; then
         fail "skills should become a real directory"
     fi
-    [ -n "$(ls -A "$HOME/.claude/skills")" ] || fail "skills should be linked into the new directory"
     [ -z "$(ls -A "$old_root/llm/skills")" ] || fail "nothing may be written into the old checkout"
     assert_contains "Replaced managed directory symlink with a real directory: $HOME/.claude/skills" \
         "$OUTPUT" "conversion should be reported"
@@ -464,6 +463,20 @@ test_ai_relink_registers_hooks() {
         fail "a second merge must leave settings.json unchanged"
 }
 
+test_ai_update_installs_agent_skills() {
+    new_case agent-skills
+    AGENT_SKILLS_DIR="$CASE_ROOT/agent-skills"
+    export AGENT_SKILLS_DIR
+    mkdir -p "$AGENT_SKILLS_DIR/.git" "$AGENT_SKILLS_DIR/scripts"
+    printf '%s\n' '#!/usr/bin/env bash' "touch \"$CASE_ROOT/installed\"" \
+        >"$AGENT_SKILLS_DIR/scripts/install.sh"
+
+    run_update --profile ai
+
+    assert_eq "0" "$UPDATE_STATUS" "ai update should succeed"
+    [ -e "$CASE_ROOT/installed" ] || fail "update should run the agent-skills installer"
+}
+
 test_invalid_settings_json_is_a_relink_failure() {
     new_case claude-bad-json
     mkdir -p "$HOME/.claude"
@@ -532,6 +545,7 @@ tests=(
     test_update_cursor_failure_is_aggregated
     test_update_dry_run_is_noninteractive_on_linux_and_darwin
     test_ai_relink_registers_hooks
+    test_ai_update_installs_agent_skills
     test_invalid_settings_json_is_a_relink_failure
     test_pull_that_changes_updater_reexecs_once
     test_unchanged_pull_does_not_reexec

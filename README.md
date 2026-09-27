@@ -97,7 +97,7 @@ Options:
 
 Profiles:
   minimal   Shell essentials: zsh, starship, git, ghostty (default)
-  ai        AI tools: Claude Code config, llm skills/commands, Cursor CLI
+  ai        AI tools: Claude Code config, agent skills, Cursor CLI
   full      Everything: minimal plus vim, tmux, Neovim, opencode, and a Nerd Font
 
 `minimal` installs zsh, git, and Starship. `full` also installs Neovim, tmux, and JetBrains Mono Nerd Font. pyenv, nvm, Bun, Claude, and Ghostty stay optional. macOS uses Homebrew (Apple Silicon or Intel). Linux uses apt (as root, or through `sudo`; a non-terminal run needs passwordless `sudo`), or Linuxbrew only when `--brew` is passed. Starship is not in Debian or Ubuntu repositories, so setup installs it with the official installer into `~/.local/bin`.
@@ -124,8 +124,8 @@ From the clone, in any directory:
 3. Refreshes only the plugin managers the active profile uses
 
 Update removes a symlink only when it is dangling *and* points into a `dots`
-checkout at a path this repo used to ship (for example a command deleted from
-`llm/commands`). A link that still resolves is never removed, even if this
+checkout at a path this repo used to ship (for example a skill from the old
+`llm/skills` layout). A link that still resolves is never removed, even if this
 clone no longer has the file; it is reported instead.
 
 | Profile | Plugin managers |
@@ -164,8 +164,7 @@ The `dots` shortcut jumps to the linked clone. It uses `~/Developer/src/dots` on
    - `~/.claude/hooks` → `claude/hooks`
    - `~/.claude/scripts` → `claude/scripts`
    - `~/.claude/CLAUDE.md` → `claude/CLAUDE.md`
-   - `~/.claude/skills/*` → `llm/skills/*` (individual skill symlinks)
-   - `~/.claude/commands/*` → `llm/commands/*` (individual command symlinks)
+   - Skills: clones the private [agent-skills](https://github.com/just1jray/agent-skills) repo to `~/Developer/src/agent-skills` and runs its `scripts/install.sh`, which symlinks each skill into every installed agent (Claude Code, Codex, Gemini, Cursor, Copilot, OpenCode). `update.sh` fast-forwards that clone. Override with `AGENT_SKILLS_REPO` / `AGENT_SKILLS_DIR`.
 5. 🔀 **Merges Cursor CLI preferences** from `cursor/cli-config.json` into `~/.cursor/cli-config.json` for `ai` and `full`. Tracked preferences win; live authentication, caches, permissions, and other machine state are preserved.
 6. 🔌 **Installs Zinit** plugin manager for zsh (shallow clone, on first shell launch)
 7. 📝 **Installs NVChad** for Neovim only when the `full` profile is active
@@ -216,18 +215,15 @@ Customize Neovim by editing files in `nvim/lua/`. Plugin versions are per machin
 
 ### 🤖 Claude Code
 
-The dotfiles include Claude Code configuration split between `claude/` (portable config) and `llm/` (skills/commands):
+The dotfiles include Claude Code configuration in `claude/`. Skills live in the separate [agent-skills](https://github.com/just1jray/agent-skills) repo so every agent shares them:
 
 - 🪝 **claude/hooks/** - Custom hook scripts
   - `stop-hook-git-check.sh` - Git safety hook that prevents closing sessions with uncommitted/unpushed changes
 - 📜 **claude/scripts/** - Helper scripts (e.g., `context-bar.sh`)
-- 💬 **llm/commands/** - Custom slash commands
-  - `/review-edu` - Educational code review command
-- 🧠 **llm/skills/** - Custom Claude Code skills
-  - `session-start-hook/` - Skill for creating startup hooks in repositories
-  - `code-review-edu/` - Thorough code review skill (triggers on "review this code", "find bugs", etc.)
+- 🧠 **Skills** - installed from agent-skills by `setup.sh` / `update.sh` (see its README)
+- 🏠 **llm/devices.env.template** - Device inventory template for the homelab skills
 
-The setup script creates `~/.claude/` as a directory and symlinks individual items into it. This allows Claude's ephemeral runtime data to coexist with your dotfiles config, and enables externally installed skills/commands to live alongside repo-managed ones.
+The setup script creates `~/.claude/` as a directory and symlinks individual items into it. This allows Claude's ephemeral runtime data to coexist with your dotfiles config, and lets skills from other sources live alongside repo-managed ones.
 
 **Note:** Claude Code will create additional files in `~/.claude/` for session data, plans, and other runtime state. These are managed by Claude and not tracked in this dotfiles repository.
 
