@@ -74,6 +74,7 @@ new_case() {
     export HOME TOOL_LOG
     PATH="$FAKE_BIN:$TOOLS_BIN"
     export PATH
+    unset AGENT_SKILLS_DIR AGENT_SKILLS_REPO
 
     write_fake uname 'printf "%s\n" Linux'
     write_fake id 'printf "%s\n" 0'
@@ -104,6 +105,16 @@ fake_minimal_commands() {
     for command_name in git zsh starship fzf zoxide; do
         write_fake "$command_name" 'exit 0'
     done
+}
+
+# A stand-in agent-skills clone whose installer records that it ran.
+fake_agent_skills() {
+    AGENT_SKILLS_DIR="$CASE_ROOT/agent-skills"
+    export AGENT_SKILLS_DIR
+    mkdir -p "$AGENT_SKILLS_DIR/.git" "$AGENT_SKILLS_DIR/scripts"
+    printf '%s\n' '#!/usr/bin/env bash' \
+        'printf "agent-skills install %s\n" "$*" >>"$TOOL_LOG"' \
+        >"$AGENT_SKILLS_DIR/scripts/install.sh"
 }
 
 run_setup() {
@@ -586,6 +597,7 @@ test_invalid_settings_json_does_not_abort() {
     new_case hook-invalid-json
     mkdir -p "$HOME/.claude"
     printf '{ not json\n' >"$HOME/.claude/settings.json"
+    fake_agent_skills
 
     run_setup --profile ai
 
@@ -595,24 +607,30 @@ test_invalid_settings_json_does_not_abort() {
         "the final summary should name the failed step"
     assert_eq "{ not json" "$(cat "$HOME/.claude/settings.json")" \
         "invalid settings.json must be left untouched"
-    [ -L "$HOME/.claude/skills/code-review-edu" ] || \
-        fail "setup should continue linking after the failed merge"
+    assert_contains "agent-skills install" "$TOOL_LOG" \
+        "setup should still install agent skills after the failed merge"
 }
 
-test_skill_backups_stay_outside_skills_dir() {
-    new_case skill-backup
-    mkdir -p "$HOME/.claude/skills/code-review-edu"
-    : >"$HOME/.claude/skills/code-review-edu/SKILL.md"
+test_ai_setup_installs_agent_skills() {
+    new_case agent-skills
+    fake_agent_skills
 
     run_setup --profile ai
 
     assert_eq "0" "$SETUP_STATUS" "ai setup should succeed"
-    [ -L "$HOME/.claude/skills/code-review-edu" ] || fail "the skill should be linked"
-    if ls -d "$HOME"/.claude/skills/*.backup_* >/dev/null 2>&1; then
-        fail "backups inside skills/ would load as duplicate skills"
-    fi
-    ls -d "$HOME"/.claude/skills.backup/code-review-edu.backup_* >/dev/null 2>&1 || \
-        fail "the old skill should be backed up to skills.backup/"
+    assert_eq "1" "$(count_matches "agent-skills install" "$TOOL_LOG")" \
+        "the agent-skills installer should run once"
+}
+
+test_missing_agent_skills_is_only_a_warning() {
+    new_case agent-skills-missing
+    AGENT_SKILLS_DIR="$CASE_ROOT/no-such-clone"
+    export AGENT_SKILLS_DIR
+
+    run_setup --profile ai
+
+    assert_eq "0" "$SETUP_STATUS" "a host without the skills repo should still set up"
+    assert_contains "skipping agent skills" "$OUTPUT" "the skip should be reported"
 }
 
 test_devices_env_template_is_copied_once() {
@@ -686,7 +704,8 @@ tests=(
     test_claude_hook_merge_is_idempotent
     test_claude_hook_merge_replaces_managed_entries
     test_invalid_settings_json_does_not_abort
-    test_skill_backups_stay_outside_skills_dir
+    test_ai_setup_installs_agent_skills
+    test_missing_agent_skills_is_only_a_warning
     test_devices_env_template_is_copied_once
     test_tpm_clone_failure_does_not_abort
     test_vim_catppuccin_is_cloned_once

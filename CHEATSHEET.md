@@ -353,8 +353,8 @@ Use as `git <alias>`.
 | --- | --- |
 | Hooks | `claude/hooks/` |
 | Scripts | `claude/scripts/` |
-| Skills | `llm/skills/` |
-| Commands | `llm/commands/` |
+| Skills | [agent-skills](https://github.com/just1jray/agent-skills) repo |
+| Homelab device template | `llm/devices.env.template` |
 
 ---
 

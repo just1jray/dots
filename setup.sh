@@ -29,6 +29,8 @@ DOTS_REPO_DIR=$REPO_DIR
 source "$REPO_DIR/lib/links.sh"
 # shellcheck source=lib/claude-hooks.sh
 source "$REPO_DIR/lib/claude-hooks.sh"
+# shellcheck source=lib/agent-skills.sh
+source "$REPO_DIR/lib/agent-skills.sh"
 
 # Print usage information
 print_usage() {
@@ -47,7 +49,7 @@ print_usage() {
     echo
     echo "Profiles:"
     echo "  minimal   Shell essentials: zsh, starship, git, ghostty (default)"
-    echo "  ai        AI tools: Claude Code config, llm skills/commands, Cursor CLI"
+    echo "  ai        AI tools: Claude Code config, agent skills, Cursor CLI"
     echo "  full      Everything: minimal and ai, plus vim, tmux, Neovim, opencode,"
     echo "            btop, and a Nerd Font"
     echo
@@ -520,26 +522,6 @@ link_item() {
     return 1
 }
 
-# ~/.claude/skills and ~/.claude/commands are real directories so externally
-# installed skills and commands can coexist without polluting the repo.
-prepare_claude_item_dir() {
-    local dir="$1"
-    if [ -L "$dir" ]; then
-        if [ "$DRY_RUN" = true ]; then
-            log_info "Would replace symlink with a directory: $dir"
-            return 0
-        fi
-        rm -f "$dir"
-        log_info "Removed old symlink: $dir"
-    elif [ -d "$dir" ]; then
-        return 0
-    elif [ "$DRY_RUN" = true ]; then
-        log_info "Would create directory: $dir"
-        return 0
-    fi
-    mkdir -p "$dir"
-}
-
 # Link config files listed in lib/links.sh
 link_config_files() {
     log_info "Linking configuration files..."
@@ -566,15 +548,10 @@ link_config_files() {
     fi
 }
 
-# Hook registration, skills, and commands for the ai profile.
+# Hook registration and agent skills for the ai profile.
 # Returns the number of links that failed.
 link_claude_extras() {
     local claude_target="$HOME/.claude"
-    local llm_source="$REPO_DIR/llm"
-    local skills_target="$claude_target/skills"
-    local commands_target="$claude_target/commands"
-    local failures=0
-    local skill_dir skill_name cmd_file cmd_name
 
     # Register the portable hooks in the machine-local settings.json
     if ! merge_claude_hooks \
@@ -584,29 +561,10 @@ link_claude_extras() {
         record_failure "Claude hook merge"
     fi
 
-    [ -d "$llm_source" ] || return 0
+    # Skills and commands moved to the agent-skills repo (lib/agent-skills.sh)
+    sync_agent_skills
 
-    prepare_claude_item_dir "$skills_target"
-    # Backups stay outside skills/, where Claude would load them as duplicates.
-    for skill_dir in "$llm_source"/skills/*/; do
-        [ -d "$skill_dir" ] || continue
-        skill_name=$(basename "$skill_dir")
-        if ! link_item "${skill_dir%/}" "$skills_target/$skill_name" \
-            "llm/skills/$skill_name" required "$claude_target/skills.backup"; then
-            failures=$((failures + 1))
-        fi
-    done
-
-    prepare_claude_item_dir "$commands_target"
-    for cmd_file in "$llm_source"/commands/*; do
-        [ -e "$cmd_file" ] || continue
-        cmd_name=$(basename "$cmd_file")
-        if ! link_item "$cmd_file" "$commands_target/$cmd_name" "llm/commands/$cmd_name"; then
-            failures=$((failures + 1))
-        fi
-    done
-
-    return "$failures"
+    return 0
 }
 
 # The homelab skills source ~/.config/homelab/devices.env

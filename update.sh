@@ -429,6 +429,8 @@ relink_configs() {
     collect_links
 
     if profile_active "ai"; then
+        # Skills and commands moved to the agent-skills repo. llm/ no longer
+        # ships them, so this only prunes links left by older clones.
         skills_src="$ROOT/llm/skills"
         commands_src="$ROOT/llm/commands"
         if ! prepare_claude_home "$HOME/.claude"; then
@@ -489,6 +491,7 @@ relink_configs() {
             "$HOME/.claude/hooks"; then
             RELINK_FAILURES=$((RELINK_FAILURES + 1))
         fi
+        sync_agent_skills pull
     fi
 
     if [ "$LINK_CHANGES" -eq 0 ]; then
@@ -758,6 +761,8 @@ DOTS_REPO_DIR=$ROOT
 source "$ROOT/lib/links.sh"
 # shellcheck source=lib/claude-hooks.sh
 source "$ROOT/lib/claude-hooks.sh"
+# shellcheck source=lib/agent-skills.sh
+source "$ROOT/lib/agent-skills.sh"
 
 if [ -f "$ROOT/lib/dots-root.sh" ]; then
     # shellcheck source=lib/dots-root.sh
