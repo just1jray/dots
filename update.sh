@@ -542,6 +542,14 @@ refresh_zinit() {
         log_warning "Zinit refresh failed."
         return 1
     fi
+
+    # creinstall links new completions but never removes links whose target a
+    # plugin dropped upstream; compinit then errors on every shell start.
+    local completions_dir
+    completions_dir="$(dirname "$(dirname "$zinit_zsh")")/completions"
+    if [ -d "$completions_dir" ]; then
+        find "$completions_dir" -type l ! -exec test -e {} \; -delete
+    fi
     log_success "Refreshed Zinit."
 }
 
