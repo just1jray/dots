@@ -145,7 +145,7 @@ if [[ -n "$cwd" ]]; then
 
     git_cache_is_stale=true
     if [[ -f "$GIT_CACHE_FILE" ]]; then
-        git_cache_mtime=$(stat -f %m "$GIT_CACHE_FILE" 2>/dev/null || stat -c %Y "$GIT_CACHE_FILE" 2>/dev/null || echo 0)
+        git_cache_mtime=$(stat -c %Y "$GIT_CACHE_FILE" 2>/dev/null || stat -f %m "$GIT_CACHE_FILE" 2>/dev/null || echo 0)
         if [[ $(( $(date +%s) - git_cache_mtime )) -le $GIT_CACHE_MAX_AGE ]]; then
             git_cache_is_stale=false
         fi
@@ -172,7 +172,7 @@ if [[ -n "$cwd" ]]; then
                         [[ -z "$sync_path" ]] && continue
                         [[ "$sync_path" == /* ]] || sync_path="$cwd/$sync_path"
                         [[ -f "$sync_path" ]] || continue
-                        smt=$(stat -f %m "$sync_path" 2>/dev/null || stat -c %Y "$sync_path" 2>/dev/null || echo 0)
+                        smt=$(stat -c %Y "$sync_path" 2>/dev/null || stat -f %m "$sync_path" 2>/dev/null || echo 0)
                         [[ "$smt" -gt "$latest_sync" ]] && latest_sync="$smt"
                     done < <(git -C "$cwd" rev-parse --git-path FETCH_HEAD --git-path "$upstream" --git-path "logs/$upstream" 2>/dev/null)
                     if [[ "$latest_sync" -gt 0 ]]; then
@@ -375,7 +375,7 @@ usage_line=$(
     creds_read=false
 
     if [[ -f "$usage_cache_file" ]]; then
-        usage_cache_mtime=$(stat -f %m "$usage_cache_file" 2>/dev/null || stat -c %Y "$usage_cache_file" 2>/dev/null || echo 0)
+        usage_cache_mtime=$(stat -c %Y "$usage_cache_file" 2>/dev/null || stat -f %m "$usage_cache_file" 2>/dev/null || echo 0)
         usage_cache_age=$(( $(date +%s) - usage_cache_mtime ))
         if [[ "$usage_cache_age" -lt "$usage_cache_max_age" ]]; then
             usage_needs_refresh=false
