@@ -17,7 +17,8 @@ Used across various platforms for various things.
 - 💻 **Platform-specific profiles** for macOS and Linux
 - 🚀 **Modern tooling** with Starship prompt, Zinit plugin manager, and NVChad
 - ⌨️ **Vi mode** keybindings in zsh for modal editing
-- 🪟 **Tmux integration** with plugin management and custom layouts
+- 🐂 **[herdr](https://herdr.dev)** as the daily agent/terminal workspace (Brewfile); tmux config remains for `full` when you still want it
+- 📋 **[eza](https://github.com/eza-community/eza)**-backed `ll` / `la` / jump+list aliases (`dev`, `src`, `dots`) with icons when installed
 - 🤖 **Claude Code configuration** with custom skills and git safety hooks
 
 ## 🔧 Tools & Prerequisites
@@ -32,15 +33,17 @@ Used across various platforms for various things.
 
 **Recommended:**
 - 👻 **[Ghostty](https://ghostty.org/)** - Fast, feature-rich terminal emulator
-- 🔤 **[JetBrains Mono Nerd Font](https://www.nerdfonts.com/font-downloads)** - Nerd Font with icon support (required for prompt symbols)
+- 🔤 **[JetBrains Mono Nerd Font](https://www.nerdfonts.com/font-downloads)** - Nerd Font with icon support (required for prompt and eza icons)
 - 🌟 **[Starship](https://starship.rs/)** - Fast, customizable cross-shell prompt
 - 📝 **[Neovim](https://neovim.io/)** - Modern vim with [NVChad](https://nvchad.com/) configuration
-- 🪟 **[tmux](https://github.com/tmux/tmux)** - Terminal multiplexer with plugin support
+- 🐂 **[herdr](https://herdr.dev)** - Terminal workspace manager for AI coding agents (preferred over tmux day-to-day)
+- 📋 **[eza](https://github.com/eza-community/eza)** - Modern `ls` with colors, icons, and git status (`ll` / `la` / `lt`)
 - 🔍 **[fzf](https://github.com/junegunn/fzf)** - Fuzzy finder for command history and file search
 - 📂 **[zoxide](https://github.com/ajeetdsouza/zoxide)** - Smarter cd command
 
 **Optional:**
-- 🎨 **[vivid](https://github.com/sharkdp/vivid)** - LS_COLORS generator (Catppuccin theme)
+- 🪟 **[tmux](https://github.com/tmux/tmux)** - Still linked and TPM-managed for the `full` profile; herdr is the primary multiplexer now
+- 🎨 **[vivid](https://github.com/sharkdp/vivid)** - LS_COLORS generator (Catppuccin theme; used when `eza` is absent or for plain `ls`)
 - 📡 **[mosh](https://mosh.org/)** - Mobile shell for better remote connections
 - 🐍 **[pyenv](https://github.com/pyenv/pyenv)** - Python version manager
 - 📦 **[nvm](https://github.com/nvm-sh/nvm)** - Node version manager
@@ -48,7 +51,7 @@ Used across various platforms for various things.
 - 🤖 **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)** - AI-powered coding assistant CLI
 - 🖱️ **[Cursor CLI](https://cursor.com/docs/cli/overview)** - Agent CLI whose portable preferences are safely merged into the live config (`jq` required)
 
-*The setup script installs [Zinit](https://github.com/zdharma-continuum/zinit) (shallow clone) for the `minimal` profile. NVChad and Tmux Plugin Manager run only for `full`. `nvim/lazy-lock.json` is gitignored on purpose: Neovim plugin versions drift per machine.*
+*The setup script installs [Zinit](https://github.com/zdharma-continuum/zinit) (shallow clone) for the `minimal` profile. NVChad and Tmux Plugin Manager run only for `full`. `herdr` and `eza` come from the Brewfile (`./setup.sh --brew`). `nvim/lazy-lock.json` is gitignored on purpose: Neovim plugin versions drift per machine.*
 
 ## 🖥️ Platforms
 
@@ -66,7 +69,7 @@ Used across various platforms for various things.
 Run this command to check which tools are installed:
 
 ```bash
-for cmd in git zsh curl wget starship nvim tmux fzf zoxide; do command -v $cmd >/dev/null && echo "✓ $cmd" || echo "✗ $cmd"; done
+for cmd in git zsh curl wget starship nvim herdr eza fzf zoxide; do command -v $cmd >/dev/null && echo "✓ $cmd" || echo "✗ $cmd"; done
 ```
 
 ### 🚀 Quick Start
