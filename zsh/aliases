@@ -52,21 +52,6 @@ else
     }
 fi
 
-# Navigation Aliases
-# `ls` is aliased below; do not hard-code GNU flags here or they survive alias expansion.
-# Single quotes so `dots_root` and `ls` expand when the alias runs, not now.
-alias dev="cd ~/Developer && ls -lah"
-alias src="cd ~/Developer/src && ls -lah"
-alias dots='cd "$(dots_root)" && ls -lah'
-alias docs="cd ~/Documents"
-alias dl="cd ~/Downloads"
-alias dt="cd ~/Desktop"
-alias ..="cd .."
-alias ...="cd ../.."
-alias ....="cd ../../.."
-alias .....="cd ../../../.."
-alias -- -="cd -"
-
 # Common Command Aliases
 # Color flag is applied once. ll/la fall back through this alias.
 if [[ -n "$LS_COLOR_FLAG" ]]; then
@@ -83,6 +68,22 @@ else
     alias ll="ls -lah"
     alias la="ls -la"
 fi
+
+# Navigation Aliases
+# Jump+list aliases use `ll` (defined above) so they pick up eza when present.
+# Single quotes so `dots_root` and `ll` expand when the alias runs, not now.
+alias dev='cd ~/Developer && ll'
+alias src='cd ~/Developer/src && ll'
+alias dots='cd "$(dots_root)" && ll'
+alias docs="cd ~/Documents"
+alias dl="cd ~/Downloads"
+alias dt="cd ~/Desktop"
+alias ..="cd .."
+alias ...="cd ../.."
+alias ....="cd ../../.."
+alias .....="cd ../../../.."
+alias -- -="cd -"
+
 alias cls="clear"
 alias grep="grep --color=auto"
 alias egrep="egrep --color=auto"

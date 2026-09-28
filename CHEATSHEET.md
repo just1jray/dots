@@ -27,9 +27,9 @@ Quick reference for this dotfiles setup. Emphasis on Vim/Neovim, tmux, git, and 
 | `zfig` | `$EDITOR ~/.zshrc` | Edit zshrc. |
 | `zfresh` | `source ~/.zshenv && source ~/.zshrc` | Reload zsh config. |
 | `efresh` | function | Reload zsh + tmux config. |
-| `dev` | `cd ~/Developer && ls -lah` | Jump + list. |
-| `src` | `cd ~/Developer/src && ls -lah` | Jump + list. |
-| `dots` | `cd "$(dots_root)" && ls -lah` | Jump to this clone. Defaults to `~/Developer/src/dots`. |
+| `dev` | `cd ~/Developer && ll` | Jump + list (eza via `ll` when installed). |
+| `src` | `cd ~/Developer/src && ll` | Jump + list (eza via `ll` when installed). |
+| `dots` | `cd "$(dots_root)" && ll` | Jump to this clone. Defaults to `~/Developer/src/dots`. |
 | `docs` | `cd ~/Documents` | Jump. |
 | `dl` | `cd ~/Downloads` | Jump. |
 | `dt` | `cd ~/Desktop` | Jump. |
