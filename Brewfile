@@ -21,6 +21,7 @@ if OS.mac?
   cask "tailscale-app"
   cask "docker-desktop" # ships the docker CLI
   cask "raycast"
+  cask "1password"
 end
 
 # Neovim language servers and formatters
