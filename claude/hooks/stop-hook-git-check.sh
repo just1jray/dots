@@ -36,7 +36,23 @@ case "$branch" in
     main | master | "$default_branch") on_default=true ;;
 esac
 
-dirty=$(git -C "$dir" status --porcelain 2>/dev/null | head -n 1 || true)
+# Paths listed in an ignore file don't count as uncommitted work: one per line,
+# relative to the repo root, globs allowed (** spans directories), # comments.
+# .claude-stop-hook-ignore is committed and shared across machines;
+# .git/info/stop-hook-ignore applies to this clone only.
+pathspec=(':/')
+top=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null || true)
+local_ignore=$(git -C "$dir" rev-parse --path-format=absolute --git-path info/stop-hook-ignore 2>/dev/null || true)
+for ignore_file in "$top/.claude-stop-hook-ignore" "$local_ignore"; do
+    [[ -n "$ignore_file" && -f "$ignore_file" ]] || continue
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        line=${line%$'\r'}
+        [[ -z "${line//[[:space:]]/}" || "$line" == \#* ]] && continue
+        pathspec+=(":(top,exclude,glob)$line")
+    done <"$ignore_file"
+done
+
+dirty=$(git -C "$dir" status --porcelain -- "${pathspec[@]}" 2>/dev/null | head -n 1 || true)
 
 # shellcheck disable=SC1083  # @{upstream} is valid git syntax
 upstream=$(git -C "$dir" rev-parse --abbrev-ref @{upstream} 2>/dev/null || true)
