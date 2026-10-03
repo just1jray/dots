@@ -51,7 +51,7 @@ Used across various platforms for various things.
 - 🤖 **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)** - AI-powered coding assistant CLI
 - 🖱️ **[Cursor CLI](https://cursor.com/docs/cli/overview)** - Agent CLI whose portable preferences are safely merged into the live config (`jq` required)
 
-*The setup script installs [Zinit](https://github.com/zdharma-continuum/zinit) (shallow clone) for the `minimal` profile. NVChad and Tmux Plugin Manager run only for `full`. `herdr` and `eza` come from the Brewfile (`./setup.sh --brew`). `nvim/lazy-lock.json` is gitignored on purpose: Neovim plugin versions drift per machine.*
+*The setup script installs [Zinit](https://github.com/zdharma-continuum/zinit) (shallow clone) for the `minimal` profile. NVChad and Tmux Plugin Manager run only for `full`. `eza` installs with the `minimal` profile (apt on Linux; skipped where apt lacks it, e.g. Debian 12). `herdr` comes from the Brewfile (`./setup.sh --brew`). `nvim/lazy-lock.json` is gitignored on purpose: Neovim plugin versions drift per machine.*
 
 ## 🖥️ Platforms
 
