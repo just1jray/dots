@@ -222,6 +222,7 @@ The dotfiles include Claude Code configuration in `claude/`. Skills live in the 
 
 - 🪝 **claude/hooks/** - Custom hook scripts
   - `stop-hook-git-check.sh` - Git safety hook that prevents closing sessions with uncommitted/unpushed changes
+    - To leave intentional local edits uncommitted, list their paths (one per line, relative to the repo root, globs and `#` comments allowed) in `.claude-stop-hook-ignore` (committed, shared by every clone) or `.git/info/stop-hook-ignore` (this clone only)
 - 📜 **claude/scripts/** - Helper scripts (e.g., `context-bar.sh`)
 - 🧠 **Skills** - installed from agent-skills by `setup.sh` / `update.sh` (see its README)
 - 🏠 **llm/devices.env.template** - Device inventory template for the homelab skills
