@@ -63,3 +63,5 @@ id_ecdsa*
 .netrc
 *.tfstate*
 .terraform/
+
+**/.claude/settings.local.json
