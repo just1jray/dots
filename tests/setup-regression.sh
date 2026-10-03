@@ -102,7 +102,7 @@ new_case() {
 # Commands a minimal profile would otherwise install.
 fake_minimal_commands() {
     local command_name
-    for command_name in git zsh starship fzf zoxide; do
+    for command_name in git zsh starship fzf zoxide eza; do
         write_fake "$command_name" 'exit 0'
     done
 }
@@ -149,6 +149,7 @@ test_root_apt_does_not_use_sudo() {
     assert_contains "apt-get install -y starship" "$TOOL_LOG" "starship should be installed"
     assert_contains "apt-get install -y fzf" "$TOOL_LOG" "fzf should be installed"
     assert_contains "apt-get install -y zoxide" "$TOOL_LOG" "zoxide should be installed"
+    assert_contains "apt-get install -y eza" "$TOOL_LOG" "eza should be installed"
 }
 
 test_partial_apt_failure_returns_nonzero() {
@@ -205,6 +206,19 @@ test_starship_installer_failure_is_reported() {
     assert_contains "The starship installer failed." "$OUTPUT" "installer failure should be reported"
     assert_contains "Required package installation failed" "$OUTPUT" \
         "final summary should be explicit"
+}
+
+test_missing_apt_eza_is_only_a_warning() {
+    new_case eza-not-in-apt
+    write_fake apt-cache 'case " $* " in *" eza "*) exit 100 ;; esac' 'exit 0'
+
+    run_setup --profile minimal --skip-plugins
+
+    assert_eq "0" "$SETUP_STATUS" "eza is optional; apt lacking it must not fail setup"
+    assert_contains "apt cannot provide optional package eza; skipping it." "$OUTPUT" \
+        "the skipped package should be reported"
+    assert_not_contains "apt-get install -y eza" "$TOOL_LOG" "an unavailable package is not installed"
+    assert_contains "Setup completed successfully!" "$OUTPUT" "setup should end in success"
 }
 
 test_darwin_brew_install_failure_returns_nonzero() {
@@ -482,7 +496,7 @@ test_present_packages_skip_apt() {
 
     assert_eq "0" "$SETUP_STATUS" "setup with every package present should succeed"
     assert_not_contains "apt-get" "$TOOL_LOG" "apt must not run when nothing is missing"
-    assert_contains "Profile packages already installed: zsh git starship fzf zoxide" "$OUTPUT" \
+    assert_contains "Profile packages already installed: zsh git starship fzf zoxide eza" "$OUTPUT" \
         "skipped packages should be reported"
 }
 
@@ -683,6 +697,7 @@ tests=(
     test_partial_apt_failure_returns_nonzero
     test_starship_missing_from_apt_uses_official_installer
     test_starship_installer_failure_is_reported
+    test_missing_apt_eza_is_only_a_warning
     test_darwin_brew_install_failure_returns_nonzero
     test_tpm_installs_after_tmux_conf_is_linked
     test_ai_profile_installs_claude_and_cursor_config

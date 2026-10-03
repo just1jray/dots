@@ -57,7 +57,7 @@ print_usage() {
     echo "  $0 --profile minimal --profile ai"
     echo
     echo "Profile packages (separate from the Brewfile). Commands already on PATH are skipped:"
-    echo "  minimal   zsh, git, starship, fzf, and zoxide"
+    echo "  minimal   zsh, git, starship, fzf, zoxide, and eza"
     echo "  ai        jq (registers Claude Code hooks, merges Cursor CLI config)"
     echo "  full      also neovim (0.10+ for NvChad), tmux, and JetBrains Mono Nerd Font"
     echo "  macOS     Homebrew at /opt/homebrew (Apple Silicon) or /usr/local (Intel)"
@@ -938,10 +938,12 @@ install_starship_fallback() {
     return 1
 }
 
-# Non-apt install path for one package. Returns 2 when none is known.
+# Non-apt install path for one package. Returns 2 when none is known, 3 when
+# the package is optional (eza: the ll/la/lt aliases fall back to ls).
 install_apt_fallback() {
     case "$1" in
         starship) install_starship_fallback ;;
+        eza) return 3 ;;
         *) return 2 ;;
     esac
 }
@@ -1023,6 +1025,10 @@ install_with_apt() {
                 apt_alternative_hint "$pkg"
                 failed+=("$pkg")
                 ;;
+            3)
+                log_warning "apt cannot provide optional package $pkg; skipping it."
+                apt_alternative_hint "$pkg"
+                ;;
             *) failed+=("$pkg") ;;
         esac
     done
@@ -1045,7 +1051,7 @@ package_command() {
     esac
 }
 
-# minimal: zsh, git, starship, fzf, zoxide. ai: jq. full also: neovim, tmux.
+# minimal: zsh, git, starship, fzf, zoxide, eza. ai: jq. full also: neovim, tmux.
 # Packages whose command is already on PATH are skipped, so a re-run does not
 # touch apt (or brew-install a second zsh and git on macOS).
 # Font for full is install_font, not a package-manager formula.
@@ -1058,7 +1064,7 @@ install_profile_packages() {
     local os
 
     if profile_active "minimal"; then
-        wanted+=(zsh git starship fzf zoxide)
+        wanted+=(zsh git starship fzf zoxide eza)
     fi
     if profile_active "ai"; then
         wanted+=(jq)
