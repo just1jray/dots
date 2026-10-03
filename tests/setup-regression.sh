@@ -215,7 +215,7 @@ test_missing_apt_eza_is_only_a_warning() {
     run_setup --profile minimal --skip-plugins
 
     assert_eq "0" "$SETUP_STATUS" "eza is optional; apt lacking it must not fail setup"
-    assert_contains "apt cannot provide optional package eza; skipping it." "$OUTPUT" \
+    assert_contains "eza is optional; skipping it." "$OUTPUT" \
         "the skipped package should be reported"
     assert_not_contains "apt-get install -y eza" "$TOOL_LOG" "an unavailable package is not installed"
     assert_contains "Setup completed successfully!" "$OUTPUT" "setup should end in success"

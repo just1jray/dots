@@ -913,6 +913,7 @@ install_starship_fallback() {
     local bin_dir="$HOME/.local/bin"
     local installer
 
+    log_info "Trying the official starship installer."
     if [ "$DRY_RUN" = true ]; then
         log_info "Would install starship with the official installer into $bin_dir"
         return 0
@@ -1015,18 +1016,18 @@ install_with_apt() {
     done
 
     for pkg in ${unavailable[@]+"${unavailable[@]}"}; do
-        log_warning "apt cannot provide $pkg; trying its official installer."
+        log_warning "apt cannot provide $pkg."
         status=0
         install_apt_fallback "$pkg" || status=$?
         case "$status" in
             0) installed+=("$pkg") ;;
             2)
-                log_error "apt cannot provide required package: $pkg"
+                log_error "$pkg is required and has no other known installer."
                 apt_alternative_hint "$pkg"
                 failed+=("$pkg")
                 ;;
             3)
-                log_warning "apt cannot provide optional package $pkg; skipping it."
+                log_warning "$pkg is optional; skipping it."
                 apt_alternative_hint "$pkg"
                 ;;
             *) failed+=("$pkg") ;;
