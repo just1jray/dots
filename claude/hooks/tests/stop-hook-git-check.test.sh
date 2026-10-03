@@ -91,6 +91,16 @@ printf 'b\n' >>"$r/ghostty/config"
 printf 'new\n' >"$r/ghostty/untracked"
 check allow 'glob pattern covers tracked and untracked files' "$(verdict "$r")"
 
+# Lines git rejects as pathspecs must not hide real changes (fail closed).
+r=$(new_repo)
+shared_ignore "$r" 'ghostty/config' '../outside'
+printf 'b\n' >>"$r/zsh/zshrc"
+check block 'invalid ../ line does not hide a real change' "$(verdict "$r")"
+r=$(new_repo)
+printf '/etc/passwd\n' >"$r/.git/info/stop-hook-ignore"
+printf 'b\n' >>"$r/zsh/zshrc"
+check block 'absolute-path line does not hide a real change' "$(verdict "$r")"
+
 r=$(new_repo)
 printf 'ghostty/config\n' >"$r/.claude-stop-hook-ignore"
 printf 'b\n' >>"$r/ghostty/config"

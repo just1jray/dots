@@ -52,7 +52,11 @@ for ignore_file in "$top/.claude-stop-hook-ignore" "$local_ignore"; do
     done <"$ignore_file"
 done
 
-dirty=$(git -C "$dir" status --porcelain -- "${pathspec[@]}" 2>/dev/null | head -n 1 || true)
+# If git rejects an ignore line, fail closed: check the full status instead.
+if ! status=$(git -C "$dir" status --porcelain -- "${pathspec[@]}" 2>/dev/null); then
+    status=$(git -C "$dir" status --porcelain 2>/dev/null || true)
+fi
+dirty=${status%%$'\n'*}
 
 # shellcheck disable=SC1083  # @{upstream} is valid git syntax
 upstream=$(git -C "$dir" rev-parse --abbrev-ref @{upstream} 2>/dev/null || true)
