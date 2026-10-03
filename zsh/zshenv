@@ -117,6 +117,9 @@ dots_init_path() {
         export BUN_INSTALL="$HOME/.bun"
         add_to_path "$BUN_INSTALL/bin"
     fi
+
+    # Grok CLI
+    add_to_path "$HOME/.grok/bin"
 }
 dots_init_path
 

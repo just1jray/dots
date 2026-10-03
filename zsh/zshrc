@@ -89,14 +89,11 @@ fi
 # shellcheck disable=SC2206  # zsh array assignment syntax
 [[ -d "$HOME/.docker/completions" ]] && fpath=("$HOME/.docker/completions" $fpath)
 
-# Grok CLI, only where it is installed. Kept before zicompinit instead of the
-# installer's own compinit line; markers stop the installer re-appending it.
+# Grok CLI completions; its PATH entry is in zshenv. Markers stop the
+# installer re-appending its own block (and a second compinit) at the end.
 # >>> grok installer >>>
-if [[ -d "$HOME/.grok/bin" ]]; then
-    export PATH="$HOME/.grok/bin:$PATH"
-    # shellcheck disable=SC2206  # zsh array assignment syntax
-    fpath=("$HOME/.grok/completions/zsh" $fpath)
-fi
+# shellcheck disable=SC2206,SC2128  # zsh array syntax; $fpath expands every element
+[[ -d "$HOME/.grok/completions/zsh" ]] && fpath=("$HOME/.grok/completions/zsh" $fpath)
 # <<< grok installer <<<
 
 # Completion system. fzf-tab needs compinit first and must load before
