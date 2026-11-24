@@ -371,6 +371,7 @@ Use as `git <alias>`.
 | Install font | `./setup.sh --install-font` (also automatic for `full`) |
 | Check NVChad | `./setup.sh --check-nvchad` |
 | Work tools | `export DOTS_LOAD_WORK=1` in `~/.config/zsh/hosts` |
+| Machine-local zsh / git settings | `~/.config/zsh/local.zsh`, `~/.gitconfig.local` |
 | Update (pull, relink, plugins) | `./update.sh` |
 | Update dry run | `./update.sh --dry-run` |
 | Update AI tools | `./update.sh --profile ai` |
