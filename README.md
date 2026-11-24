@@ -188,6 +188,8 @@ Work tools in `zsh/profile-work` (GAM, Tailscale Jamf) are not sourced on every 
 export DOTS_LOAD_WORK=1
 ```
 
+Anything else that is specific to one machine (company setup scripts, gcloud, extra PATH entries) goes in `~/.config/zsh/local.zsh`, which the zshrc sources last. The file is untracked, so installers that append to `~/.zshrc` should be redirected there. Git-specific overrides (identity, credential helpers, `maintenance.repo`) go in `~/.gitconfig.local`.
+
 ### 🌟 Starship Prompt
 
 Edit `starship/starship.toml` to customize your prompt. The palette is Catppuccin Mocha on macOS and Linux. `STARSHIP_CONFIG` points at `~/.config/starship.toml` and is not unset on Linux.

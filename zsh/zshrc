@@ -242,3 +242,8 @@ fi
 
 # 1Password CLI shell plugins
 [[ -f "$HOME/.config/op/plugins.sh" ]] && source "$HOME/.config/op/plugins.sh"
+
+# Machine-local additions (untracked). Put installer-added lines here, such as
+# gcloud or company setup, instead of letting them append to this file.
+# shellcheck source=/dev/null
+[[ -f "$HOME/.config/zsh/local.zsh" ]] && source "$HOME/.config/zsh/local.zsh"
