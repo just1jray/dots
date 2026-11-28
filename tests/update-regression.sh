@@ -50,6 +50,8 @@ new_case() {
     # The suite must never reach the real plugin managers, package managers,
     # or the network. setup.sh installs profile packages, so stub those too.
     unset ZINIT_HOME AGENT_SKILLS_DIR AGENT_SKILLS_REPO
+    DOTS_SKIP_REX=1
+    export DOTS_SKIP_REX
     for tool in git nvim tmux zsh sudo apt-get apt-cache brew; do
         printf '#!/bin/bash\nexit 0\n' >"$FAKE_BIN/$tool"
         chmod +x "$FAKE_BIN/$tool"

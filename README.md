@@ -18,6 +18,7 @@ Used across various platforms for various things.
 - 🚀 **Modern tooling** with Starship prompt, Zinit plugin manager, and NVChad
 - ⌨️ **Vi mode** keybindings in zsh for modal editing
 - 🐂 **[herdr](https://herdr.dev)** as the daily agent/terminal workspace (Brewfile); tmux config remains for `full` when you still want it
+- 🦖 **[Rex](https://www.superlogical.com/rex/docs/installation)** terminal multiplexer (closed beta) on every machine: the server from Superlogical's apt repo on Linux, Rex for Mac by hand on macOS
 - 📋 **[eza](https://github.com/eza-community/eza)**-backed `ll` / `la` / jump+list aliases (`dev`, `src`, `dots`) with icons when installed
 - 🤖 **Claude Code configuration** with custom skills and git safety hooks
 
@@ -37,6 +38,7 @@ Used across various platforms for various things.
 - 🌟 **[Starship](https://starship.rs/)** - Fast, customizable cross-shell prompt
 - 📝 **[Neovim](https://neovim.io/)** - Modern vim with [NVChad](https://nvchad.com/) configuration
 - 🐂 **[herdr](https://herdr.dev)** - Terminal workspace manager for AI coding agents (preferred over tmux day-to-day)
+- 🦖 **[Rex](https://www.superlogical.com/rex/docs/installation)** - Superlogical's terminal multiplexer. Installed by the `minimal` profile on Linux; see [Rex](#-rex)
 - 📋 **[eza](https://github.com/eza-community/eza)** - Modern `ls` with colors, icons, and git status (`ll` / `la` / `lt`)
 - 🔍 **[fzf](https://github.com/junegunn/fzf)** - Fuzzy finder for command history and file search
 - 📂 **[zoxide](https://github.com/ajeetdsouza/zoxide)** - Smarter cd command
@@ -69,7 +71,7 @@ Used across various platforms for various things.
 Run this command to check which tools are installed:
 
 ```bash
-for cmd in git zsh curl wget starship nvim herdr eza fzf zoxide; do command -v $cmd >/dev/null && echo "✓ $cmd" || echo "✗ $cmd"; done
+for cmd in git zsh curl wget starship nvim herdr rex eza fzf zoxide; do command -v $cmd >/dev/null && echo "✓ $cmd" || echo "✗ $cmd"; done
 ```
 
 ### 🚀 Quick Start
@@ -99,7 +101,7 @@ Options:
   -p, --profile <name>    Install a specific profile (repeatable, stackable)
 
 Profiles:
-  minimal   Shell essentials: zsh, starship, git, ghostty (default)
+  minimal   Shell essentials: zsh, starship, git, ghostty, rex (default)
   ai        AI tools: Claude Code config, agent skills, Cursor CLI
   full      Everything: minimal plus vim, tmux, Neovim, opencode, and a Nerd Font
 
@@ -156,9 +158,10 @@ The `dots` shortcut jumps to the linked clone. It uses `~/Developer/src/dots` on
 
 0. 📦 **Installs profile packages**. `minimal`: zsh, git, Starship. `full`: also Neovim, tmux, and a Nerd Font. macOS uses Homebrew. Linux uses apt, or Linuxbrew only with `--brew`.
 1. 🍺 **Installs Homebrew packages** from `Brewfile` (only with `--brew`)
-2. 📁 **Creates necessary directories** for configs and plugins
-3. 💾 **Backs up existing configs** (unless `--force` is used)
-4. 🔗 **Symlinks config files** to proper locations:
+2. 🦖 **Installs Rex** for `minimal` and `full`. See [Rex](#-rex)
+3. 📁 **Creates necessary directories** for configs and plugins
+4. 💾 **Backs up existing configs** (unless `--force` is used)
+5. 🔗 **Symlinks config files** to proper locations:
    - `~/.zshrc` → `zsh/zshrc`
    - `~/.config/starship.toml` → `starship/starship.toml`
    - `~/.config/nvim/` → `nvim/`
@@ -168,11 +171,11 @@ The `dots` shortcut jumps to the linked clone. It uses `~/Developer/src/dots` on
    - `~/.claude/scripts` → `claude/scripts`
    - `~/.claude/CLAUDE.md` → `claude/CLAUDE.md`
    - Skills: clones the private [agent-skills](https://github.com/just1jray/agent-skills) repo to `~/Developer/src/agent-skills` and runs its `scripts/install.sh`, which symlinks each skill into every installed agent (Claude Code, Codex, Gemini, Cursor, Copilot, OpenCode). `update.sh` fast-forwards that clone. Override with `AGENT_SKILLS_REPO` / `AGENT_SKILLS_DIR`.
-5. 🔀 **Merges Cursor CLI preferences** from `cursor/cli-config.json` into `~/.cursor/cli-config.json` for `ai` and `full`. Tracked preferences win; live authentication, caches, permissions, and other machine state are preserved.
-6. 🔌 **Installs Zinit** plugin manager for zsh (shallow clone, on first shell launch)
-7. 📝 **Installs NVChad** for Neovim only when the `full` profile is active
-8. 🪟 **Installs Tmux Plugin Manager** (TPM) and plugins only for `full` (not the unused tmux-battery clone)
-9. 💻 **Loads platform-specific profiles** based on OS
+6. 🔀 **Merges Cursor CLI preferences** from `cursor/cli-config.json` into `~/.cursor/cli-config.json` for `ai` and `full`. Tracked preferences win; live authentication, caches, permissions, and other machine state are preserved.
+7. 🔌 **Installs Zinit** plugin manager for zsh (shallow clone, on first shell launch)
+8. 📝 **Installs NVChad** for Neovim only when the `full` profile is active
+9. 🪟 **Installs Tmux Plugin Manager** (TPM) and plugins only for `full` (not the unused tmux-battery clone)
+10. 💻 **Loads platform-specific profiles** based on OS
 
 ## 🛠️ Customization
 
@@ -215,6 +218,27 @@ Customize Neovim by editing files in `nvim/lua/`. Plugin versions are per machin
 - `options.lua` - Vim options
 - `mappings.lua` - Custom keybindings
 - `plugins/` - Plugin configurations
+
+### 🦖 Rex
+
+[Rex](https://www.superlogical.com/rex/docs/installation) is in closed beta. `./setup.sh` installs it with the `minimal` profile (and so `full`). Re-running setup is safe. Set `DOTS_SKIP_REX=1` to skip it on a machine.
+
+**🐧 Linux (Debian, Ubuntu, Raspberry Pi OS; amd64 and arm64).** Setup does what the official `install.sh` does for apt, as separate steps you can read in `lib/rex.sh`:
+
+1. Downloads `https://pkgs.superlogical.com/rex/keys/rex-archive-keyring.gpg`, checks its fingerprint is `E28636AC71905C6DDE40C1EDFAA6B80F641307A7`, and saves it to `/etc/apt/keyrings/rex-archive-keyring.gpg`. Installs `gnupg` first if `gpg` is missing.
+2. Writes `/etc/apt/sources.list.d/rex.sources` for the `stable` channel. Rex has no stable release yet, so until it does setup uses `preview` and says so. Once stable ships, the next setup run switches to it, and a machine on stable never goes back to preview.
+3. Writes `/etc/apt/preferences.d/rex`. Debian and Ubuntu ship an unrelated Perl tool also called `rex`, (R)?ex; the pin makes apt take Rex from Superlogical and never install the other one.
+4. Runs `apt-get update` and `apt-get install rex`, after checking apt's candidate comes from Superlogical's repo. Later upgrades come with normal `apt upgrade`.
+5. Enables the personal server for your user: `systemctl --user enable --now rex.socket`, which starts the user `rex.service` on first connect, and `loginctl enable-linger $USER` so it keeps running after you log out. The server listens only on its local unix socket (`/run/user/<uid>/rex`). No network listeners, no Tailscale.
+
+Other architectures (such as 32-bit `armhf`) and non-apt systems are skipped with a message. Step 5 needs a systemd user manager and is skipped when setup runs as root; run setup as your own user. Root and sudo are needed for steps 1 to 4; without a terminal, sudo must not ask for a password.
+
+**🍎 macOS: manual step.** Install Rex for Mac yourself. It runs its own server, so there is nothing else to set up. It has no Homebrew cask and no scripted installer, so setup only checks for `Rex.app` and prints a reminder when it's missing:
+
+1. Sign in to the [Rex docs](https://www.superlogical.com/rex/docs/installation) with Discord (beta testers) and download Rex for Mac.
+2. Move `Rex.app` to `/Applications` and open it.
+
+**🐚 Shell.** Rex puts its own `rex` first in `PATH` and sets `REX_BIN_DIR` in its terminals. The end of `zsh/zshrc` puts `REX_BIN_DIR` back at the front, so `rex` always matches the server.
 
 ### 🤖 Claude Code
 

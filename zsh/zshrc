@@ -242,3 +242,9 @@ fi
 
 # 1Password CLI shell plugins
 [[ -f "$HOME/.config/op/plugins.sh" ]] && source "$HOME/.config/op/plugins.sh"
+
+# Rex sets REX_BIN_DIR in its terminals. Keep it first in PATH so `rex`
+# matches the server. Must stay at the end, after every other PATH change.
+if [ -n "${REX_BIN_DIR:-}" ]; then
+    export PATH="$REX_BIN_DIR:$PATH"
+fi

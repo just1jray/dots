@@ -31,6 +31,8 @@ source "$REPO_DIR/lib/links.sh"
 source "$REPO_DIR/lib/claude-hooks.sh"
 # shellcheck source=lib/agent-skills.sh
 source "$REPO_DIR/lib/agent-skills.sh"
+# shellcheck source=lib/rex.sh
+source "$REPO_DIR/lib/rex.sh"
 
 # Print usage information
 print_usage() {
@@ -48,7 +50,7 @@ print_usage() {
     echo "  -p, --profile <name>    Install a specific profile (repeatable, stackable)"
     echo
     echo "Profiles:"
-    echo "  minimal   Shell essentials: zsh, starship, git, ghostty (default)"
+    echo "  minimal   Shell essentials: zsh, starship, git, ghostty, rex (default)"
     echo "  ai        AI tools: Claude Code config, agent skills, Cursor CLI"
     echo "  full      Everything: minimal and ai, plus vim, tmux, Neovim, opencode,"
     echo "            btop, and a Nerd Font"
@@ -65,6 +67,11 @@ print_usage() {
     echo "            starship comes from its official installer into ~/.local/bin."
     echo "  --brew    On Linux, install those packages with Linuxbrew instead of apt"
     echo "pyenv, nvm, Bun, Claude, and Ghostty are never installed as requirements."
+    echo
+    echo "Rex (minimal profile):"
+    echo "  Linux     rex from Superlogical's signed apt repo (stable, else preview),"
+    echo "            then the user rex.socket and loginctl linger. amd64/arm64 only."
+    echo "  macOS     Rex for Mac has no cask; setup says how to install it by hand."
     echo
     echo "Update an existing install with ./update.sh (same directory as this script):"
     echo "  ./update.sh --help"
@@ -1201,6 +1208,9 @@ main() {
     install_brew_packages
     if ! install_profile_packages; then
         PACKAGE_INSTALL_FAILED=true
+    fi
+    if profile_active "minimal"; then
+        install_rex
     fi
     if profile_active "full"; then
         INSTALL_FONT=true

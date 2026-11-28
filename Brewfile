@@ -2,6 +2,8 @@
 # Curated: must-haves and daily drivers only, not one-off installs.
 # Claude Code is not listed: it uses Anthropic's self-updating native installer.
 # Casks are macOS-only, so they sit behind `if OS.mac?` for Linuxbrew.
+# Rex for Mac is not listed: it is a closed-beta download with no cask.
+# setup.sh checks for Rex.app and prints the manual step.
 
 # Core
 brew "neovim"
