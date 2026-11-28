@@ -15,7 +15,7 @@ trap 'rm -rf "$TEST_ROOT"' EXIT
 TOOLS_BIN="$TEST_ROOT/tools"
 mkdir -p "$TOOLS_BIN"
 for tool in bash sh env cat cp mv rm ln mkdir chmod touch date readlink dirname \
-    basename mktemp cmp head tail grep sed tr sort wc ls jq; do
+    basename mktemp cmp head tail grep sed tr sort wc ls jq install; do
     tool_path=$(command -v "$tool") || { printf 'missing test tool: %s\n' "$tool" >&2; exit 1; }
     ln -s "$tool_path" "$TOOLS_BIN/$tool"
 done
@@ -115,6 +115,42 @@ fake_agent_skills() {
     printf '%s\n' '#!/usr/bin/env bash' \
         'printf "agent-skills install %s\n" "$*" >>"$TOOL_LOG"' \
         >"$AGENT_SKILLS_DIR/scripts/install.sh"
+}
+
+# A Debian host for the Rex step: arm64, sudo that works, apt that installs
+# rex from Rex's repository, and a systemd user manager. $1 is the stable
+# suite's state: "missing" (404, as today) or "present".
+fake_rex_linux() {
+    local stable=${1:-missing}
+    REX_APT_ETC="$CASE_ROOT/etc/apt"
+    export REX_APT_ETC
+    write_fake id \
+        'case "${1:-}" in -u) echo 1000 ;; -un) echo jray ;; *) echo 1000 ;; esac'
+    write_fake sudo 'printf "sudo %s\n" "$*" >>"$TOOL_LOG"' '[ "$1" = -n ] && shift' '"$@"'
+    write_fake dpkg 'printf "%s\n" arm64'
+    write_fake dpkg-query 'exit 1'
+    write_fake curl \
+        'printf "curl %s\n" "$*" >>"$TOOL_LOG"' \
+        'case "$*" in' \
+        "  *dists/stable/InRelease*) [ $stable = present ] || exit 22; echo '-----BEGIN PGP SIGNED MESSAGE-----' ;;" \
+        "  *dists/preview/InRelease*) echo '-----BEGIN PGP SIGNED MESSAGE-----' ;;" \
+        '  *rex-archive-keyring.gpg*) printf "key\n" >"$2" ;;' \
+        '  *) exit 22 ;;' \
+        'esac'
+    write_fake gpg 'echo "fpr:::::::::E28636AC71905C6DDE40C1EDFAA6B80F641307A7:"'
+    write_fake apt-cache \
+        'case "$1" in' \
+        '  policy) echo "  Candidate: 0.1.0~preview.25" ;;' \
+        '  madison) echo " rex | 0.1.0~preview.25 | https://pkgs.superlogical.com/rex/apt preview/main arm64 Packages" ;;' \
+        'esac'
+    write_fake systemctl \
+        'printf "systemctl %s\n" "$*" >>"$TOOL_LOG"' \
+        'case "$*" in *is-enabled*) exit 1 ;; esac' \
+        'exit 0'
+    write_fake loginctl \
+        'printf "loginctl %s\n" "$*" >>"$TOOL_LOG"' \
+        'case "$1" in show-user) echo no ;; esac' \
+        'exit 0'
 }
 
 run_setup() {
@@ -691,7 +727,121 @@ test_vim_catppuccin_is_cloned_once() {
         "the Catppuccin vim theme should be cloned shallowly, once"
 }
 
+test_rex_linux_falls_back_to_preview_and_persists() {
+    new_case rex-linux
+    fake_minimal_commands
+    fake_rex_linux missing
+
+    run_setup --profile minimal --skip-plugins
+
+    assert_eq "0" "$SETUP_STATUS" "Rex should install on arm64 Debian"
+    local sources="$REX_APT_ETC/sources.list.d/rex.sources"
+    assert_contains "Suites: preview" "$sources" "no stable release means the preview channel"
+    assert_contains "Architectures: arm64" "$sources" "the source should name dpkg's architecture"
+    assert_contains "Signed-By: $REX_APT_ETC/keyrings/rex-archive-keyring.gpg" "$sources" \
+        "the source should trust only the Rex keyring"
+    [ -f "$REX_APT_ETC/keyrings/rex-archive-keyring.gpg" ] || fail "the keyring should be saved"
+    assert_contains "Pin-Priority: -1" "$REX_APT_ETC/preferences.d/rex" \
+        "the pin should block the unrelated Perl rex"
+    assert_contains "apt-get install -y --allow-downgrades" "$TOOL_LOG" "rex should be installed"
+    assert_contains "systemctl --user enable --now rex.socket" "$TOOL_LOG" \
+        "the user socket should be enabled"
+    assert_contains "loginctl enable-linger jray" "$TOOL_LOG" "linger should be turned on"
+    assert_not_contains "rex server" "$TOOL_LOG" "no server flags or listeners are configured"
+}
+
+test_rex_rerun_changes_nothing() {
+    new_case rex-rerun
+    fake_minimal_commands
+    fake_rex_linux missing
+    run_setup --profile minimal --skip-plugins
+    assert_eq "0" "$SETUP_STATUS" "first Rex run should succeed"
+
+    write_fake dpkg-query 'printf "%s" "Superlogical <hello@superlogical.com>"'
+    write_fake systemctl 'printf "systemctl %s\n" "$*" >>"$TOOL_LOG"' 'exit 0'
+    write_fake loginctl 'printf "loginctl %s\n" "$*" >>"$TOOL_LOG"' \
+        'case "$1" in show-user) echo yes ;; esac'
+    : >"$TOOL_LOG"
+    run_setup --profile minimal --skip-plugins
+
+    assert_eq "0" "$SETUP_STATUS" "second Rex run should succeed"
+    assert_not_contains "apt-get" "$TOOL_LOG" "an installed Rex with unchanged repo files needs no apt"
+    assert_not_contains "enable --now" "$TOOL_LOG" "an enabled socket is left alone"
+    assert_not_contains "enable-linger" "$TOOL_LOG" "linger already on is left alone"
+    assert_not_contains "Wrote " "$OUTPUT" "unchanged repo files are not rewritten"
+}
+
+test_rex_prefers_stable_once_it_exists() {
+    new_case rex-stable
+    fake_minimal_commands
+    fake_rex_linux present
+
+    run_setup --profile minimal --skip-plugins
+
+    assert_eq "0" "$SETUP_STATUS" "Rex should install from stable"
+    assert_contains "Suites: stable" "$REX_APT_ETC/sources.list.d/rex.sources" \
+        "stable should win when it exists"
+}
+
+test_rex_skips_unsupported_arch() {
+    new_case rex-armhf
+    fake_minimal_commands
+    fake_rex_linux missing
+    write_fake dpkg 'printf "%s\n" armhf'
+
+    run_setup --profile minimal --skip-plugins
+
+    assert_eq "0" "$SETUP_STATUS" "an unsupported architecture is a clean skip"
+    assert_contains "no package for architecture 'armhf'" "$OUTPUT" "the skip should be reported"
+    assert_not_contains "curl" "$TOOL_LOG" "nothing should be downloaded"
+}
+
+test_rex_rejects_wrong_signing_key() {
+    new_case rex-bad-key
+    fake_minimal_commands
+    fake_rex_linux missing
+    write_fake gpg 'echo "fpr:::::::::0000000000000000000000000000000000000000:"'
+
+    run_setup --profile minimal --skip-plugins
+
+    assert_eq "1" "$SETUP_STATUS" "a wrong key is a reported failure"
+    assert_contains "Setup finished with failures: Rex install" "$OUTPUT" "the summary should name Rex"
+    [ ! -e "$REX_APT_ETC/keyrings/rex-archive-keyring.gpg" ] || fail "an untrusted key must not be saved"
+    assert_not_contains "apt-get" "$TOOL_LOG" "apt must not run with an untrusted key"
+}
+
+test_rex_mac_without_app_is_a_manual_step() {
+    new_case rex-mac
+    fake_minimal_commands
+    write_fake uname 'printf "%s\n" Darwin'
+
+    run_setup --profile minimal --skip-plugins
+
+    assert_eq "0" "$SETUP_STATUS" "a missing Rex.app must not fail setup"
+    if [ ! -d /Applications/Rex.app ]; then
+        assert_contains "Rex for Mac is not installed" "$OUTPUT" "the manual step should be printed"
+    fi
+}
+
+test_rex_opt_out() {
+    new_case rex-opt-out
+    fake_minimal_commands
+    fake_rex_linux missing
+
+    DOTS_SKIP_REX=1 run_setup --profile minimal --skip-plugins
+
+    assert_eq "0" "$SETUP_STATUS" "opting out should succeed"
+    assert_not_contains "curl" "$TOOL_LOG" "opting out should skip Rex entirely"
+}
+
 tests=(
+    test_rex_linux_falls_back_to_preview_and_persists
+    test_rex_rerun_changes_nothing
+    test_rex_prefers_stable_once_it_exists
+    test_rex_skips_unsupported_arch
+    test_rex_rejects_wrong_signing_key
+    test_rex_mac_without_app_is_a_manual_step
+    test_rex_opt_out
     test_font_counter_survives_set_e
     test_root_apt_does_not_use_sudo
     test_partial_apt_failure_returns_nonzero
